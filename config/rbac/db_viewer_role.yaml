@@ -1,0 +1,20 @@
+# permissions for end users to view dbs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: db-viewer-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs/status
+  verbs:
+  - get

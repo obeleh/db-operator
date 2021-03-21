@@ -1,0 +1,7 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: dbserver-sample
+spec:
+  # Add fields here
+  foo: bar
