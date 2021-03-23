@@ -2,4 +2,5 @@
 resources:
 - db-operator_v1alpha1_dbserver.yaml
 - db-operator_v1alpha1_db.yaml
+- db-operator_v1alpha1_user.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

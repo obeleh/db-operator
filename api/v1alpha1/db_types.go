@@ -24,6 +24,7 @@ import (
 type DbSpec struct {
 	Server         string `json:"server"`
 	DbName         string `json:"db_name"`
+	Owner          string `json:"owner"`
 	DropOnDeletion bool   `json:"drop_on_deletion"`
 }
 

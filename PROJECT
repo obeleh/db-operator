@@ -24,4 +24,13 @@ resources:
   kind: Db
   path: github.com/kabisa/db-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: User
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
