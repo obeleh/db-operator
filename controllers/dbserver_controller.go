@@ -18,14 +18,11 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	_ "github.com/lib/pq"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -63,39 +60,18 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	secretName := types.NamespacedName{
-		Name:      dbServer.Spec.SecretName,
-		Namespace: req.Namespace,
-	}
-	secret := &v1.Secret{}
-
-	err = r.Get(ctx, secretName, secret)
+	pgDbServer, err := GetDbConnection(r.Log, r.Client, ctx, dbServer)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get secret: %s", dbServer.Spec.SecretName))
-		return ctrl.Result{}, err
-	}
-
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, secret.Data[dbServer.Spec.SecretKey], "postgres")
-	pgDbServer, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to open a DB connection: %s", psqlInfo))
+		return ctrl.Result{}, nil
 	}
 	defer pgDbServer.Close()
-
-	rows, rerr := pgDbServer.Query("SELECT datname FROM pg_database WHERE datistemplate = false;")
-	if rerr != nil {
-		r.Log.Error(rerr, fmt.Sprintf("Unable to read databases from server: %s", dbServer.Name))
+	databases, err := GetDbs(r.Log, pgDbServer)
+	if err != nil {
+		return ctrl.Result{}, nil
 	}
-	for rows.Next() {
-		var databaseName string
-		err = rows.Scan(&databaseName)
-		if err != nil {
-			break
-		}
-		r.Log.Info(fmt.Sprintf("Found datbase: %s", databaseName))
+	for _, dbName := range databases {
+		r.Log.Info(dbName)
 	}
-
 	r.Log.Info("Done")
 
 	return ctrl.Result{}, nil
