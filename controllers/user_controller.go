@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,7 +51,26 @@ type UserReconciler struct {
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("user", req.NamespacedName)
 
-	// your logic here
+	dbUser := &dboperatorv1alpha1.User{}
+	err := r.Get(ctx, req.NamespacedName, dbUser)
+	if err != nil {
+		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", req.Name))
+		return ctrl.Result{}, nil
+	}
+
+	pgDbServer, err := GetDbConnectionFromUser(r.Log, r.Client, ctx, dbUser)
+	if err != nil {
+		return ctrl.Result{}, nil
+	}
+	defer pgDbServer.Close()
+
+	users, err := GetUsers(r.Log, pgDbServer)
+	if err != nil {
+		return ctrl.Result{}, nil
+	}
+	for _, user := range users {
+		r.Log.Info(user.UserName)
+	}
 
 	return ctrl.Result{}, nil
 }

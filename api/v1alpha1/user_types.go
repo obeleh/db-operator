@@ -22,9 +22,10 @@ import (
 
 // UserSpec defines the desired state of User
 type UserSpec struct {
-	UserName   string `json:"user_name"`
-	SecretName string `json:"secret_name"`
-	SecretKey  string `json:"secret_key,omitempty"`
+	UserName     string `json:"user_name"`
+	SecretName   string `json:"secret_name"`
+	SecretKey    string `json:"secret_key,omitempty"`
+	DbServerName string `json:"db_server_name,omitempty"`
 }
 
 // UserStatus defines the observed state of User

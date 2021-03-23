@@ -37,6 +37,22 @@ func GetDbConnection(log logr.Logger, k8sClient client.Client, ctx context.Conte
 	return pgDbServer, nil
 }
 
+func GetDbConnectionFromUser(log logr.Logger, k8sClient client.Client, ctx context.Context, dbUser *dboperatorv1alpha1.User) (*sql.DB, error) {
+	serverName := types.NamespacedName{
+		Name:      dbUser.Spec.DbServerName,
+		Namespace: dbUser.Namespace,
+	}
+	dbServer := &dboperatorv1alpha1.DbServer{}
+
+	err := k8sClient.Get(ctx, serverName, dbServer)
+	if err != nil {
+		log.Error(err, fmt.Sprintf("Failed to get Server: %s", dbUser.Spec.DbServerName))
+		return nil, err
+	}
+
+	return GetDbConnection(log, k8sClient, ctx, dbServer)
+}
+
 func GetDbs(log logr.Logger, dbServerConn *sql.DB) ([]string, error) {
 	rows, err := dbServerConn.Query("SELECT datname FROM pg_database WHERE datistemplate = false;")
 	if err != nil {
