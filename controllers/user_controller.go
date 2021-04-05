@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
@@ -34,6 +35,8 @@ type UserReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
+
+const userFinalizer = "db-operator.kubemaster.com/finalizer"
 
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
@@ -54,9 +57,11 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	dbUser := &dboperatorv1alpha1.User{}
 	err := r.Get(ctx, req.NamespacedName, dbUser)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", req.Name))
+		r.Log.Info(fmt.Sprintf("User: %s does not exist", req.Name))
 		return ctrl.Result{}, nil
 	}
+
+	markedToBeDeleted := dbUser.GetDeletionTimestamp() != nil
 
 	pgDbServer, err := GetDbConnectionFromUser(r.Log, r.Client, ctx, dbUser)
 	if err != nil {
@@ -68,11 +73,67 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if err != nil {
 		return ctrl.Result{}, nil
 	}
-	for _, user := range users {
-		r.Log.Info(user.UserName)
+	_, exists := users[dbUser.Spec.UserName]
+
+	if !exists {
+		password, err := GetUserPassword(dbUser, r.Client, ctx)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprint(err))
+			return ctrl.Result{Requeue: true}, nil
+		}
+		err = CreatePgUser(dbUser.Spec.UserName, *password, pgDbServer)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to create user %s", dbUser.Spec.UserName))
+			return ctrl.Result{}, err
+		}
+
+		if !controllerutil.ContainsFinalizer(dbUser, userFinalizer) {
+			controllerutil.AddFinalizer(dbUser, userFinalizer)
+			err = r.Update(ctx, dbUser)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if markedToBeDeleted {
+			if controllerutil.ContainsFinalizer(dbUser, userFinalizer) {
+				// Run finalization logic for memcachedFinalizer. If the
+				// finalization logic fails, don't remove the finalizer so
+				// that we can retry during the next reconciliation.
+				if err := r.finalizeUser(r.Log, dbUser, ctx); err != nil {
+					return ctrl.Result{}, err
+				}
+
+				// Remove memcachedFinalizer. Once all finalizers have been
+				// removed, the object will be deleted.
+				controllerutil.RemoveFinalizer(dbUser, userFinalizer)
+				err := r.Update(ctx, dbUser)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+			return ctrl.Result{}, nil
+		}
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *UserReconciler) finalizeUser(log logr.Logger, dbUser *dboperatorv1alpha1.User, ctx context.Context) error {
+	log.Info(fmt.Sprintf("finalizing user %s", dbUser.Spec.UserName))
+	pgDbServer, err := GetDbConnectionFromUser(r.Log, r.Client, ctx, dbUser)
+	if err != nil {
+		return err
+	}
+	defer pgDbServer.Close()
+
+	err = DropPgUser(dbUser.Spec.UserName, pgDbServer)
+	if err != nil {
+		r.Log.Error(err, fmt.Sprintf("Failed to create user %s", dbUser.Spec.UserName))
+		return err
+	}
+	log.Info(fmt.Sprintf("finalized user %s", dbUser.Spec.UserName))
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -40,11 +40,14 @@ spec:
                 type: string
               drop_on_deletion:
                 type: boolean
+              owner:
+                type: string
               server:
                 type: string
             required:
             - db_name
             - drop_on_deletion
+            - owner
             - server
             type: object
           status:

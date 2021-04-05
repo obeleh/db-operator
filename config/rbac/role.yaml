@@ -64,3 +64,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users/status
+  verbs:
+  - get
+  - patch
+  - update

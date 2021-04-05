@@ -78,7 +78,8 @@ type PostgresUser struct {
 	Attributes string
 }
 
-func GetUsers(log logr.Logger, dbServerConn *sql.DB) ([]PostgresUser, error) {
+func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, error) {
+	log.Info("Getting users")
 	rows, err := dbServerConn.Query(
 		`SELECT usename AS role_name,
 			CASE 
@@ -99,15 +100,55 @@ func GetUsers(log logr.Logger, dbServerConn *sql.DB) ([]PostgresUser, error) {
 		return nil, err
 	}
 
-	postgresUsers := make([]PostgresUser, 0)
+	postgresUsers := make(map[string]PostgresUser)
 
 	for rows.Next() {
 		var postgresUser PostgresUser
-		err := rows.Scan(&postgresUser)
+		err := rows.Scan(&postgresUser.UserName, &postgresUser.Attributes)
 		if err != nil {
+			log.Error(err, "unable to load postgresUser")
 			break
 		}
-		postgresUsers = append(postgresUsers, postgresUser)
+		log.Info(fmt.Sprintf("Found user %s", postgresUser.UserName))
+		postgresUsers[postgresUser.UserName] = postgresUser
 	}
 	return postgresUsers, nil
+}
+
+func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*string, error) {
+	secretName := types.NamespacedName{
+		Name:      dbUser.Spec.SecretName,
+		Namespace: dbUser.Namespace,
+	}
+	secret := &v1.Secret{}
+	err := k8sClient.Get(ctx, secretName, secret)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get secret: %s", dbUser.Spec.SecretName)
+	}
+
+	var passwordKey string
+	if len(dbUser.Spec.SecretKey) == 0 {
+		passwordKey = "password"
+	} else {
+		passwordKey = dbUser.Spec.SecretKey
+	}
+
+	passBytes, ok := secret.Data[passwordKey]
+	if !ok {
+		return nil, fmt.Errorf("Password key (%s) not found in secret", passwordKey)
+	}
+
+	password := string(passBytes)
+
+	return &password, nil
+}
+
+func CreatePgUser(userName string, password string, dbServerConn *sql.DB) error {
+	_, err := dbServerConn.Exec(fmt.Sprintf(`CREATE ROLE %s LOGIN PASSWORD '%s';`, userName, password))
+	return err
+}
+
+func DropPgUser(userName string, dbServerConn *sql.DB) error {
+	_, err := dbServerConn.Exec(fmt.Sprintf(`DROP ROLE IF EXISTS %s;`, userName))
+	return err
 }
