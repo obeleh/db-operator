@@ -18,10 +18,12 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -36,81 +38,57 @@ type UserReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-const userFinalizer = "db-operator.kubemaster.com/finalizer"
+type Reconcilable interface {
+	CreateObj() (ctrl.Result, error)
+	RemoveObj() (ctrl.Result, error)
+	LoadCR() (ctrl.Result, error)
+	LoadObj() (bool, error)
+	GetCR() client.Object
+	MarkedToBeDeleted() bool
+}
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/finalizers,verbs=update
+type Reco struct {
+	client client.Client
+	ctx    context.Context
+	Log    logr.Logger
+	nsNm   types.NamespacedName
+}
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the User object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
-func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("user", req.NamespacedName)
-
-	dbUser := &dboperatorv1alpha1.User{}
-	err := r.Get(ctx, req.NamespacedName, dbUser)
+func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
+	res, err := rcl.LoadCR()
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("User: %s does not exist", req.Name))
-		return ctrl.Result{}, nil
+		// Not found
+		return res, nil
 	}
 
-	markedToBeDeleted := dbUser.GetDeletionTimestamp() != nil
+	cr := rcl.GetCR()
+	markedToBeDeleted := cr.GetDeletionTimestamp() != nil
 
-	pgDbServer, err := GetDbConnectionFromUser(r.Log, r.Client, ctx, dbUser)
-	if err != nil {
-		return ctrl.Result{}, nil
-	}
-	defer pgDbServer.Close()
-
-	users, err := GetUsers(r.Log, pgDbServer)
-	if err != nil {
-		return ctrl.Result{}, nil
-	}
-	_, exists := users[dbUser.Spec.UserName]
-
+	exists, err := rcl.LoadObj()
 	if !exists {
-		password, err := GetUserPassword(dbUser, r.Client, ctx)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprint(err))
-			return ctrl.Result{Requeue: true}, nil
-		}
-		err = CreatePgUser(dbUser.Spec.UserName, *password, pgDbServer)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to create user %s", dbUser.Spec.UserName))
-			return ctrl.Result{}, err
-		}
-
-		if !controllerutil.ContainsFinalizer(dbUser, userFinalizer) {
-			controllerutil.AddFinalizer(dbUser, userFinalizer)
-			err = r.Update(ctx, dbUser)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		if markedToBeDeleted {
-			if controllerutil.ContainsFinalizer(dbUser, userFinalizer) {
-				// Run finalization logic for memcachedFinalizer. If the
-				// finalization logic fails, don't remove the finalizer so
-				// that we can retry during the next reconciliation.
-				if err := r.finalizeUser(r.Log, dbUser, ctx); err != nil {
-					return ctrl.Result{}, err
-				}
-
-				// Remove memcachedFinalizer. Once all finalizers have been
-				// removed, the object will be deleted.
-				controllerutil.RemoveFinalizer(dbUser, userFinalizer)
-				err := r.Update(ctx, dbUser)
+		res, err := rcl.CreateObj()
+		if err == nil {
+			if !controllerutil.ContainsFinalizer(cr, userFinalizer) {
+				controllerutil.AddFinalizer(cr, userFinalizer)
+				err = rc.client.Update(rc.ctx, cr)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+			}
+		}
+		return res, err
+	} else {
+		if markedToBeDeleted {
+			if controllerutil.ContainsFinalizer(cr, userFinalizer) {
+				res, err := rcl.RemoveObj()
+				if err == nil {
+					controllerutil.RemoveFinalizer(cr, userFinalizer)
+					err = rc.client.Update(rc.ctx, cr)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+				}
+				return res, err
 			}
 			return ctrl.Result{}, nil
 		}
@@ -119,21 +97,80 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{}, nil
 }
 
-func (r *UserReconciler) finalizeUser(log logr.Logger, dbUser *dboperatorv1alpha1.User, ctx context.Context) error {
-	log.Info(fmt.Sprintf("finalizing user %s", dbUser.Spec.UserName))
-	pgDbServer, err := GetDbConnectionFromUser(r.Log, r.Client, ctx, dbUser)
-	if err != nil {
-		return err
-	}
-	defer pgDbServer.Close()
+type UserConn struct {
+	Reco
+	user  dboperatorv1alpha1.User
+	users map[string]PostgresUser
+	conn  *sql.DB
+}
 
-	err = DropPgUser(dbUser.Spec.UserName, pgDbServer)
+func (uc *UserConn) MarkedToBeDeleted() bool {
+	return uc.user.GetDeletionTimestamp() != nil
+}
+
+func (uc *UserConn) LoadObj() (bool, error) {
+	var err error
+	uc.conn, err = GetDbConnectionFromUser(uc.Log, uc.client, uc.ctx, &uc.user)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to create user %s", dbUser.Spec.UserName))
-		return err
+		return false, err
 	}
-	log.Info(fmt.Sprintf("finalized user %s", dbUser.Spec.UserName))
-	return nil
+
+	uc.users, err = GetUsers(uc.Log, uc.conn)
+	if err != nil {
+		return false, err
+	}
+	_, exists := uc.users[uc.user.Spec.UserName]
+	return exists, nil
+}
+
+func (uc *UserConn) CreateObj() (ctrl.Result, error) {
+	password, err := GetUserPassword(&uc.user, uc.client, uc.ctx)
+	if err != nil {
+		uc.Log.Error(err, fmt.Sprint(err))
+		return ctrl.Result{Requeue: true}, nil
+	}
+	err = CreatePgUser(uc.user.Spec.UserName, *password, uc.conn)
+	if err != nil {
+		uc.Log.Error(err, fmt.Sprintf("Failed to create user %s", uc.user.Spec.UserName))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (uc *UserConn) RemoveObj() (ctrl.Result, error) {
+	err := DropPgUser(uc.user.Spec.UserName, uc.conn)
+	if err != nil {
+		uc.Log.Error(err, fmt.Sprintf("Failed to drop user %s", uc.user.Spec.UserName))
+		return ctrl.Result{}, err
+	}
+	uc.Log.Info(fmt.Sprintf("finalized user %s", uc.user.Spec.UserName))
+	return ctrl.Result{}, nil
+}
+
+func (uc *UserConn) LoadCR() (ctrl.Result, error) {
+	err := uc.client.Get(uc.ctx, uc.nsNm, &uc.user)
+	if err != nil {
+		uc.Log.Info(fmt.Sprintf("%T: %s does not exist", uc.user, uc.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (uc *UserConn) GetCR() client.Object {
+	return &uc.user
+}
+
+const userFinalizer = "db-operator.kubemaster.com/finalizer"
+
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/finalizers,verbs=update
+
+func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	_ = r.Log.WithValues("user", req.NamespacedName)
+	uc := UserConn{}
+	uc.Reco = Reco{r.Client, ctx, r.Log, req.NamespacedName}
+	return uc.Reco.Reconcile(&uc)
 }
 
 // SetupWithManager sets up the controller with the Manager.

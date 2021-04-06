@@ -2,3 +2,4 @@ resources:
  - dbserver.yaml
  - postgres-secret.yaml
  - postgres-deployment.yaml
+ - user.yaml

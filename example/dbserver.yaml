@@ -3,7 +3,7 @@ kind: DbServer
 metadata:
   name: example-host
 spec:
-  address: postgres
+  address: localhost
   port: 5432
   user_name: postgres
   secret_name: postgres
