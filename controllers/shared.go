@@ -13,6 +13,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type PostgresUser struct {
+	UserName   string
+	Attributes string
+}
+
+type PostgresDb struct {
+	DatbaseName string
+	Owner       string
+}
+
 func GetDbConnection(log logr.Logger, k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer) (*sql.DB, error) {
 
 	secretName := types.NamespacedName{
@@ -53,29 +63,24 @@ func GetDbConnectionFromUser(log logr.Logger, k8sClient client.Client, ctx conte
 	return GetDbConnection(log, k8sClient, ctx, dbServer)
 }
 
-func GetDbs(log logr.Logger, dbServerConn *sql.DB) ([]string, error) {
-	rows, err := dbServerConn.Query("SELECT datname FROM pg_database WHERE datistemplate = false;")
+func GetDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
+
+	rows, err := dbServerConn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")
 	if err != nil {
-		log.Error(err, fmt.Sprintf("Unable to read databases from server"))
-		return nil, err
+		return nil, fmt.Errorf("Unable to read databases from server")
 	}
 
-	databases := make([]string, 0)
+	databases := make(map[string]PostgresDb)
 
 	for rows.Next() {
-		var databaseName string
-		err := rows.Scan(&databaseName)
+		var database PostgresDb
+		err := rows.Scan(&database.DatbaseName, &database.Owner)
 		if err != nil {
-			break
+			return nil, fmt.Errorf("unable to load PostgresDb")
 		}
-		databases = append(databases, databaseName)
+		databases[database.DatbaseName] = database
 	}
 	return databases, nil
-}
-
-type PostgresUser struct {
-	UserName   string
-	Attributes string
 }
 
 func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, error) {
@@ -106,7 +111,7 @@ func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, e
 		var postgresUser PostgresUser
 		err := rows.Scan(&postgresUser.UserName, &postgresUser.Attributes)
 		if err != nil {
-			log.Error(err, "unable to load postgresUser")
+			log.Error(err, "unable to load PostgresUser")
 			break
 		}
 		log.Info(fmt.Sprintf("Found user %s", postgresUser.UserName))

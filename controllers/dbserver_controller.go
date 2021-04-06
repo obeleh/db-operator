@@ -65,13 +65,15 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 	defer pgDbServer.Close()
-	databases, err := GetDbs(r.Log, pgDbServer)
+	databases, err := GetDbs(pgDbServer)
 	if err != nil {
+		r.Log.Error(err, "Failed reading databases")
 		return ctrl.Result{}, nil
 	}
-	for _, dbName := range databases {
-		r.Log.Info(dbName)
+	for name, db := range databases {
+		r.Log.Info(fmt.Sprintf("Found DB %s with Owner %s", name, db.Owner))
 	}
+
 	r.Log.Info("Done")
 
 	return ctrl.Result{}, nil
