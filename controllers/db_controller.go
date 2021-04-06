@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,19 +35,35 @@ type DbReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+type DbReco struct {
+	Reco
+	db   dboperatorv1alpha1.Db
+	dbs  map[string]PostgresDb
+	conn *sql.DB
+}
+
+func (dr *DbReco) MarkedToBeDeleted() bool {
+	return dr.db.GetDeletionTimestamp() != nil
+}
+
+func (dr *DbReco) LoadObj() (bool, error) {
+	var err error
+	dr.conn, err = GetDbConnectionFromDb(dr.client, dr.ctx, &dr.db)
+	if err != nil {
+		return false, err
+	}
+
+	dr.dbs, err = GetDbs(dr.conn)
+	if err != nil {
+		return false, err
+	}
+	_, exists := dr.dbs[dr.db.Spec.DbName]
+	return exists, nil
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Db object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("db", req.NamespacedName)
 

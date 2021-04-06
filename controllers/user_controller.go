@@ -23,10 +23,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
@@ -38,126 +36,67 @@ type UserReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-type Reconcilable interface {
-	CreateObj() (ctrl.Result, error)
-	RemoveObj() (ctrl.Result, error)
-	LoadCR() (ctrl.Result, error)
-	LoadObj() (bool, error)
-	GetCR() client.Object
-	MarkedToBeDeleted() bool
-}
-
-type Reco struct {
-	client client.Client
-	ctx    context.Context
-	Log    logr.Logger
-	nsNm   types.NamespacedName
-}
-
-func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
-	res, err := rcl.LoadCR()
-	if err != nil {
-		// Not found
-		return res, nil
-	}
-
-	cr := rcl.GetCR()
-	markedToBeDeleted := cr.GetDeletionTimestamp() != nil
-
-	exists, err := rcl.LoadObj()
-	if !exists {
-		res, err := rcl.CreateObj()
-		if err == nil {
-			if !controllerutil.ContainsFinalizer(cr, userFinalizer) {
-				controllerutil.AddFinalizer(cr, userFinalizer)
-				err = rc.client.Update(rc.ctx, cr)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-		}
-		return res, err
-	} else {
-		if markedToBeDeleted {
-			if controllerutil.ContainsFinalizer(cr, userFinalizer) {
-				res, err := rcl.RemoveObj()
-				if err == nil {
-					controllerutil.RemoveFinalizer(cr, userFinalizer)
-					err = rc.client.Update(rc.ctx, cr)
-					if err != nil {
-						return ctrl.Result{}, err
-					}
-				}
-				return res, err
-			}
-			return ctrl.Result{}, nil
-		}
-	}
-
-	return ctrl.Result{}, nil
-}
-
-type UserConn struct {
+type UserReco struct {
 	Reco
 	user  dboperatorv1alpha1.User
 	users map[string]PostgresUser
 	conn  *sql.DB
 }
 
-func (uc *UserConn) MarkedToBeDeleted() bool {
-	return uc.user.GetDeletionTimestamp() != nil
+func (ur *UserReco) MarkedToBeDeleted() bool {
+	return ur.user.GetDeletionTimestamp() != nil
 }
 
-func (uc *UserConn) LoadObj() (bool, error) {
+func (ur *UserReco) LoadObj() (bool, error) {
 	var err error
-	uc.conn, err = GetDbConnectionFromUser(uc.Log, uc.client, uc.ctx, &uc.user)
+	ur.conn, err = GetDbConnectionFromUser(ur.client, ur.ctx, &ur.user)
 	if err != nil {
 		return false, err
 	}
 
-	uc.users, err = GetUsers(uc.Log, uc.conn)
+	ur.users, err = GetUsers(ur.conn)
 	if err != nil {
 		return false, err
 	}
-	_, exists := uc.users[uc.user.Spec.UserName]
+	_, exists := ur.users[ur.user.Spec.UserName]
 	return exists, nil
 }
 
-func (uc *UserConn) CreateObj() (ctrl.Result, error) {
-	password, err := GetUserPassword(&uc.user, uc.client, uc.ctx)
+func (ur *UserReco) CreateObj() (ctrl.Result, error) {
+	password, err := GetUserPassword(&ur.user, ur.client, ur.ctx)
 	if err != nil {
-		uc.Log.Error(err, fmt.Sprint(err))
+		ur.Log.Error(err, fmt.Sprint(err))
 		return ctrl.Result{Requeue: true}, nil
 	}
-	err = CreatePgUser(uc.user.Spec.UserName, *password, uc.conn)
+	err = CreatePgUser(ur.user.Spec.UserName, *password, ur.conn)
 	if err != nil {
-		uc.Log.Error(err, fmt.Sprintf("Failed to create user %s", uc.user.Spec.UserName))
+		ur.Log.Error(err, fmt.Sprintf("Failed to create user %s", ur.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (uc *UserConn) RemoveObj() (ctrl.Result, error) {
-	err := DropPgUser(uc.user.Spec.UserName, uc.conn)
+func (ur *UserReco) RemoveObj() (ctrl.Result, error) {
+	err := DropPgUser(ur.user.Spec.UserName, ur.conn)
 	if err != nil {
-		uc.Log.Error(err, fmt.Sprintf("Failed to drop user %s", uc.user.Spec.UserName))
+		ur.Log.Error(err, fmt.Sprintf("Failed to drop user %s", ur.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
-	uc.Log.Info(fmt.Sprintf("finalized user %s", uc.user.Spec.UserName))
+	ur.Log.Info(fmt.Sprintf("finalized user %s", ur.user.Spec.UserName))
 	return ctrl.Result{}, nil
 }
 
-func (uc *UserConn) LoadCR() (ctrl.Result, error) {
-	err := uc.client.Get(uc.ctx, uc.nsNm, &uc.user)
+func (ur *UserReco) LoadCR() (ctrl.Result, error) {
+	err := ur.client.Get(ur.ctx, ur.nsNm, &ur.user)
 	if err != nil {
-		uc.Log.Info(fmt.Sprintf("%T: %s does not exist", uc.user, uc.nsNm.Name))
+		ur.Log.Info(fmt.Sprintf("%T: %s does not exist", ur.user, ur.nsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (uc *UserConn) GetCR() client.Object {
-	return &uc.user
+func (ur *UserReco) GetCR() client.Object {
+	return &ur.user
 }
 
 const userFinalizer = "db-operator.kubemaster.com/finalizer"
@@ -168,9 +107,9 @@ const userFinalizer = "db-operator.kubemaster.com/finalizer"
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("user", req.NamespacedName)
-	uc := UserConn{}
-	uc.Reco = Reco{r.Client, ctx, r.Log, req.NamespacedName}
-	return uc.Reco.Reconcile(&uc)
+	ur := UserReco{}
+	ur.Reco = Reco{r.Client, ctx, r.Log, req.NamespacedName}
+	return ur.Reco.Reconcile(&ur)
 }
 
 // SetupWithManager sets up the controller with the Manager.

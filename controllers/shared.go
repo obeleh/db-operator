@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
 	v1 "k8s.io/api/core/v1"
@@ -23,7 +22,7 @@ type PostgresDb struct {
 	Owner       string
 }
 
-func GetDbConnection(log logr.Logger, k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer) (*sql.DB, error) {
+func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer) (*sql.DB, error) {
 
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
@@ -33,34 +32,39 @@ func GetDbConnection(log logr.Logger, k8sClient client.Client, ctx context.Conte
 
 	err := k8sClient.Get(ctx, secretName, secret)
 	if err != nil {
-		log.Error(err, fmt.Sprintf("Failed to get secret: %s", dbServer.Spec.SecretName))
-		return nil, err
+		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
 	}
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, secret.Data[dbServer.Spec.SecretKey], "postgres")
 	pgDbServer, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		log.Error(err, fmt.Sprintf("Failed to open a DB connection: %s", psqlInfo))
-		return nil, err
+		return nil, fmt.Errorf("Failed to open a DB connection: %s", psqlInfo)
 	}
 	return pgDbServer, nil
 }
 
-func GetDbConnectionFromUser(log logr.Logger, k8sClient client.Client, ctx context.Context, dbUser *dboperatorv1alpha1.User) (*sql.DB, error) {
-	serverName := types.NamespacedName{
-		Name:      dbUser.Spec.DbServerName,
-		Namespace: dbUser.Namespace,
+func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string) (*sql.DB, error) {
+	serverNsName := types.NamespacedName{
+		Name:      serverName,
+		Namespace: namespace,
 	}
 	dbServer := &dboperatorv1alpha1.DbServer{}
 
-	err := k8sClient.Get(ctx, serverName, dbServer)
+	err := k8sClient.Get(ctx, serverNsName, dbServer)
 	if err != nil {
-		log.Error(err, fmt.Sprintf("Failed to get Server: %s", dbUser.Spec.DbServerName))
-		return nil, err
+		return nil, fmt.Errorf("Failed to get Server: %s", serverName)
 	}
 
-	return GetDbConnection(log, k8sClient, ctx, dbServer)
+	return GetDbConnection(k8sClient, ctx, dbServer)
+}
+
+func GetDbConnectionFromDb(k8sClient client.Client, ctx context.Context, db *dboperatorv1alpha1.Db) (*sql.DB, error) {
+	return GetDbConnectionFromServerName(k8sClient, ctx, db.Spec.Server, db.Namespace)
+}
+
+func GetDbConnectionFromUser(k8sClient client.Client, ctx context.Context, dbUser *dboperatorv1alpha1.User) (*sql.DB, error) {
+	return GetDbConnectionFromServerName(k8sClient, ctx, dbUser.Spec.DbServerName, dbUser.Namespace)
 }
 
 func GetDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
@@ -83,8 +87,7 @@ func GetDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
 	return databases, nil
 }
 
-func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, error) {
-	log.Info("Getting users")
+func GetUsers(dbServerConn *sql.DB) (map[string]PostgresUser, error) {
 	rows, err := dbServerConn.Query(
 		`SELECT usename AS role_name,
 			CASE 
@@ -101,8 +104,7 @@ func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, e
 		ORDER BY role_name desc;`,
 	)
 	if err != nil {
-		log.Error(err, fmt.Sprintf("Unable to read users from server"))
-		return nil, err
+		return nil, fmt.Errorf("Unable to read users from server")
 	}
 
 	postgresUsers := make(map[string]PostgresUser)
@@ -111,10 +113,8 @@ func GetUsers(log logr.Logger, dbServerConn *sql.DB) (map[string]PostgresUser, e
 		var postgresUser PostgresUser
 		err := rows.Scan(&postgresUser.UserName, &postgresUser.Attributes)
 		if err != nil {
-			log.Error(err, "unable to load PostgresUser")
-			break
+			return nil, fmt.Errorf("unable to load PostgresUser")
 		}
-		log.Info(fmt.Sprintf("Found user %s", postgresUser.UserName))
 		postgresUsers[postgresUser.UserName] = postgresUser
 	}
 	return postgresUsers, nil
