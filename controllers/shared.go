@@ -67,6 +67,16 @@ func GetDbConnectionFromUser(k8sClient client.Client, ctx context.Context, dbUse
 	return GetDbConnectionFromServerName(k8sClient, ctx, dbUser.Spec.DbServerName, dbUser.Namespace)
 }
 
+func CreateDb(dbName string, dbOwner string, dbServerConn *sql.DB) error {
+	_, err := dbServerConn.Exec(fmt.Sprintf("CREATE DATABASE %q WITH OWNER = '%s';", dbName, dbOwner))
+	return err
+}
+
+func DropPgDb(dbName string, dbServerConn *sql.DB) error {
+	_, err := dbServerConn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
+	return err
+}
+
 func GetDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
 
 	rows, err := dbServerConn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")

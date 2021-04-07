@@ -3,6 +3,7 @@ kind: Db
 metadata:
   name: example-database
 spec:
-  host: example-host
   db_name: example-database
-  drop_on_deletion: false
+  drop_on_deletion: true
+  owner: example-user
+  server: example-host
