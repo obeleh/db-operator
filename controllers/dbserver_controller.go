@@ -50,7 +50,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	pgDbServer, err := GetDbConnection(r.Client, ctx, dbServer)
+	pgDbServer, err := GetDbConnection(r.Client, ctx, dbServer, nil)
 	if err != nil {
 		return ctrl.Result{}, nil
 	}

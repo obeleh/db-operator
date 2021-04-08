@@ -22,7 +22,7 @@ type PostgresDb struct {
 	Owner       string
 }
 
-func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer) (*sql.DB, error) {
+func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer, dbName *string) (*sql.DB, error) {
 
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
@@ -35,8 +35,15 @@ func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dbo
 		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
 	}
 
+	var dbName2 string
+	if dbName == nil {
+		dbName2 = "postgres"
+	} else {
+		dbName2 = *dbName
+	}
+
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, secret.Data[dbServer.Spec.SecretKey], "postgres")
+		dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, secret.Data[dbServer.Spec.SecretKey], dbName2)
 	pgDbServer, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open a DB connection: %s", psqlInfo)
@@ -44,7 +51,7 @@ func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dbo
 	return pgDbServer, nil
 }
 
-func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string) (*sql.DB, error) {
+func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*sql.DB, error) {
 	serverNsName := types.NamespacedName{
 		Name:      serverName,
 		Namespace: namespace,
@@ -56,15 +63,15 @@ func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context,
 		return nil, fmt.Errorf("Failed to get Server: %s", serverName)
 	}
 
-	return GetDbConnection(k8sClient, ctx, dbServer)
+	return GetDbConnection(k8sClient, ctx, dbServer, dbName)
 }
 
 func GetDbConnectionFromDb(k8sClient client.Client, ctx context.Context, db *dboperatorv1alpha1.Db) (*sql.DB, error) {
-	return GetDbConnectionFromServerName(k8sClient, ctx, db.Spec.Server, db.Namespace)
+	return GetDbConnectionFromServerName(k8sClient, ctx, db.Spec.Server, db.Namespace, &db.Spec.DbName)
 }
 
 func GetDbConnectionFromUser(k8sClient client.Client, ctx context.Context, dbUser *dboperatorv1alpha1.User) (*sql.DB, error) {
-	return GetDbConnectionFromServerName(k8sClient, ctx, dbUser.Spec.DbServerName, dbUser.Namespace)
+	return GetDbConnectionFromServerName(k8sClient, ctx, dbUser.Spec.DbServerName, dbUser.Namespace, nil)
 }
 
 func CreateDb(dbName string, dbOwner string, dbServerConn *sql.DB) error {
@@ -165,5 +172,50 @@ func CreatePgUser(userName string, password string, dbServerConn *sql.DB) error 
 
 func DropPgUser(userName string, dbServerConn *sql.DB) error {
 	_, err := dbServerConn.Exec(fmt.Sprintf(`DROP ROLE IF EXISTS %s;`, userName))
+	return err
+}
+
+func MakeUserDbOwner(userName string, dbName string, dbServerConn *sql.DB) error {
+	_, err := dbServerConn.Exec(fmt.Sprintf(`
+	GRANT USAGE ON SCHEMA public TO "%s";
+	`, userName))
+	if err != nil {
+		return err
+	}
+
+	_, err = dbServerConn.Exec(fmt.Sprintf(`
+	GRANT ALL ON ALL TABLES IN SCHEMA public TO "%s";
+	`, userName))
+	if err != nil {
+		return err
+	}
+
+	_, err = dbServerConn.Exec(fmt.Sprintf(`
+	GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "%s";
+	`, userName))
+	if err != nil {
+		return err
+	}
+
+	_, err = dbServerConn.Exec(fmt.Sprintf(`
+	ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA public
+	GRANT ALL ON TABLES TO "%s";
+	`, userName, userName))
+	if err != nil {
+		return err
+	}
+
+	_, err = dbServerConn.Exec(fmt.Sprintf(`
+	ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA public
+	GRANT ALL ON SEQUENCES TO "%s";
+	`, userName, userName))
+	if err != nil {
+		return err
+	}
+
+	_, err = dbServerConn.Exec(fmt.Sprintf(`
+	ALTER DATABASE "%s" OWNER TO "%s";
+	`, dbName, userName))
+
 	return err
 }

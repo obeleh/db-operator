@@ -44,72 +44,102 @@ type DbReco struct {
 	conn *sql.DB
 }
 
-func (dr *DbReco) MarkedToBeDeleted() bool {
-	return dr.db.GetDeletionTimestamp() != nil
+func (r *DbReco) MarkedToBeDeleted() bool {
+	return r.db.GetDeletionTimestamp() != nil
 }
 
-func (dr *DbReco) LoadObj() (bool, error) {
+func (r *DbReco) LoadObj() (bool, error) {
 	var err error
-	dr.conn, err = GetDbConnectionFromDb(dr.client, dr.ctx, &dr.db)
+	r.conn, err = GetDbConnectionFromDb(r.client, r.ctx, &r.db)
 	if err != nil {
 		return false, err
 	}
 
-	dr.dbs, err = GetDbs(dr.conn)
+	r.dbs, err = GetDbs(r.conn)
 	if err != nil {
 		return false, err
 	}
-	_, exists := dr.dbs[dr.db.Spec.DbName]
+	_, exists := r.dbs[r.db.Spec.DbName]
 	return exists, nil
 }
 
-func (dr *DbReco) CreateObj() (ctrl.Result, error) {
+func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	userNsName := types.NamespacedName{
-		Name:      dr.db.Spec.Owner,
-		Namespace: dr.nsNm.Namespace,
+		Name:      r.db.Spec.Owner,
+		Namespace: r.nsNm.Namespace,
 	}
 	dbUser := &dboperatorv1alpha1.User{}
-	err := dr.client.Get(dr.ctx, userNsName, dbUser)
+	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
-		dr.Log.Error(err, fmt.Sprintf("Failed to get User: %s", dr.db.Spec.Owner))
+		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
 		return ctrl.Result{}, err
 	}
 
-	dr.Log.Info(fmt.Sprintf("Creating db %s", dr.db.Spec.DbName))
-	err = CreateDb(dr.db.Spec.DbName, dbUser.Spec.UserName, dr.conn)
+	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
+	err = CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
 	if err != nil {
-		dr.Log.Error(err, fmt.Sprintf("Failed to create Database: %s", dr.db.Spec.DbName))
+		r.Log.Error(err, fmt.Sprintf("Failed to create Database: %s", r.db.Spec.DbName))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (dr *DbReco) RemoveObj() (ctrl.Result, error) {
-	if dr.db.Spec.DropOnDeletion {
-		dr.Log.Info(fmt.Sprintf("Dropping db %s", dr.db.Spec.DbName))
-		err := DropPgDb(dr.db.Spec.DbName, dr.conn)
+func (r *DbReco) RemoveObj() (ctrl.Result, error) {
+	if r.db.Spec.DropOnDeletion {
+		r.Log.Info(fmt.Sprintf("Dropping db %s", r.db.Spec.DbName))
+		err := DropPgDb(r.db.Spec.DbName, r.conn)
 		if err != nil {
-			dr.Log.Error(err, fmt.Sprintf("Failed to drop db %s", dr.db.Spec.DbName))
+			r.Log.Error(err, fmt.Sprintf("Failed to drop db %s", r.db.Spec.DbName))
 			return ctrl.Result{}, err
 		}
-		dr.Log.Info(fmt.Sprintf("finalized db %s", dr.db.Spec.DbName))
+		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))
 	} else {
-		dr.Log.Info(fmt.Sprintf("did not drop db %s as per spec", dr.db.Spec.DbName))
+		r.Log.Info(fmt.Sprintf("did not drop db %s as per spec", r.db.Spec.DbName))
 	}
 	return ctrl.Result{}, nil
 }
 
-func (dr *DbReco) LoadCR() (ctrl.Result, error) {
-	err := dr.client.Get(dr.ctx, dr.nsNm, &dr.db)
+func (r *DbReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.db)
 	if err != nil {
-		dr.Log.Info(fmt.Sprintf("%T: %s does not exist", dr.db, dr.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.db, r.nsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (dr *DbReco) GetCR() client.Object {
-	return &dr.db
+func (r *DbReco) GetCR() client.Object {
+	return &r.db
+}
+
+func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
+	dbObj, _ := r.dbs[r.db.Spec.DbName]
+	if dbObj.Owner != r.db.Spec.Owner {
+		userNsName := types.NamespacedName{
+			Name:      r.db.Spec.Owner,
+			Namespace: r.nsNm.Namespace,
+		}
+		dbUser := &dboperatorv1alpha1.User{}
+		err := r.client.Get(r.ctx, userNsName, dbUser)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+			return ctrl.Result{}, err
+		}
+		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
+		err = MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName, r.conn)
+		if err != nil {
+			r.Log.Error(err, "Failed changing db ownership")
+			return ctrl.Result{}, err
+		}
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *DbReco) CleanupConn() {
+	if r.conn != nil {
+		r.conn.Close()
+	}
 }
 
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs,verbs=get;list;watch;create;update;patch;delete

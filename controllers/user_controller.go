@@ -43,60 +43,72 @@ type UserReco struct {
 	conn  *sql.DB
 }
 
-func (ur *UserReco) MarkedToBeDeleted() bool {
-	return ur.user.GetDeletionTimestamp() != nil
+func (r *UserReco) MarkedToBeDeleted() bool {
+	return r.user.GetDeletionTimestamp() != nil
 }
 
-func (ur *UserReco) LoadObj() (bool, error) {
+func (r *UserReco) LoadObj() (bool, error) {
 	var err error
-	ur.conn, err = GetDbConnectionFromUser(ur.client, ur.ctx, &ur.user)
+	r.conn, err = GetDbConnectionFromUser(r.client, r.ctx, &r.user)
 	if err != nil {
 		return false, err
 	}
 
-	ur.users, err = GetUsers(ur.conn)
+	r.users, err = GetUsers(r.conn)
 	if err != nil {
 		return false, err
 	}
-	_, exists := ur.users[ur.user.Spec.UserName]
+	_, exists := r.users[r.user.Spec.UserName]
 	return exists, nil
 }
 
-func (ur *UserReco) CreateObj() (ctrl.Result, error) {
-	password, err := GetUserPassword(&ur.user, ur.client, ur.ctx)
+func (r *UserReco) CreateObj() (ctrl.Result, error) {
+	password, err := GetUserPassword(&r.user, r.client, r.ctx)
 	if err != nil {
-		ur.Log.Error(err, fmt.Sprint(err))
+		r.Log.Error(err, fmt.Sprint(err))
 		return ctrl.Result{Requeue: true}, nil
 	}
-	err = CreatePgUser(ur.user.Spec.UserName, *password, ur.conn)
+	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
+	err = CreatePgUser(r.user.Spec.UserName, *password, r.conn)
 	if err != nil {
-		ur.Log.Error(err, fmt.Sprintf("Failed to create user %s", ur.user.Spec.UserName))
+		r.Log.Error(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (ur *UserReco) RemoveObj() (ctrl.Result, error) {
-	err := DropPgUser(ur.user.Spec.UserName, ur.conn)
+func (r *UserReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
+	err := DropPgUser(r.user.Spec.UserName, r.conn)
 	if err != nil {
-		ur.Log.Error(err, fmt.Sprintf("Failed to drop user %s", ur.user.Spec.UserName))
+		r.Log.Error(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
-	ur.Log.Info(fmt.Sprintf("finalized user %s", ur.user.Spec.UserName))
+	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	return ctrl.Result{}, nil
 }
 
-func (ur *UserReco) LoadCR() (ctrl.Result, error) {
-	err := ur.client.Get(ur.ctx, ur.nsNm, &ur.user)
+func (r *UserReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.user)
 	if err != nil {
-		ur.Log.Info(fmt.Sprintf("%T: %s does not exist", ur.user, ur.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.user, r.nsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (ur *UserReco) GetCR() client.Object {
-	return &ur.user
+func (r *UserReco) GetCR() client.Object {
+	return &r.user
+}
+
+func (r *UserReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *UserReco) CleanupConn() {
+	if r.conn != nil {
+		r.conn.Close()
+	}
 }
 
 const userFinalizer = "db-operator.kubemaster.com/finalizer"

@@ -15,7 +15,9 @@ type Reconcilable interface {
 	RemoveObj() (ctrl.Result, error)
 	LoadCR() (ctrl.Result, error)
 	LoadObj() (bool, error)
+	EnsureCorrect() (ctrl.Result, error)
 	GetCR() client.Object
+	CleanupConn()
 	MarkedToBeDeleted() bool
 }
 
@@ -65,8 +67,12 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 				}
 			}
 		} else {
-			res, err = rc.EnsureFinalizer(cr)
+			res, err = rcl.EnsureCorrect()
+			if err != nil {
+				res, err = rc.EnsureFinalizer(cr)
+			}
 		}
 	}
+	rcl.CleanupConn()
 	return res, err
 }
