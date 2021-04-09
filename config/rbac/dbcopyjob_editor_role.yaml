@@ -1,0 +1,24 @@
+# permissions for end users to edit dbcopyjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbcopyjob-editor-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/status
+  verbs:
+  - get

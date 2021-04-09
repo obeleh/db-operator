@@ -1,0 +1,24 @@
+# permissions for end users to edit s3storages.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: s3storage-editor-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages/status
+  verbs:
+  - get

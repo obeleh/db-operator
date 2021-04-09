@@ -9,6 +9,188 @@ rules:
 - apiGroups:
   - db-operator.kubemaster.com
   resources:
+  - backupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
   - users
   verbs:
   - create

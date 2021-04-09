@@ -33,4 +33,67 @@ resources:
   kind: User
   path: github.com/kabisa/db-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: BackupTarget
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreTarget
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: BackupJob
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreJob
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: S3Storage
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreCronJob
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: DbCopyJob
+  path: github.com/kabisa/db-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

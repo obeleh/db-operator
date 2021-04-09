@@ -178,44 +178,13 @@ func DropPgUser(userName string, dbServerConn *sql.DB) error {
 func MakeUserDbOwner(userName string, dbName string, dbServerConn *sql.DB) error {
 	_, err := dbServerConn.Exec(fmt.Sprintf(`
 	GRANT USAGE ON SCHEMA public TO "%s";
-	`, userName))
-	if err != nil {
-		return err
-	}
-
-	_, err = dbServerConn.Exec(fmt.Sprintf(`
 	GRANT ALL ON ALL TABLES IN SCHEMA public TO "%s";
-	`, userName))
-	if err != nil {
-		return err
-	}
-
-	_, err = dbServerConn.Exec(fmt.Sprintf(`
 	GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "%s";
-	`, userName))
-	if err != nil {
-		return err
-	}
-
-	_, err = dbServerConn.Exec(fmt.Sprintf(`
 	ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA public
 	GRANT ALL ON TABLES TO "%s";
-	`, userName, userName))
-	if err != nil {
-		return err
-	}
-
-	_, err = dbServerConn.Exec(fmt.Sprintf(`
 	ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA public
 	GRANT ALL ON SEQUENCES TO "%s";
-	`, userName, userName))
-	if err != nil {
-		return err
-	}
-
-	_, err = dbServerConn.Exec(fmt.Sprintf(`
 	ALTER DATABASE "%s" OWNER TO "%s";
-	`, dbName, userName))
-
+	`, userName, userName, userName, userName, userName, userName, userName, dbName, userName))
 	return err
 }

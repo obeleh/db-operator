@@ -1,0 +1,20 @@
+# permissions for end users to view dbcopyjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbcopyjob-viewer-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/status
+  verbs:
+  - get
