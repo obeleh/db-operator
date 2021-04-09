@@ -18,10 +18,10 @@ But also:
 
 ## Design
 
-### Databases Diagram
+### Databases Diagram [ready / beta -ish]
 
 ![](./screenshots/databases-diagram.png)
 
-### Backup Restore Diagram
+### Backup Restore Diagram [todo]
 
 ![](./screenshots/backup-restore-diagram.png)
