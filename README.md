@@ -12,4 +12,4 @@ The goal of this operator is to provide databases for preview environments. It e
 
 ### Backup Restore Diagram
 
-![](./screenshots/databases-diagram.png)
+![](./screenshots/backup-restore-diagram.png)
