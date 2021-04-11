@@ -21,7 +21,9 @@ import (
 )
 
 type RestoreTargetSpec struct {
-	Foo string `json:"foo,omitempty"`
+	DbName          string `json:"db_name"`
+	StorageLocation string `json:"storage_location"`
+	StorageType     string `json:"storage_type"`
 }
 
 // RestoreTargetStatus defines the observed state of RestoreTarget

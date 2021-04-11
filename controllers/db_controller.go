@@ -50,7 +50,11 @@ func (r *DbReco) MarkedToBeDeleted() bool {
 
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
-	r.conn, err = GetDbConnectionFromDb(r.client, r.ctx, &r.db)
+	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, &r.db.Spec.DbName)
+	if err != nil {
+		return false, err
+	}
+	r.conn, err = connInfo.GetDbConnection()
 	if err != nil {
 		return false, err
 	}

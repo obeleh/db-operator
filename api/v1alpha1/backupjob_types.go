@@ -21,7 +21,7 @@ import (
 )
 
 type BackupJobSpec struct {
-	Foo string `json:"foo,omitempty"`
+	BackupTarget string `json:"backup_target"`
 }
 
 // BackupJobStatus defines the observed state of BackupJob

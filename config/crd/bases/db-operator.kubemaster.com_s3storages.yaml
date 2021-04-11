@@ -34,12 +34,14 @@ spec:
           metadata:
             type: object
           spec:
-            description: S3StorageSpec defines the desired state of S3Storage
             properties:
-              foo:
-                description: Foo is an example field of S3Storage. Edit s3storage_types.go
-                  to remove/update
+              bucket_name:
                 type: string
+              region:
+                type: string
+            required:
+            - bucket_name
+            - region
             type: object
           status:
             description: S3StorageStatus defines the observed state of S3Storage

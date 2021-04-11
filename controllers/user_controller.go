@@ -49,7 +49,11 @@ func (r *UserReco) MarkedToBeDeleted() bool {
 
 func (r *UserReco) LoadObj() (bool, error) {
 	var err error
-	r.conn, err = GetDbConnectionFromUser(r.client, r.ctx, &r.user)
+	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.user.Spec.DbServerName, r.user.Namespace, nil)
+	if err != nil {
+		return false, err
+	}
+	r.conn, err = connInfo.GetDbConnection()
 	if err != nil {
 		return false, err
 	}

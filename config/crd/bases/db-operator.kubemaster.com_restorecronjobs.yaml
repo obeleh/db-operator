@@ -34,11 +34,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: RestoreCronJobSpec defines the desired state of RestoreCronJob
             properties:
               foo:
-                description: Foo is an example field of RestoreCronJob. Edit restorecronjob_types.go
-                  to remove/update
                 type: string
             type: object
           status:

@@ -50,10 +50,12 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	pgDbServer, err := GetDbConnection(r.Client, ctx, dbServer, nil)
+	connInfo, err := GetPgConnectInfo(r.Client, ctx, dbServer, nil)
 	if err != nil {
+		r.Log.Error(err, "Failed getting connection info")
 		return ctrl.Result{}, nil
 	}
+	pgDbServer, err := connInfo.GetDbConnection()
 	defer pgDbServer.Close()
 	databases, err := GetDbs(pgDbServer)
 	if err != nil {

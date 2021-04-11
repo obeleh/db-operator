@@ -34,12 +34,17 @@ spec:
           metadata:
             type: object
           spec:
-            description: BackupTargetSpec defines the desired state of BackupTarget
             properties:
-              foo:
-                description: Foo is an example field of BackupTarget. Edit backuptarget_types.go
-                  to remove/update
+              db_name:
                 type: string
+              storage_location:
+                type: string
+              storage_type:
+                type: string
+            required:
+            - db_name
+            - storage_location
+            - storage_type
             type: object
           status:
             description: BackupTargetStatus defines the observed state of BackupTarget

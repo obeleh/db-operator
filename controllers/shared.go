@@ -22,8 +22,44 @@ type PostgresDb struct {
 	Owner       string
 }
 
-func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer, dbName *string) (*sql.DB, error) {
+type PostgresConnectInfo struct {
+	Host     string
+	Port     int
+	UserName string
+	Password string
+	Database string
+}
 
+func NewPostgresConnectInfo(host string, port int, userName string, password string, database *string) PostgresConnectInfo {
+	var dbName string
+	if database == nil {
+		dbName = "postgres"
+	} else {
+		dbName = *database
+	}
+	return PostgresConnectInfo{
+		Host:     host,
+		Port:     port,
+		UserName: userName,
+		Password: password,
+		Database: dbName,
+	}
+}
+
+func (p *PostgresConnectInfo) GetConnectionString() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		p.Host, p.Port, p.UserName, p.Password, p.Database)
+}
+
+func (p *PostgresConnectInfo) GetDbConnection() (*sql.DB, error) {
+	pgDbServer, err := sql.Open("postgres", p.GetConnectionString())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open a DB connection to: %s", p.Host)
+	}
+	return pgDbServer, nil
+}
+
+func GetPgConnectInfo(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer, dbName *string) (*PostgresConnectInfo, error) {
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
 		Namespace: dbServer.Namespace,
@@ -35,23 +71,11 @@ func GetDbConnection(k8sClient client.Client, ctx context.Context, dbServer *dbo
 		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
 	}
 
-	var dbName2 string
-	if dbName == nil {
-		dbName2 = "postgres"
-	} else {
-		dbName2 = *dbName
-	}
-
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, secret.Data[dbServer.Spec.SecretKey], dbName2)
-	pgDbServer, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open a DB connection: %s", psqlInfo)
-	}
-	return pgDbServer, nil
+	connectInfo := NewPostgresConnectInfo(dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, string(secret.Data[dbServer.Spec.SecretKey]), dbName)
+	return &connectInfo, nil
 }
 
-func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*sql.DB, error) {
+func GetDbConnectionInfoFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*PostgresConnectInfo, error) {
 	serverNsName := types.NamespacedName{
 		Name:      serverName,
 		Namespace: namespace,
@@ -63,15 +87,8 @@ func GetDbConnectionFromServerName(k8sClient client.Client, ctx context.Context,
 		return nil, fmt.Errorf("Failed to get Server: %s", serverName)
 	}
 
-	return GetDbConnection(k8sClient, ctx, dbServer, dbName)
-}
-
-func GetDbConnectionFromDb(k8sClient client.Client, ctx context.Context, db *dboperatorv1alpha1.Db) (*sql.DB, error) {
-	return GetDbConnectionFromServerName(k8sClient, ctx, db.Spec.Server, db.Namespace, &db.Spec.DbName)
-}
-
-func GetDbConnectionFromUser(k8sClient client.Client, ctx context.Context, dbUser *dboperatorv1alpha1.User) (*sql.DB, error) {
-	return GetDbConnectionFromServerName(k8sClient, ctx, dbUser.Spec.DbServerName, dbUser.Namespace, nil)
+	info, err := GetPgConnectInfo(k8sClient, ctx, dbServer, dbName)
+	return info, err
 }
 
 func CreateDb(dbName string, dbOwner string, dbServerConn *sql.DB) error {

@@ -20,13 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type S3StorageSpec struct {
-	BucketName string `json:"bucket_name"`
-	Region     string `json:"region"`
+type BackupCronJobSpec struct {
+	BackupTarget string `json:"backup_target"`
+	Interval     string `json:"interval"`
 }
 
-// S3StorageStatus defines the observed state of S3Storage
-type S3StorageStatus struct {
+// BackupCronJobStatus defines the observed state of BackupCronJob
+type BackupCronJobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -34,24 +34,24 @@ type S3StorageStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// S3Storage is the Schema for the s3storages API
-type S3Storage struct {
+// BackupCronJob is the Schema for the backupcronjobs API
+type BackupCronJob struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   S3StorageSpec   `json:"spec,omitempty"`
-	Status S3StorageStatus `json:"status,omitempty"`
+	Spec   BackupCronJobSpec   `json:"spec,omitempty"`
+	Status BackupCronJobStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// S3StorageList contains a list of S3Storage
-type S3StorageList struct {
+// BackupCronJobList contains a list of BackupCronJob
+type BackupCronJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []S3Storage `json:"items"`
+	Items           []BackupCronJob `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&S3Storage{}, &S3StorageList{})
+	SchemeBuilder.Register(&BackupCronJob{}, &BackupCronJobList{})
 }

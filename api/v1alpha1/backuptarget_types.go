@@ -21,7 +21,9 @@ import (
 )
 
 type BackupTargetSpec struct {
-	Foo string `json:"foo,omitempty"`
+	DbName          string `json:"db_name"`
+	StorageLocation string `json:"storage_location"`
+	StorageType     string `json:"storage_type"`
 }
 
 // BackupTargetStatus defines the observed state of BackupTarget

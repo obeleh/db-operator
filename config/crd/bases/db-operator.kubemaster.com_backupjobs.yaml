@@ -34,12 +34,11 @@ spec:
           metadata:
             type: object
           spec:
-            description: BackupJobSpec defines the desired state of BackupJob
             properties:
-              foo:
-                description: Foo is an example field of BackupJob. Edit backupjob_types.go
-                  to remove/update
+              backup_target:
                 type: string
+            required:
+            - backup_target
             type: object
           status:
             description: BackupJobStatus defines the observed state of BackupJob

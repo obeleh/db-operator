@@ -21,7 +21,7 @@ import (
 )
 
 type RestoreJobSpec struct {
-	Foo string `json:"foo,omitempty"`
+	RestoreTarget string `json:"restore_target"`
 }
 
 // RestoreJobStatus defines the observed state of RestoreJob

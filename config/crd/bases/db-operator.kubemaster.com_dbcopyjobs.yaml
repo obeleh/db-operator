@@ -34,11 +34,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: DbCopyJobSpec defines the desired state of DbCopyJob
             properties:
               foo:
-                description: Foo is an example field of DbCopyJob. Edit dbcopyjob_types.go
-                  to remove/update
                 type: string
             type: object
           status:

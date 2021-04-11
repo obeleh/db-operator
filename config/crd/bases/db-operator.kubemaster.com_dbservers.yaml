@@ -34,7 +34,6 @@ spec:
           metadata:
             type: object
           spec:
-            description: DbServerSpec defines the desired state of DbServer
             properties:
               address:
                 description: Server address
