@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,6 +51,7 @@ func (r *BackupJobReco) MarkedToBeDeleted() bool {
 }
 
 func (r *BackupJobReco) LoadObj() (bool, error) {
+	r.Log.Info(fmt.Sprintf("loading backupJob %s", r.backupJob.Name))
 	var err error
 	jobs := &batchv1.JobList{}
 	opts := []client.ListOption{
@@ -69,6 +71,7 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 }
 
 func (r *BackupJobReco) GetBackupTarget() (*dboperatorv1alpha1.BackupTarget, error) {
+	r.Log.Info(fmt.Sprintf("loading backupTarget %s", r.backupJob.Spec.BackupTarget))
 	backupTarget := &dboperatorv1alpha1.BackupTarget{}
 	nsName := types.NamespacedName{
 		Name:      r.backupJob.Spec.BackupTarget,
@@ -79,6 +82,7 @@ func (r *BackupJobReco) GetBackupTarget() (*dboperatorv1alpha1.BackupTarget, err
 }
 
 func (r *BackupJobReco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
+	r.Log.Info(fmt.Sprintf("loading db %s", dbName))
 	db := &dboperatorv1alpha1.Db{}
 	nsName := types.NamespacedName{
 		Name:      dbName,
@@ -89,6 +93,7 @@ func (r *BackupJobReco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
 }
 
 func (r *BackupJobReco) GetDbServer(db *dboperatorv1alpha1.Db) (*dboperatorv1alpha1.DbServer, error) {
+	r.Log.Info(fmt.Sprintf("loading dbServer %s", db.Spec.Server))
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	nsName := types.NamespacedName{
 		Name:      db.Spec.Server,
@@ -98,7 +103,103 @@ func (r *BackupJobReco) GetDbServer(db *dboperatorv1alpha1.Db) (*dboperatorv1alp
 	return dbServer, err
 }
 
+func (r *BackupJobReco) EnsureScripts() error {
+	cm := &v1.ConfigMap{}
+	nsName := types.NamespacedName{
+		Name:      "db-operator-scripts",
+		Namespace: r.nsNm.Namespace,
+	}
+	err := r.client.Get(r.ctx, nsName, cm)
+	if err != nil && machineryErrors.IsNotFound(err) {
+		cm.Data["backup_postgres.sh"] = `
+		#!/bin/bash -e
+		pg_dump \
+			--format=custom \
+			--compress=9 \
+			--file=/pgdump/${1:-"$DATABASE"_"` + "`" + "date +%Y%m%d%H%M" + "`.dump\"} \\" + `
+			--no-owner \
+			--no-acl \
+			--host=$PGHOST \
+			--user=$PGUSER \
+			--port=$PGPORT \
+			$DATABASE
+		echo "pg_dump done"
+		`
+		cm.Data["restore_postgres.sh"] = `
+		#!/bin/bash -e
+		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
+		pg_restore \
+			--host=$PGHOST \
+			--user=$PGUSER \
+			--port=$PGPORT \
+			--dbname=$DATABASE \
+			--single-transaction \
+			--no-owner \
+			--no-acl \
+			-n public \
+			$LATEST_DUMP
+		echo "pg_restore done"
+		`
+
+		cm.Data["backup_az_blobs.sh"] = `
+		#!/bin/bash -e
+		# Only supports up/downloading with service principal
+		# But should be fairly simple to expand with other methods.
+		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
+		LATEST_DUMP_BASE_NAME=$(basename "$LATEST_DUMP")
+		az login --service-principal -u $AZ_BLOBS_USER -p $AZ_BLOBS_USER_PW --tenant $AZ_BLOBS_TENANT_ID
+		az storage blob upload \
+		  --account-name $AZ_BLOBS_STORAGE_ACCOUNT \
+		  --container-name $AZ_BLOBS_CONTAINER \
+		  --name $LATEST_DUMP_BASE_NAME \
+		  --file $LATEST_DUMP
+		echo "upload done"
+		`
+
+		cm.Data["download_az_blobs.sh"] = `
+		#!/bin/bash -e
+		# Only supports up/downloading with service principal
+		# But should be fairly simple to expand with other methods.
+		az login --service-principal -u $AZ_BLOBS_USER -p $AZ_BLOBS_USER_PW --tenant $AZ_BLOBS_TENANT_ID
+		az storage blob download \
+		  --account-name $AZ_BLOBS_STORAGE_ACCOUNT \
+		  --container-name $AZ_BLOBS_CONTAINER \
+		  --name $AZ_BLOBS_FILE_NAME \
+		  --file /pgdump/$AZ_BLOBS_FILE_NAME
+		echo "download done"
+		`
+
+		cm.Data["backup_s3.sh"] = `
+		#!/bin/bash -e
+		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
+		LATEST_DUMP_BASE_NAME=$(basename "$LATEST_DUMP")
+		# aws s3 cp test.txt s3://mybucket/test2.txt
+		aws s3 cp $LATEST_DUMP s3://$S3_BUCKET/$S3_PREFIX
+		echo "upload done"
+		`
+
+		cm.Data["download_s3.sh"] = `
+		#!/bin/bash -e
+		aws s3 cp s3://$S3_BUCKET/$S3_PREFIX$S3_FILE_NAME /pgdump/$S3_FILE_NAME
+		echo "download done"
+		`
+
+		err = r.client.Create(r.ctx, cm)
+		if err != nil {
+			return fmt.Errorf("Failed creating configmap with scripts")
+		}
+
+	}
+
+	if err != nil {
+		return fmt.Errorf("Failed getting configmap with scripts")
+	}
+
+	return nil
+}
+
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
 	backupTarget, err := r.GetBackupTarget()
 	if err != nil {
 		return ctrl.Result{}, err
@@ -116,29 +217,48 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
 		{Name: "PGUSER", Value: dbServer.Spec.UserName},
 		{Name: "PGPASSWORD", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: dbServer.Spec.SecretName}, Key: dbServer.Spec.SecretKey},
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: dbServer.Spec.SecretName,
+				},
+				Key: Nvl(dbServer.Spec.SecretKey, "password"),
+			},
 		}},
 		{Name: "DATABASE", Value: db.Spec.DbName},
+	}
+
+	pgDumpSpec := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Name:  "pg-dump",
+				Image: "postgres:latest",
+				Env:   backupEnvVars,
+				Command: []string{
+					"/scripts/backup_postgres.sh",
+				},
+				VolumeMounts: []v1.VolumeMount{
+					{Name: "scripts", MountPath: "/scripts"},
+					{Name: "pgdump", MountPath: "/pgdump"},
+				},
+			},
+		},
+		RestartPolicy: v1.RestartPolicyNever,
+		Volumes:       []v1.Volume{},
 	}
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{Name: r.backupJob.Name, Namespace: r.nsNm.Namespace},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:  "PgDump",
-							Image: "postgres:latest",
-							Env:   backupEnvVars,
-						},
-					},
-				},
+				Spec: pgDumpSpec,
 			},
 		},
 	}
 
 	err = r.client.Create(r.ctx, job)
+	if err != nil {
+		r.Log.Error(err, "Failed to create backup job")
+	}
 	return ctrl.Result{}, nil
 }
 

@@ -71,7 +71,13 @@ func GetPgConnectInfo(k8sClient client.Client, ctx context.Context, dbServer *db
 		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
 	}
 
-	connectInfo := NewPostgresConnectInfo(dbServer.Spec.Address, dbServer.Spec.Port, dbServer.Spec.UserName, string(secret.Data[dbServer.Spec.SecretKey]), dbName)
+	connectInfo := NewPostgresConnectInfo(
+		dbServer.Spec.Address,
+		dbServer.Spec.Port,
+		dbServer.Spec.UserName,
+		string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")]),
+		dbName,
+	)
 	return &connectInfo, nil
 }
 
@@ -165,16 +171,9 @@ func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, c
 		return nil, fmt.Errorf("Failed to get secret: %s", dbUser.Spec.SecretName)
 	}
 
-	var passwordKey string
-	if len(dbUser.Spec.SecretKey) == 0 {
-		passwordKey = "password"
-	} else {
-		passwordKey = dbUser.Spec.SecretKey
-	}
-
-	passBytes, ok := secret.Data[passwordKey]
+	passBytes, ok := secret.Data[Nvl(dbUser.Spec.SecretKey, "password")]
 	if !ok {
-		return nil, fmt.Errorf("Password key (%s) not found in secret", passwordKey)
+		return nil, fmt.Errorf("Password key (%s) not found in secret", Nvl(dbUser.Spec.SecretKey, "password"))
 	}
 
 	password := string(passBytes)
@@ -204,4 +203,12 @@ func MakeUserDbOwner(userName string, dbName string, dbServerConn *sql.DB) error
 	ALTER DATABASE "%s" OWNER TO "%s";
 	`, userName, userName, userName, userName, userName, userName, userName, dbName, userName))
 	return err
+}
+
+func Nvl(val1 string, val2 string) string {
+	if len(val1) == 0 {
+		return val2
+	} else {
+		return val1
+	}
 }
