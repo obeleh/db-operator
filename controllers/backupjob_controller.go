@@ -127,7 +127,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						v1.Container{
+						{
 							Name:  "PgDump",
 							Image: "postgres:latest",
 							Env:   backupEnvVars,
@@ -142,20 +142,48 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+func (r *BackupJobReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Removing BackupJob %s", r.backupJob.Name))
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.backupJob.Name,
+			Namespace: r.nsNm.Namespace,
+		},
+	}
+	err := r.client.Delete(r.ctx, job)
+	return ctrl.Result{}, err
+}
+
+func (r *BackupJobReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.backupJob)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *BackupJobReco) GetCR() client.Object {
+	return &r.backupJob
+}
+
+func (r *BackupJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *BackupJobReco) CleanupConn() {
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/finalizers,verbs=update
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("backupjob", req.NamespacedName)
 
-	backupJob := &dboperatorv1alpha1.BackupJob{}
-	err := r.Client.Get(ctx, req.NamespacedName, backupJob)
-	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", backupJob, req.NamespacedName.Name))
-		return ctrl.Result{}, nil
+	br := BackupJobReco{
+		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
 	}
-
-	return ctrl.Result{}, nil
+	return br.Reco.Reconcile((&br))
 }
 
 // SetupWithManager sets up the controller with the Manager.
