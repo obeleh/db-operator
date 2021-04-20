@@ -59,6 +59,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		}
 	} else {
 		if markedToBeDeleted {
+			rc.Log.Info("%s is marked to be deleted", cr.GetName())
 			if controllerutil.ContainsFinalizer(cr, userFinalizer) {
 				res, err = rcl.RemoveObj()
 				if err == nil {
