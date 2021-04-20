@@ -50,7 +50,8 @@ func (r *DbReco) MarkedToBeDeleted() bool {
 
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
-	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, &r.db.Spec.DbName)
+	// First create conninfo without db name because we don't know whether it exists
+	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, nil)
 	if err != nil {
 		return false, err
 	}
@@ -64,6 +65,21 @@ func (r *DbReco) LoadObj() (bool, error) {
 		return false, err
 	}
 	_, exists := r.dbs[r.db.Spec.DbName]
+
+	if exists {
+		r.conn.Close()
+
+		// If the database exists allow to directly adress it
+		connInfo, err = GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, &r.db.Spec.DbName)
+		if err != nil {
+			return false, err
+		}
+		r.conn, err = connInfo.GetDbConnection()
+		if err != nil {
+			return false, err
+		}
+	}
+
 	return exists, nil
 }
 

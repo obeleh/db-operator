@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
@@ -46,6 +47,8 @@ type BackupJobReco struct {
 	backupJobs map[string]batchv1.Job
 }
 
+const SCRIPTS_CONFIGMAP string = "db-operator-scripts"
+
 func (r *BackupJobReco) MarkedToBeDeleted() bool {
 	return r.backupJob.GetDeletionTimestamp() != nil
 }
@@ -60,13 +63,16 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 	}
 	err = r.client.List(r.ctx, jobs, opts...)
 	if err != nil {
+		r.Log.Error(err, "failed listing Jobs")
 		return false, err
 	}
 	r.backupJobs = make(map[string]batchv1.Job)
 	for _, job := range jobs.Items {
+		r.Log.Info(fmt.Sprintf("Found job %s", job.Name))
 		r.backupJobs[job.Name] = job
 	}
 	_, exists := r.backupJobs[r.backupJob.Name]
+	r.Log.Info(fmt.Sprintf("backupJob %s exists: %t", r.backupJob.Name, exists))
 	return exists, nil
 }
 
@@ -104,97 +110,44 @@ func (r *BackupJobReco) GetDbServer(db *dboperatorv1alpha1.Db) (*dboperatorv1alp
 }
 
 func (r *BackupJobReco) EnsureScripts() error {
+	r.Log.Info("Ensure scripts")
 	cm := &v1.ConfigMap{}
 	nsName := types.NamespacedName{
-		Name:      "db-operator-scripts",
+		Name:      SCRIPTS_CONFIGMAP,
 		Namespace: r.nsNm.Namespace,
 	}
 	err := r.client.Get(r.ctx, nsName, cm)
-	if err != nil && machineryErrors.IsNotFound(err) {
-		cm.Data["backup_postgres.sh"] = `
-		#!/bin/bash -e
-		pg_dump \
-			--format=custom \
-			--compress=9 \
-			--file=/pgdump/${1:-"$DATABASE"_"` + "`" + "date +%Y%m%d%H%M" + "`.dump\"} \\" + `
-			--no-owner \
-			--no-acl \
-			--host=$PGHOST \
-			--user=$PGUSER \
-			--port=$PGPORT \
-			$DATABASE
-		echo "pg_dump done"
-		`
-		cm.Data["restore_postgres.sh"] = `
-		#!/bin/bash -e
-		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
-		pg_restore \
-			--host=$PGHOST \
-			--user=$PGUSER \
-			--port=$PGPORT \
-			--dbname=$DATABASE \
-			--single-transaction \
-			--no-owner \
-			--no-acl \
-			-n public \
-			$LATEST_DUMP
-		echo "pg_restore done"
-		`
-
-		cm.Data["backup_az_blobs.sh"] = `
-		#!/bin/bash -e
-		# Only supports up/downloading with service principal
-		# But should be fairly simple to expand with other methods.
-		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
-		LATEST_DUMP_BASE_NAME=$(basename "$LATEST_DUMP")
-		az login --service-principal -u $AZ_BLOBS_USER -p $AZ_BLOBS_USER_PW --tenant $AZ_BLOBS_TENANT_ID
-		az storage blob upload \
-		  --account-name $AZ_BLOBS_STORAGE_ACCOUNT \
-		  --container-name $AZ_BLOBS_CONTAINER \
-		  --name $LATEST_DUMP_BASE_NAME \
-		  --file $LATEST_DUMP
-		echo "upload done"
-		`
-
-		cm.Data["download_az_blobs.sh"] = `
-		#!/bin/bash -e
-		# Only supports up/downloading with service principal
-		# But should be fairly simple to expand with other methods.
-		az login --service-principal -u $AZ_BLOBS_USER -p $AZ_BLOBS_USER_PW --tenant $AZ_BLOBS_TENANT_ID
-		az storage blob download \
-		  --account-name $AZ_BLOBS_STORAGE_ACCOUNT \
-		  --container-name $AZ_BLOBS_CONTAINER \
-		  --name $AZ_BLOBS_FILE_NAME \
-		  --file /pgdump/$AZ_BLOBS_FILE_NAME
-		echo "download done"
-		`
-
-		cm.Data["backup_s3.sh"] = `
-		#!/bin/bash -e
-		LATEST_DUMP=$(find /pgdump/ -type f | sort | tail -n 1)
-		LATEST_DUMP_BASE_NAME=$(basename "$LATEST_DUMP")
-		# aws s3 cp test.txt s3://mybucket/test2.txt
-		aws s3 cp $LATEST_DUMP s3://$S3_BUCKET/$S3_PREFIX
-		echo "upload done"
-		`
-
-		cm.Data["download_s3.sh"] = `
-		#!/bin/bash -e
-		aws s3 cp s3://$S3_BUCKET/$S3_PREFIX$S3_FILE_NAME /pgdump/$S3_FILE_NAME
-		echo "download done"
-		`
-
-		err = r.client.Create(r.ctx, cm)
-		if err != nil {
-			return fmt.Errorf("Failed creating configmap with scripts")
-		}
-
-	}
+	found := true
 
 	if err != nil {
-		return fmt.Errorf("Failed getting configmap with scripts")
+		if machineryErrors.IsNotFound(err) {
+			found = false
+		} else {
+			r.Log.Error(err, "Unable to lookup scripts CM")
+			return err
+		}
 	}
 
+	if found {
+		if reflect.DeepEqual(cm.Data, SCRIPTS_MAP) {
+			r.Log.Info("Scripts existed and were up to date")
+			return nil
+		} else {
+			r.client.Delete(r.ctx, cm)
+			cm = &v1.ConfigMap{}
+		}
+	}
+
+	cm.Data = SCRIPTS_MAP
+	cm.Name = nsName.Name
+	cm.Namespace = nsName.Namespace
+
+	r.Log.Info("Creating scripts cm")
+	err = r.client.Create(r.ctx, cm)
+	if err != nil {
+		r.Log.Error(err, "Failed creating cm")
+		return fmt.Errorf("Failed creating configmap with scripts")
+	}
 	return nil
 }
 
@@ -213,6 +166,11 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	err = r.EnsureScripts()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	backupEnvVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
 		{Name: "PGUSER", Value: dbServer.Spec.UserName},
@@ -227,6 +185,11 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		{Name: "DATABASE", Value: db.Spec.DbName},
 	}
 
+	const SCRIPTS = "scripts"
+	const PG_DUMP = "pgdump"
+	defaultMode := new(int32)
+	*defaultMode = 511 //  0777
+
 	pgDumpSpec := v1.PodSpec{
 		Containers: []v1.Container{
 			{
@@ -237,17 +200,42 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 					"/scripts/backup_postgres.sh",
 				},
 				VolumeMounts: []v1.VolumeMount{
-					{Name: "scripts", MountPath: "/scripts"},
-					{Name: "pgdump", MountPath: "/pgdump"},
+					{Name: SCRIPTS, MountPath: "/scripts"},
+					{Name: PG_DUMP, MountPath: "/pgdump"},
 				},
 			},
 		},
 		RestartPolicy: v1.RestartPolicyNever,
-		Volumes:       []v1.Volume{},
+		Volumes: []v1.Volume{
+			{
+				Name: SCRIPTS,
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: SCRIPTS_CONFIGMAP,
+						},
+						Items:       []v1.KeyToPath{},
+						DefaultMode: defaultMode,
+					},
+				},
+			},
+			{
+				Name: PG_DUMP,
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+		},
 	}
 
 	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: r.backupJob.Name, Namespace: r.nsNm.Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.backupJob.Name,
+			Namespace: r.nsNm.Namespace,
+			Labels: map[string]string{
+				"controlledBy": "DbOperator",
+			},
+		},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
 				Spec: pgDumpSpec,

@@ -3,3 +3,5 @@ resources:
  - postgres-secret.yaml
  - postgres-deployment.yaml
  - user.yaml
+ - database.yaml
+ - backup-job.yaml

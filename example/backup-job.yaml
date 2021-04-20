@@ -1,0 +1,17 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: BackupJob
+metadata:
+  name: example-backup-job
+spec:
+  backup_target: example-backup-target
+
+---
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: BackupTarget
+metadata:
+  name: example-backup-target
+spec:
+  db_name: example-database
+  storage_type: s3
+  storage_location: example-storage-location
