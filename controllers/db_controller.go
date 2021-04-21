@@ -53,15 +53,18 @@ func (r *DbReco) LoadObj() (bool, error) {
 	// First create conninfo without db name because we don't know whether it exists
 	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, nil)
 	if err != nil {
+		r.Log.Error(err, "failed building dbConnectionInfo")
 		return false, err
 	}
 	r.conn, err = connInfo.GetDbConnection()
 	if err != nil {
+		r.Log.Error(err, "failed getting connection")
 		return false, err
 	}
 
 	r.dbs, err = GetPgDbs(r.conn)
 	if err != nil {
+		r.Log.Error(err, "failed getting PgDBs")
 		return false, err
 	}
 	_, exists := r.dbs[r.db.Spec.DbName]
@@ -72,10 +75,12 @@ func (r *DbReco) LoadObj() (bool, error) {
 		// If the database exists allow to directly adress it
 		connInfo, err = GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, &r.db.Spec.DbName)
 		if err != nil {
+			r.Log.Error(err, "failed building dbConnectionInfo")
 			return false, err
 		}
 		r.conn, err = connInfo.GetDbConnection()
 		if err != nil {
+			r.Log.Error(err, "failed getting connection")
 			return false, err
 		}
 	}
@@ -96,11 +101,10 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
-	err = CreatePgDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
-	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to create Database: %s", r.db.Spec.DbName))
-		return ctrl.Result{}, err
+	if r.conn == nil {
+		return ctrl.Result{}, fmt.Errorf("No database connection possible")
 	}
+	err = CreatePgDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
 	return ctrl.Result{}, nil
 }
 

@@ -53,6 +53,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	markedToBeDeleted := cr.GetDeletionTimestamp() != nil
 
 	exists, err := rcl.LoadObj()
+	if err != nil {
+		return res, nil
+	}
 	if !exists {
 		res, err = rcl.CreateObj()
 		if err == nil {
