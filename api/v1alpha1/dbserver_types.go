@@ -31,6 +31,7 @@ type DbServerSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	SecretName string `json:"secret_name"`
 	SecretKey  string `json:"secret_key,omitempty"`
+	Version    string `json:"version,omitempty"`
 }
 
 // DbServerStatus defines the observed state of DbServer

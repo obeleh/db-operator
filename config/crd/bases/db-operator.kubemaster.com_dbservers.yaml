@@ -50,6 +50,8 @@ spec:
               user_name:
                 minLength: 1
                 type: string
+              version:
+                type: string
             required:
             - address
             - port

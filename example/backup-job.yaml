@@ -14,4 +14,4 @@ metadata:
 spec:
   db_name: example-database
   storage_type: s3
-  storage_location: example-storage-location
+  storage_location: example-s3-storage

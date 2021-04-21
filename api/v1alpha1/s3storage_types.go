@@ -21,8 +21,12 @@ import (
 )
 
 type S3StorageSpec struct {
-	BucketName string `json:"bucket_name"`
-	Region     string `json:"region"`
+	BucketName            string `json:"bucket_name"`
+	Region                string `json:"region"`
+	AccessKeyK8sSecret    string `json:"secret_access_key_k8s_secret"`
+	AccessKeyK8sSecretKey string `json:"secret_access_key_k8s_secret_key,omitempty"`
+	Prefix                string `json:"prefix,omitempty"`
+	AccesKeyId            string `json:"access_key_id"`
 }
 
 // S3StorageStatus defines the observed state of S3Storage

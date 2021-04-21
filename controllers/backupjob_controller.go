@@ -151,6 +151,17 @@ func (r *BackupJobReco) EnsureScripts() error {
 	return nil
 }
 
+func (r *BackupJobReco) GetS3Storage(backupTarget *dboperatorv1alpha1.BackupTarget) (dboperatorv1alpha1.S3Storage, error) {
+	s3Storage := &dboperatorv1alpha1.S3Storage{}
+	nsName := types.NamespacedName{
+		Name:      backupTarget.Spec.StorageLocation,
+		Namespace: r.nsNm.Namespace,
+	}
+
+	err := r.client.Get(r.ctx, nsName, s3Storage)
+	return *s3Storage, err
+}
+
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
 	backupTarget, err := r.GetBackupTarget()
@@ -171,61 +182,23 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	backupEnvVars := []v1.EnvVar{
-		{Name: "PGHOST", Value: dbServer.Spec.Address},
-		{Name: "PGUSER", Value: dbServer.Spec.UserName},
-		{Name: "PGPASSWORD", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: dbServer.Spec.SecretName,
-				},
-				Key: Nvl(dbServer.Spec.SecretKey, "password"),
-			},
-		}},
-		{Name: "DATABASE", Value: db.Spec.DbName},
+	s3Storage, err := r.GetS3Storage(backupTarget)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	const SCRIPTS = "scripts"
-	const PG_DUMP = "pgdump"
-	defaultMode := new(int32)
-	*defaultMode = 511 //  0777
+	backupContainer := BuildPostgresBackupContainer(dbServer, db)
+	uploadContainer := BuildS3UploadContainer(s3Storage)
 
-	pgDumpSpec := v1.PodSpec{
+	backupPodSpec := v1.PodSpec{
+		InitContainers: []v1.Container{
+			backupContainer,
+		},
 		Containers: []v1.Container{
-			{
-				Name:  "pg-dump",
-				Image: "postgres:latest",
-				Env:   backupEnvVars,
-				Command: []string{
-					"/scripts/backup_postgres.sh",
-				},
-				VolumeMounts: []v1.VolumeMount{
-					{Name: SCRIPTS, MountPath: "/scripts"},
-					{Name: PG_DUMP, MountPath: "/pgdump"},
-				},
-			},
+			uploadContainer,
 		},
 		RestartPolicy: v1.RestartPolicyNever,
-		Volumes: []v1.Volume{
-			{
-				Name: SCRIPTS,
-				VolumeSource: v1.VolumeSource{
-					ConfigMap: &v1.ConfigMapVolumeSource{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: SCRIPTS_CONFIGMAP,
-						},
-						Items:       []v1.KeyToPath{},
-						DefaultMode: defaultMode,
-					},
-				},
-			},
-			{
-				Name: PG_DUMP,
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
-				},
-			},
-		},
+		Volumes:       GetVolumes(),
 	}
 
 	job := &batchv1.Job{
@@ -238,7 +211,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		},
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
-				Spec: pgDumpSpec,
+				Spec: backupPodSpec,
 			},
 		},
 	}

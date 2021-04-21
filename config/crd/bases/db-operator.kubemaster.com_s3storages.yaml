@@ -35,13 +35,23 @@ spec:
             type: object
           spec:
             properties:
+              access_key_id:
+                type: string
               bucket_name:
+                type: string
+              prefix:
                 type: string
               region:
                 type: string
+              secret_access_key_k8s_secret:
+                type: string
+              secret_access_key_k8s_secret_key:
+                type: string
             required:
+            - access_key_id
             - bucket_name
             - region
+            - secret_access_key_k8s_secret
             type: object
           status:
             description: S3StorageStatus defines the observed state of S3Storage

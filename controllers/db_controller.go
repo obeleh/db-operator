@@ -60,7 +60,7 @@ func (r *DbReco) LoadObj() (bool, error) {
 		return false, err
 	}
 
-	r.dbs, err = GetDbs(r.conn)
+	r.dbs, err = GetPgDbs(r.conn)
 	if err != nil {
 		return false, err
 	}
@@ -96,7 +96,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
-	err = CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
+	err = CreatePgDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
 	if err != nil {
 		r.Log.Error(err, fmt.Sprintf("Failed to create Database: %s", r.db.Spec.DbName))
 		return ctrl.Result{}, err

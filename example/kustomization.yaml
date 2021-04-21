@@ -5,3 +5,5 @@ resources:
  - user.yaml
  - database.yaml
  - backup-job.yaml
+ - example-s3-storage-secret.yaml
+ - example-s3-storage.yaml

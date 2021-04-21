@@ -58,7 +58,7 @@ func (r *UserReco) LoadObj() (bool, error) {
 		return false, err
 	}
 
-	r.users, err = GetUsers(r.conn)
+	r.users, err = GetPgUsers(r.conn)
 	if err != nil {
 		return false, err
 	}

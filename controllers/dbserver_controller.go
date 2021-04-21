@@ -57,7 +57,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	pgDbServer, err := connInfo.GetDbConnection()
 	defer pgDbServer.Close()
-	databases, err := GetDbs(pgDbServer)
+	databases, err := GetPgDbs(pgDbServer)
 	if err != nil {
 		r.Log.Error(err, "Failed reading databases")
 		return ctrl.Result{}, nil
