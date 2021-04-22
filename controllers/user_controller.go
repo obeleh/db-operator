@@ -115,8 +115,6 @@ func (r *UserReco) CleanupConn() {
 	}
 }
 
-const userFinalizer = "db-operator.kubemaster.com/finalizer"
-
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/finalizers,verbs=update

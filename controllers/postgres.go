@@ -120,7 +120,7 @@ func GetPgDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
 
 	rows, err := dbServerConn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read databases from server")
+		return nil, err
 	}
 
 	databases := make(map[string]PostgresDb)

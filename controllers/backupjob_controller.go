@@ -19,15 +19,12 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -76,95 +73,9 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 	return exists, nil
 }
 
-func (r *BackupJobReco) GetBackupTarget() (*dboperatorv1alpha1.BackupTarget, error) {
-	r.Log.Info(fmt.Sprintf("loading backupTarget %s", r.backupJob.Spec.BackupTarget))
-	backupTarget := &dboperatorv1alpha1.BackupTarget{}
-	nsName := types.NamespacedName{
-		Name:      r.backupJob.Spec.BackupTarget,
-		Namespace: r.nsNm.Namespace,
-	}
-	err := r.client.Get(r.ctx, nsName, backupTarget)
-	return backupTarget, err
-}
-
-func (r *BackupJobReco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
-	r.Log.Info(fmt.Sprintf("loading db %s", dbName))
-	db := &dboperatorv1alpha1.Db{}
-	nsName := types.NamespacedName{
-		Name:      dbName,
-		Namespace: r.nsNm.Namespace,
-	}
-	err := r.client.Get(r.ctx, nsName, db)
-	return db, err
-}
-
-func (r *BackupJobReco) GetDbServer(db *dboperatorv1alpha1.Db) (*dboperatorv1alpha1.DbServer, error) {
-	r.Log.Info(fmt.Sprintf("loading dbServer %s", db.Spec.Server))
-	dbServer := &dboperatorv1alpha1.DbServer{}
-	nsName := types.NamespacedName{
-		Name:      db.Spec.Server,
-		Namespace: r.nsNm.Namespace,
-	}
-	err := r.client.Get(r.ctx, nsName, dbServer)
-	return dbServer, err
-}
-
-func (r *BackupJobReco) EnsureScripts() error {
-	r.Log.Info("Ensure scripts")
-	cm := &v1.ConfigMap{}
-	nsName := types.NamespacedName{
-		Name:      SCRIPTS_CONFIGMAP,
-		Namespace: r.nsNm.Namespace,
-	}
-	err := r.client.Get(r.ctx, nsName, cm)
-	found := true
-
-	if err != nil {
-		if machineryErrors.IsNotFound(err) {
-			found = false
-		} else {
-			r.Log.Error(err, "Unable to lookup scripts CM")
-			return err
-		}
-	}
-
-	if found {
-		if reflect.DeepEqual(cm.Data, SCRIPTS_MAP) {
-			r.Log.Info("Scripts existed and were up to date")
-			return nil
-		} else {
-			r.client.Delete(r.ctx, cm)
-			cm = &v1.ConfigMap{}
-		}
-	}
-
-	cm.Data = SCRIPTS_MAP
-	cm.Name = nsName.Name
-	cm.Namespace = nsName.Namespace
-
-	r.Log.Info("Creating scripts cm")
-	err = r.client.Create(r.ctx, cm)
-	if err != nil {
-		r.Log.Error(err, "Failed creating cm")
-		return fmt.Errorf("Failed creating configmap with scripts")
-	}
-	return nil
-}
-
-func (r *BackupJobReco) GetS3Storage(backupTarget *dboperatorv1alpha1.BackupTarget) (dboperatorv1alpha1.S3Storage, error) {
-	s3Storage := &dboperatorv1alpha1.S3Storage{}
-	nsName := types.NamespacedName{
-		Name:      backupTarget.Spec.StorageLocation,
-		Namespace: r.nsNm.Namespace,
-	}
-
-	err := r.client.Get(r.ctx, nsName, s3Storage)
-	return *s3Storage, err
-}
-
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
-	backupTarget, err := r.GetBackupTarget()
+	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

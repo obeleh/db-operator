@@ -18,13 +18,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	batchv1beta "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
 
 // BackupCronJobReconciler reconciles a BackupCronJob object
@@ -34,19 +35,42 @@ type BackupCronJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+type BackupCronJobReco struct {
+	Reco
+	backupCronJob  dboperatorv1alpha1.BackupJob
+	backupCronJobs map[string]batchv1beta.CronJob
+}
+
+func (r *BackupCronJobReco) MarkedToBeDeleted() bool {
+	return r.backupCronJob.GetDeletionTimestamp() != nil
+}
+
+func (r *BackupCronJobReco) LoadObj() (bool, error) {
+	r.Log.Info(fmt.Sprintf("loading backupCronJob %s", r.backupCronJob.Name))
+	var err error
+	cronJobs := &batchv1beta.CronJobList{}
+	opts := []client.ListOption{
+		client.InNamespace(r.nsNm.Namespace),
+		client.MatchingLabels{"controlledBy": "DbOperator"},
+	}
+	err = r.client.List(r.ctx, cronJobs, opts...)
+	if err != nil {
+		r.Log.Error(err, "failed listing CronJobs")
+		return false, err
+	}
+	r.backupCronJobs = make(map[string]batchv1beta.CronJob)
+	for _, cronJob := range cronJobs.Items {
+		r.Log.Info(fmt.Sprintf("Found job %s", cronJob.Name))
+		r.backupCronJobs[cronJob.Name] = cronJob
+	}
+	_, exists := r.backupCronJobs[r.backupCronJob.Name]
+	r.Log.Info(fmt.Sprintf("backupCronJob %s exists: %t", r.backupCronJob.Name, exists))
+	return exists, nil
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the BackupCronJob object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("backupcronjob", req.NamespacedName)
 
