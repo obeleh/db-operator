@@ -3,7 +3,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	path "path/filepath"
+	"regexp"
+	"strings"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
@@ -74,6 +77,14 @@ func Nvl(val1 string, val2 string) string {
 	}
 }
 
+func ReplaceNonAllowedChars(input string) string {
+	reg, err := regexp.Compile("[^A-Za-z0-9]+")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return reg.ReplaceAllString(input, "-")
+}
+
 func BuildPostgresContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, script string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
@@ -90,7 +101,7 @@ func BuildPostgresContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperato
 	}
 
 	return v1.Container{
-		Name:  "pg-dump",
+		Name:  "pg-" + ReplaceNonAllowedChars(strings.Replace(script, ".sh", "", 1)),
 		Image: "postgres:" + Nvl(dbServer.Spec.Version, "latest"),
 		Env:   envVars,
 		Command: []string{

@@ -48,6 +48,15 @@ func (r *DbReco) MarkedToBeDeleted() bool {
 	return r.db.GetDeletionTimestamp() != nil
 }
 
+func (r *DbReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.db)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.db, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
@@ -123,32 +132,24 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (r *DbReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.db)
-	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.db, r.nsNm.Name))
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, nil
-}
-
 func (r *DbReco) GetCR() client.Object {
 	return &r.db
 }
 
 func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
 	dbObj, _ := r.dbs[r.db.Spec.DbName]
-	if dbObj.Owner != r.db.Spec.Owner {
-		userNsName := types.NamespacedName{
-			Name:      r.db.Spec.Owner,
-			Namespace: r.nsNm.Namespace,
-		}
-		dbUser := &dboperatorv1alpha1.User{}
-		err := r.client.Get(r.ctx, userNsName, dbUser)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
-			return ctrl.Result{}, err
-		}
+
+	userNsName := types.NamespacedName{
+		Name:      r.db.Spec.Owner,
+		Namespace: r.nsNm.Namespace,
+	}
+	dbUser := &dboperatorv1alpha1.User{}
+	err := r.client.Get(r.ctx, userNsName, dbUser)
+	if err != nil {
+		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+		return ctrl.Result{}, err
+	}
+	if dbObj.Owner != dbUser.Spec.UserName {
 		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
 		err = MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName, r.conn)
 		if err != nil {
