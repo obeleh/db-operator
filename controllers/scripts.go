@@ -64,6 +64,11 @@ echo "upload done"
 `
 
 const DOWNLOAD_S3_SCRIPT string = `#!/bin/bash -e
+if [[ -z "$S3_FILE_NAME" ]]; then
+	# if not set find the latest file
+	S3_FILE_NAME=$(aws s3 ls $S3_BUCKET_NAME/$S3_PREFIX | sort | tail -n 1 | awk '{print $4}')
+fi
+
 aws s3 cp s3://$S3_BUCKET_NAME/$S3_PREFIX$S3_FILE_NAME /backups/$S3_FILE_NAME
 echo "download done"
 `

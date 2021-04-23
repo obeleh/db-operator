@@ -40,7 +40,7 @@ type RestoreCronJobReconciler struct {
 
 type RestoreCronJobReco struct {
 	Reco
-	restoreCronJob  dboperatorv1alpha1.RestoreJob
+	restoreCronJob  dboperatorv1alpha1.RestoreCronJob
 	restoreCronJobs map[string]batchv1beta.CronJob
 }
 
@@ -74,8 +74,8 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
-	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3)
-	cronJob := r.BuildCronJob([]v1.Container{restoreContainer}, downloadContainer, r.restoreCronJob.Name, r.restoreCronJob.Spec.Interval)
+	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3, r.restoreCronJob.Spec.FixedFileName)
+	cronJob := r.BuildCronJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreCronJob.Name, r.restoreCronJob.Spec.Interval)
 
 	err = r.client.Create(r.ctx, &cronJob)
 	if err != nil {

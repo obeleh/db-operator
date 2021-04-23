@@ -21,8 +21,9 @@ import (
 )
 
 type BackupCronJobSpec struct {
-	BackupTarget string `json:"backup_target"`
-	Interval     string `json:"interval"`
+	BackupTarget  string  `json:"backup_target"`
+	FixedFileName *string `json:"fixed_file_name,omitempty"`
+	Interval      string  `json:"interval"`
 }
 
 // BackupCronJobStatus defines the observed state of BackupCronJob

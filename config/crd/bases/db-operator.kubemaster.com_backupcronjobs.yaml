@@ -37,6 +37,8 @@ spec:
             properties:
               backup_target:
                 type: string
+              fixed_file_name:
+                type: string
               interval:
                 type: string
             required:

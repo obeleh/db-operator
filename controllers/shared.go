@@ -111,7 +111,7 @@ func BuildPostgresContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperato
 	}
 }
 
-func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string) v1.Container {
+func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string, fixedFileName *string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "S3_BUCKET_NAME", Value: s3Storage.Spec.BucketName},
 		{Name: "S3_PREFIX", Value: s3Storage.Spec.Prefix},
@@ -125,6 +125,10 @@ func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string) v1.
 				Key: Nvl(s3Storage.Spec.AccessKeyK8sSecretKey, "SECRET_ACCESS_KEY"),
 			},
 		}},
+	}
+
+	if fixedFileName != nil {
+		envVars = append(envVars, v1.EnvVar{Name: "S3_FILE_NAME", Value: *fixedFileName})
 	}
 
 	return v1.Container{

@@ -75,8 +75,9 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
-	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
-	job := r.BuildJob([]v1.Container{restoreContainer}, uploadContainer, r.restoreJob.Name)
+	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3, r.restoreJob.Spec.FixedFileName)
+
+	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {

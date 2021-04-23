@@ -73,7 +73,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	backupContainer := BuildPostgresContainer(dbServer, db, BACKUP_POSTGRES)
-	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
+	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3, r.backupJob.Spec.FixedFileName)
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name)
 
 	err = r.client.Create(r.ctx, &job)

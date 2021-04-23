@@ -73,7 +73,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	backupContainer := BuildPostgresContainer(dbServer, db, BACKUP_POSTGRES)
-	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
+	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3, r.backupCronJob.Spec.FixedFileName)
 	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, uploadContainer, r.backupCronJob.Name, r.backupCronJob.Spec.Interval)
 
 	err = r.client.Create(r.ctx, &cronJob)

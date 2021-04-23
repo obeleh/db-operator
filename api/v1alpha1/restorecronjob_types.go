@@ -21,7 +21,9 @@ import (
 )
 
 type RestoreCronJobSpec struct {
-	Foo string `json:"foo,omitempty"`
+	RestoreTarget string  `json:"restore_target"`
+	Interval      string  `json:"interval"`
+	FixedFileName *string `json:"fixed_file_name,omitempty"`
 }
 
 // RestoreCronJobStatus defines the observed state of RestoreCronJob

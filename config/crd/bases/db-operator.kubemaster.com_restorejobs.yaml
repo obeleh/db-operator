@@ -35,12 +35,11 @@ spec:
             type: object
           spec:
             properties:
-              interval:
+              fixed_file_name:
                 type: string
               restore_target:
                 type: string
             required:
-            - interval
             - restore_target
             type: object
           status:

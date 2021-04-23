@@ -35,8 +35,15 @@ spec:
             type: object
           spec:
             properties:
-              foo:
+              fixed_file_name:
                 type: string
+              interval:
+                type: string
+              restore_target:
+                type: string
+            required:
+            - interval
+            - restore_target
             type: object
           status:
             description: RestoreCronJobStatus defines the observed state of RestoreCronJob
