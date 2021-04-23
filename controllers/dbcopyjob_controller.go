@@ -18,8 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,25 +38,96 @@ type DbCopyJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+type DbCopyJobReco struct {
+	Reco
+	copyJob  dboperatorv1alpha1.DbCopyJob
+	copyJobs map[string]batchv1.Job
+}
+
+func (r *DbCopyJobReco) MarkedToBeDeleted() bool {
+	return r.copyJob.GetDeletionTimestamp() != nil
+}
+
+func (r *DbCopyJobReco) LoadObj() (bool, error) {
+	r.Log.Info(fmt.Sprintf("loading copyJob %s", r.copyJob.Name))
+
+	var err error
+	r.copyJobs, err = r.GetJobMap()
+	if err != nil {
+		return false, nil
+	}
+
+	_, exists := r.copyJobs[r.copyJob.Name]
+	r.Log.Info(fmt.Sprintf("copyJob %s exists: %t", r.copyJob.Name, exists))
+	return exists, nil
+}
+
+func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("creating copyJob %s", r.copyJob.Name))
+
+	fromDb, fromDbServer, err := r.GetDbFull(r.copyJob.Spec.FromDbName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	toDb, toDbServer, err := r.GetDbFull(r.copyJob.Spec.ToDbName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	backupContainer := BuildPostgresContainer(fromDbServer, fromDb, BACKUP_POSTGRES)
+	restoreContainer := BuildPostgresContainer(toDbServer, toDb, RESTORE_POSTGRES)
+
+	job := r.BuildJob([]v1.Container{backupContainer}, restoreContainer, r.copyJob.Name)
+
+	err = r.client.Create(r.ctx, &job)
+	if err != nil {
+		r.Log.Error(err, "Failed to create copy job")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *DbCopyJobReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Removing copyJob %s", r.copyJob.Name))
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.copyJob.Name,
+			Namespace: r.nsNm.Namespace,
+		},
+	}
+	err := r.client.Delete(r.ctx, job)
+	return ctrl.Result{}, err
+}
+
+func (r *DbCopyJobReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.copyJob)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.copyJob, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *DbCopyJobReco) GetCR() client.Object {
+	return &r.copyJob
+}
+
+func (r *DbCopyJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *DbCopyJobReco) CleanupConn() {
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the DbCopyJob object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *DbCopyJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbcopyjob", req.NamespacedName)
 
-	// your logic here
-
-	return ctrl.Result{}, nil
+	rr := DbCopyJobReco{
+		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+	}
+	return rr.Reco.Reconcile((&rr))
 }
 
 // SetupWithManager sets up the controller with the Manager.

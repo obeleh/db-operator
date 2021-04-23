@@ -18,8 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,25 +38,95 @@ type RestoreJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+type RestoreJobReco struct {
+	Reco
+	restoreJob  dboperatorv1alpha1.RestoreJob
+	restoreJobs map[string]batchv1.Job
+}
+
+func (r *RestoreJobReco) MarkedToBeDeleted() bool {
+	return r.restoreJob.GetDeletionTimestamp() != nil
+}
+
+func (r *RestoreJobReco) LoadObj() (bool, error) {
+	r.Log.Info(fmt.Sprintf("loading restoreJob %s", r.restoreJob.Name))
+
+	var err error
+	r.restoreJobs, err = r.GetJobMap()
+	if err != nil {
+		return false, nil
+	}
+
+	_, exists := r.restoreJobs[r.restoreJob.Name]
+	r.Log.Info(fmt.Sprintf("restoreJob %s exists: %t", r.restoreJob.Name, exists))
+	return exists, nil
+}
+
+func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("creating restoreJob %s", r.restoreJob.Name))
+
+	restoreTarget, db, dbServer, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	s3Storage, err := r.GetS3Storage(restoreTarget.Spec.StorageLocation)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
+	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
+	job := r.BuildJob([]v1.Container{restoreContainer}, uploadContainer, r.restoreJob.Name)
+
+	err = r.client.Create(r.ctx, &job)
+	if err != nil {
+		r.Log.Error(err, "Failed to create restore job")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreJobReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Removing restoreJob %s", r.restoreJob.Name))
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.restoreJob.Name,
+			Namespace: r.nsNm.Namespace,
+		},
+	}
+	err := r.client.Delete(r.ctx, job)
+	return ctrl.Result{}, err
+}
+
+func (r *RestoreJobReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.restoreJob)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.restoreJob, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreJobReco) GetCR() client.Object {
+	return &r.restoreJob
+}
+
+func (r *RestoreJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreJobReco) CleanupConn() {
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorejobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorejobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorejobs/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the RestoreJob object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *RestoreJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("restorejob", req.NamespacedName)
+	_ = r.Log.WithValues("restoreJob", req.NamespacedName)
 
-	// your logic here
-
-	return ctrl.Result{}, nil
+	rr := RestoreJobReco{
+		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+	}
+	return rr.Reco.Reconcile((&rr))
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -35,8 +35,13 @@ spec:
             type: object
           spec:
             properties:
-              foo:
+              from_db_name:
                 type: string
+              to_db_name:
+                type: string
+            required:
+            - from_db_name
+            - to_db_name
             type: object
           status:
             description: DbCopyJobStatus defines the observed state of DbCopyJob

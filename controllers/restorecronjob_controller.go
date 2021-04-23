@@ -18,8 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	batchv1beta "k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,25 +38,94 @@ type RestoreCronJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+type RestoreCronJobReco struct {
+	Reco
+	restoreCronJob  dboperatorv1alpha1.RestoreJob
+	restoreCronJobs map[string]batchv1beta.CronJob
+}
+
+func (r *RestoreCronJobReco) MarkedToBeDeleted() bool {
+	return r.restoreCronJob.GetDeletionTimestamp() != nil
+}
+
+func (r *RestoreCronJobReco) LoadObj() (bool, error) {
+	r.Log.Info(fmt.Sprintf("loading restoreCronJob %s", r.restoreCronJob.Name))
+	var err error
+	r.restoreCronJobs, err = r.GetCronJobMap()
+	if err != nil {
+		return false, nil
+	}
+
+	_, exists := r.restoreCronJobs[r.restoreCronJob.Name]
+	r.Log.Info(fmt.Sprintf("restoreCronJob %s exists: %t", r.restoreCronJob.Name, exists))
+	return exists, nil
+}
+
+func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("creating restoreCronJob %s", r.restoreCronJob.Name))
+
+	restoreTarget, db, dbServer, err := r.GetRestoreTargetFull(r.restoreCronJob.Spec.RestoreTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	s3Storage, err := r.GetS3Storage(restoreTarget.Spec.StorageLocation)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
+	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3)
+	cronJob := r.BuildCronJob([]v1.Container{restoreContainer}, downloadContainer, r.restoreCronJob.Name, r.restoreCronJob.Spec.Interval)
+
+	err = r.client.Create(r.ctx, &cronJob)
+	if err != nil {
+		r.Log.Error(err, "Failed to create restore cronjob")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreCronJobReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Removing restoreCronJob %s", r.restoreCronJob.Name))
+	cronJob := &batchv1beta.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.restoreCronJob.Name,
+			Namespace: r.nsNm.Namespace,
+		},
+	}
+	err := r.client.Delete(r.ctx, cronJob)
+	return ctrl.Result{}, err
+}
+
+func (r *RestoreCronJobReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.restoreCronJob)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.restoreCronJob, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreCronJobReco) GetCR() client.Object {
+	return &r.restoreCronJob
+}
+
+func (r *RestoreCronJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *RestoreCronJobReco) CleanupConn() {
+}
+
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorecronjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorecronjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=restorecronjobs/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the RestoreCronJob object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *RestoreCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("restorecronjob", req.NamespacedName)
 
-	// your logic here
-
-	return ctrl.Result{}, nil
+	rr := RestoreCronJobReco{
+		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+	}
+	return rr.Reco.Reconcile((&rr))
 }
 
 // SetupWithManager sets up the controller with the Manager.

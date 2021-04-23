@@ -166,6 +166,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupCronJob")
 		os.Exit(1)
 	}
+	if err = (&controllers.DbCopyCronJobReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("DbCopyCronJob"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DbCopyCronJob")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

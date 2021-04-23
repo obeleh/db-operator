@@ -20,13 +20,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type RestoreJobSpec struct {
-	RestoreTarget string `json:"restore_target"`
-	Interval      string `json:"interval"`
+// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
+// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+// DbCopyCronJobSpec defines the desired state of DbCopyCronJob
+type DbCopyCronJobSpec struct {
+	FromDbName string `json:"from_db_name"`
+	ToDbName   string `json:"to_db_name"`
+	Interval   string `json:"interval"`
 }
 
-// RestoreJobStatus defines the observed state of RestoreJob
-type RestoreJobStatus struct {
+// DbCopyCronJobStatus defines the observed state of DbCopyCronJob
+type DbCopyCronJobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -34,24 +39,24 @@ type RestoreJobStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// RestoreJob is the Schema for the restorejobs API
-type RestoreJob struct {
+// DbCopyCronJob is the Schema for the dbcopycronjobs API
+type DbCopyCronJob struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RestoreJobSpec   `json:"spec,omitempty"`
-	Status RestoreJobStatus `json:"status,omitempty"`
+	Spec   DbCopyCronJobSpec   `json:"spec,omitempty"`
+	Status DbCopyCronJobStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// RestoreJobList contains a list of RestoreJob
-type RestoreJobList struct {
+// DbCopyCronJobList contains a list of DbCopyCronJob
+type DbCopyCronJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RestoreJob `json:"items"`
+	Items           []DbCopyCronJob `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&RestoreJob{}, &RestoreJobList{})
+	SchemeBuilder.Register(&DbCopyCronJob{}, &DbCopyCronJobList{})
 }

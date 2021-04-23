@@ -12,6 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const SCRIPTS_CONFIGMAP string = "db-operator-scripts"
+
 var VOLUME_MOUNTS = []v1.VolumeMount{
 	{Name: SCRIPTS_VOLUME_NAME, MountPath: path.Join("/", SCRIPTS_VOLUME_NAME)},
 	{Name: BACKUP_VOLUME_NAME, MountPath: path.Join("/", BACKUP_VOLUME_NAME)},
@@ -72,7 +74,7 @@ func Nvl(val1 string, val2 string) string {
 	}
 }
 
-func BuildPostgresBackupContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) v1.Container {
+func BuildPostgresContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, script string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
 		{Name: "PGUSER", Value: dbServer.Spec.UserName},
@@ -92,13 +94,13 @@ func BuildPostgresBackupContainer(dbServer *dboperatorv1alpha1.DbServer, db *dbo
 		Image: "postgres:" + Nvl(dbServer.Spec.Version, "latest"),
 		Env:   envVars,
 		Command: []string{
-			path.Join("/", SCRIPTS_VOLUME_NAME, BACKUP_POSTGRES),
+			path.Join("/", SCRIPTS_VOLUME_NAME, script),
 		},
 		VolumeMounts: VOLUME_MOUNTS,
 	}
 }
 
-func BuildS3UploadContainer(s3Storage dboperatorv1alpha1.S3Storage) v1.Container {
+func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "S3_BUCKET_NAME", Value: s3Storage.Spec.BucketName},
 		{Name: "S3_PREFIX", Value: s3Storage.Spec.Prefix},
@@ -119,7 +121,7 @@ func BuildS3UploadContainer(s3Storage dboperatorv1alpha1.S3Storage) v1.Container
 		Image: "amazon/aws-cli",
 		Env:   envVars,
 		Command: []string{
-			path.Join("/", SCRIPTS_VOLUME_NAME, UPLOAD_S3),
+			path.Join("/", SCRIPTS_VOLUME_NAME, script),
 		},
 		VolumeMounts: VOLUME_MOUNTS,
 	}

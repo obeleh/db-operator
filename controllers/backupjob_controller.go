@@ -44,8 +44,6 @@ type BackupJobReco struct {
 	backupJobs map[string]batchv1.Job
 }
 
-const SCRIPTS_CONFIGMAP string = "db-operator-scripts"
-
 func (r *BackupJobReco) MarkedToBeDeleted() bool {
 	return r.backupJob.GetDeletionTimestamp() != nil
 }
@@ -53,20 +51,9 @@ func (r *BackupJobReco) MarkedToBeDeleted() bool {
 func (r *BackupJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading backupJob %s", r.backupJob.Name))
 	var err error
-	jobs := &batchv1.JobList{}
-	opts := []client.ListOption{
-		client.InNamespace(r.nsNm.Namespace),
-		client.MatchingLabels{"controlledBy": "DbOperator"},
-	}
-	err = r.client.List(r.ctx, jobs, opts...)
+	r.backupJobs, err = r.GetJobMap()
 	if err != nil {
-		r.Log.Error(err, "failed listing Jobs")
-		return false, err
-	}
-	r.backupJobs = make(map[string]batchv1.Job)
-	for _, job := range jobs.Items {
-		r.Log.Info(fmt.Sprintf("Found job %s", job.Name))
-		r.backupJobs[job.Name] = job
+		return false, nil
 	}
 	_, exists := r.backupJobs[r.backupJob.Name]
 	r.Log.Info(fmt.Sprintf("backupJob %s exists: %t", r.backupJob.Name, exists))
@@ -75,59 +62,21 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
-	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	db, err := r.GetDb(backupTarget.Spec.DbName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	dbServer, err := r.GetDbServer(db)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
-	err = r.EnsureScripts()
+	backupTarget, db, dbServer, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	s3Storage, err := r.GetS3Storage(backupTarget.Spec.StorageLocation)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	s3Storage, err := r.GetS3Storage(backupTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	backupContainer := BuildPostgresContainer(dbServer, db, BACKUP_POSTGRES)
+	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
+	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name)
 
-	backupContainer := BuildPostgresBackupContainer(dbServer, db)
-	uploadContainer := BuildS3UploadContainer(s3Storage)
-
-	backupPodSpec := v1.PodSpec{
-		InitContainers: []v1.Container{
-			backupContainer,
-		},
-		Containers: []v1.Container{
-			uploadContainer,
-		},
-		RestartPolicy: v1.RestartPolicyNever,
-		Volumes:       GetVolumes(),
-	}
-
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.backupJob.Name,
-			Namespace: r.nsNm.Namespace,
-			Labels: map[string]string{
-				"controlledBy": "DbOperator",
-			},
-		},
-		Spec: batchv1.JobSpec{
-			Template: v1.PodTemplateSpec{
-				Spec: backupPodSpec,
-			},
-		},
-	}
-
-	err = r.client.Create(r.ctx, job)
+	err = r.client.Create(r.ctx, &job)
 	if err != nil {
 		r.Log.Error(err, "Failed to create backup job")
 	}
@@ -170,7 +119,7 @@ func (r *BackupJobReco) CleanupConn() {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/finalizers,verbs=update
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("backupjob", req.NamespacedName)
+	_ = r.Log.WithValues("backupJob", req.NamespacedName)
 
 	br := BackupJobReco{
 		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},

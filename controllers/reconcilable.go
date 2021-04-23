@@ -7,8 +7,11 @@ import (
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,6 +102,17 @@ func (r *Reco) GetBackupTarget(backupTarget string) (*dboperatorv1alpha1.BackupT
 	return backupTargetCr, err
 }
 
+func (r *Reco) GetRestoreTarget(restoreTarget string) (*dboperatorv1alpha1.RestoreTarget, error) {
+	r.Log.Info(fmt.Sprintf("loading backupTarget %s", restoreTarget))
+	restoreTargetCr := &dboperatorv1alpha1.RestoreTarget{}
+	nsName := types.NamespacedName{
+		Name:      restoreTarget,
+		Namespace: r.nsNm.Namespace,
+	}
+	err := r.client.Get(r.ctx, nsName, restoreTargetCr)
+	return restoreTargetCr, err
+}
+
 func (r *Reco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
 	r.Log.Info(fmt.Sprintf("loading db %s", dbName))
 	db := &dboperatorv1alpha1.Db{}
@@ -163,13 +177,153 @@ func (r *Reco) EnsureScripts() error {
 	return nil
 }
 
-func (r *Reco) GetS3Storage(backupTarget *dboperatorv1alpha1.BackupTarget) (dboperatorv1alpha1.S3Storage, error) {
+func (r *Reco) GetS3Storage(storageLocation string) (dboperatorv1alpha1.S3Storage, error) {
 	s3Storage := &dboperatorv1alpha1.S3Storage{}
 	nsName := types.NamespacedName{
-		Name:      backupTarget.Spec.StorageLocation,
+		Name:      storageLocation,
 		Namespace: r.nsNm.Namespace,
 	}
 
 	err := r.client.Get(r.ctx, nsName, s3Storage)
 	return *s3Storage, err
+}
+
+func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, jobName string) batchv1.Job {
+	podSpec := v1.PodSpec{
+		InitContainers: initContainers,
+		Containers: []v1.Container{
+			container,
+		},
+		RestartPolicy: v1.RestartPolicyNever,
+		Volumes:       GetVolumes(),
+	}
+
+	return batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: r.nsNm.Namespace,
+			Labels: map[string]string{
+				"controlledBy": "DbOperator",
+			},
+		},
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: podSpec,
+			},
+		},
+	}
+}
+
+func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string) batchv1beta.CronJob {
+	podSpec := v1.PodSpec{
+		InitContainers: initContainers,
+		Containers: []v1.Container{
+			container,
+		},
+		RestartPolicy: v1.RestartPolicyNever,
+		Volumes:       GetVolumes(),
+	}
+
+	return batchv1beta.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: r.nsNm.Namespace,
+			Labels: map[string]string{
+				"controlledBy": "DbOperator",
+			},
+		},
+		Spec: batchv1beta.CronJobSpec{
+			JobTemplate: batchv1beta.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: v1.PodTemplateSpec{
+						Spec: podSpec,
+					},
+				},
+			},
+			Schedule: schedule,
+		},
+	}
+}
+
+func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, *dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
+	backupTarget, err := r.GetBackupTarget(backupTargetName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	db, dbServer, err := r.GetDbFull(backupTarget.Spec.DbName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return backupTarget, db, dbServer, err
+}
+
+func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, *dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
+	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	db, dbServer, err := r.GetDbFull(restoreTarget.Spec.DbName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return restoreTarget, db, dbServer, err
+}
+
+func (r *Reco) GetDbFull(dbName string) (*dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
+	db, err := r.GetDb(dbName)
+	if err != nil {
+		return nil, nil, err
+	}
+	dbServer, err := r.GetDbServer(db)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = r.EnsureScripts()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return db, dbServer, err
+}
+
+func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
+	var err error
+	jobs := &batchv1.JobList{}
+	opts := []client.ListOption{
+		client.InNamespace(r.nsNm.Namespace),
+		client.MatchingLabels{"controlledBy": "DbOperator"},
+	}
+	err = r.client.List(r.ctx, jobs, opts...)
+	if err != nil {
+		r.Log.Error(err, "failed listing Jobs")
+		return nil, err
+	}
+	jobsMap := make(map[string]batchv1.Job)
+	for _, job := range jobs.Items {
+		r.Log.Info(fmt.Sprintf("Found job %s", job.Name))
+		jobsMap[job.Name] = job
+	}
+	return jobsMap, nil
+}
+
+func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
+	var err error
+	cronJobs := &batchv1beta.CronJobList{}
+	opts := []client.ListOption{
+		client.InNamespace(r.nsNm.Namespace),
+		client.MatchingLabels{"controlledBy": "DbOperator"},
+	}
+	err = r.client.List(r.ctx, cronJobs, opts...)
+	if err != nil {
+		r.Log.Error(err, "failed listing CronJobs")
+		return nil, err
+	}
+	cronJobsMap := make(map[string]batchv1beta.CronJob)
+	for _, cronJob := range cronJobs.Items {
+		r.Log.Info(fmt.Sprintf("Found cronJob %s", cronJob.Name))
+		cronJobsMap[cronJob.Name] = cronJob
+	}
+	return cronJobsMap, nil
 }

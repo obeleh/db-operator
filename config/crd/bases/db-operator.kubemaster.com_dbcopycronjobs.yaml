@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: restorejobs.db-operator.kubemaster.com
+  name: dbcopycronjobs.db-operator.kubemaster.com
 spec:
   group: db-operator.kubemaster.com
   names:
-    kind: RestoreJob
-    listKind: RestoreJobList
-    plural: restorejobs
-    singular: restorejob
+    kind: DbCopyCronJob
+    listKind: DbCopyCronJobList
+    plural: dbcopycronjobs
+    singular: dbcopycronjob
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: RestoreJob is the Schema for the restorejobs API
+        description: DbCopyCronJob is the Schema for the dbcopycronjobs API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,17 +34,21 @@ spec:
           metadata:
             type: object
           spec:
+            description: DbCopyCronJobSpec defines the desired state of DbCopyCronJob
             properties:
+              from_db_name:
+                type: string
               interval:
                 type: string
-              restore_target:
+              to_db_name:
                 type: string
             required:
+            - from_db_name
             - interval
-            - restore_target
+            - to_db_name
             type: object
           status:
-            description: RestoreJobStatus defines the observed state of RestoreJob
+            description: DbCopyCronJobStatus defines the observed state of DbCopyCronJob
             type: object
         type: object
     served: true

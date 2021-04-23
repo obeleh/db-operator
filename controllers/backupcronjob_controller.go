@@ -23,6 +23,8 @@ import (
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	batchv1beta "k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +39,7 @@ type BackupCronJobReconciler struct {
 
 type BackupCronJobReco struct {
 	Reco
-	backupCronJob  dboperatorv1alpha1.BackupJob
+	backupCronJob  dboperatorv1alpha1.BackupCronJob
 	backupCronJobs map[string]batchv1beta.CronJob
 }
 
@@ -48,35 +50,81 @@ func (r *BackupCronJobReco) MarkedToBeDeleted() bool {
 func (r *BackupCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading backupCronJob %s", r.backupCronJob.Name))
 	var err error
-	cronJobs := &batchv1beta.CronJobList{}
-	opts := []client.ListOption{
-		client.InNamespace(r.nsNm.Namespace),
-		client.MatchingLabels{"controlledBy": "DbOperator"},
-	}
-	err = r.client.List(r.ctx, cronJobs, opts...)
+	r.backupCronJobs, err = r.GetCronJobMap()
 	if err != nil {
-		r.Log.Error(err, "failed listing CronJobs")
-		return false, err
+		return false, nil
 	}
-	r.backupCronJobs = make(map[string]batchv1beta.CronJob)
-	for _, cronJob := range cronJobs.Items {
-		r.Log.Info(fmt.Sprintf("Found job %s", cronJob.Name))
-		r.backupCronJobs[cronJob.Name] = cronJob
-	}
+
 	_, exists := r.backupCronJobs[r.backupCronJob.Name]
 	r.Log.Info(fmt.Sprintf("backupCronJob %s exists: %t", r.backupCronJob.Name, exists))
 	return exists, nil
+}
+
+func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("creating backupCronJob %s", r.backupCronJob.Name))
+
+	backupTarget, db, dbServer, err := r.GetBackupTargetFull(r.backupCronJob.Spec.BackupTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	s3Storage, err := r.GetS3Storage(backupTarget.Spec.StorageLocation)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	backupContainer := BuildPostgresContainer(dbServer, db, BACKUP_POSTGRES)
+	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3)
+	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, uploadContainer, r.backupCronJob.Name, r.backupCronJob.Spec.Interval)
+
+	err = r.client.Create(r.ctx, &cronJob)
+	if err != nil {
+		r.Log.Error(err, "Failed to create backup cronjob")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *BackupCronJobReco) RemoveObj() (ctrl.Result, error) {
+	r.Log.Info(fmt.Sprintf("Removing BackupCronJob %s", r.backupCronJob.Name))
+	cronJob := &batchv1beta.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.backupCronJob.Name,
+			Namespace: r.nsNm.Namespace,
+		},
+	}
+	err := r.client.Delete(r.ctx, cronJob)
+	return ctrl.Result{}, err
+}
+
+func (r *BackupCronJobReco) LoadCR() (ctrl.Result, error) {
+	err := r.client.Get(r.ctx, r.nsNm, &r.backupCronJob)
+	if err != nil {
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupCronJob, r.nsNm.Name))
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *BackupCronJobReco) GetCR() client.Object {
+	return &r.backupCronJob
+}
+
+func (r *BackupCronJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
+func (r *BackupCronJobReco) CleanupConn() {
 }
 
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupcronjobs/finalizers,verbs=update
 func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("backupcronjob", req.NamespacedName)
+	_ = r.Log.WithValues("backupCronJob", req.NamespacedName)
 
-	// your logic here
-
-	return ctrl.Result{}, nil
+	br := BackupCronJobReco{
+		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+	}
+	return br.Reco.Reconcile((&br))
 }
 
 // SetupWithManager sets up the controller with the Manager.

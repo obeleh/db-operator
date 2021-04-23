@@ -1,0 +1,24 @@
+# permissions for end users to edit dbcopycronjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbcopycronjob-editor-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs/status
+  verbs:
+  - get
