@@ -32,6 +32,7 @@ type DbServerSpec struct {
 	SecretName string `json:"secret_name"`
 	SecretKey  string `json:"secret_key,omitempty"`
 	Version    string `json:"version,omitempty"`
+	ServerType string `json:"server_type"`
 }
 
 // DbServerStatus defines the observed state of DbServer

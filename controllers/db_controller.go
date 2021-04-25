@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -40,8 +39,8 @@ type DbReconciler struct {
 type DbReco struct {
 	Reco
 	db   dboperatorv1alpha1.Db
-	dbs  map[string]PostgresDb
-	conn *sql.DB
+	dbs  map[string]DbSideDb
+	conn DbServerConnectionInterface
 }
 
 func (r *DbReco) MarkedToBeDeleted() bool {
@@ -60,20 +59,20 @@ func (r *DbReco) LoadCR() (ctrl.Result, error) {
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
-	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, nil)
+	dbServer, err := r.GetDbServer(r.db.Spec.Server)
 	if err != nil {
-		r.Log.Error(err, "failed building dbConnectionInfo")
+		r.Log.Error(err, "failed getting DbServer")
 		return false, err
 	}
-	r.conn, err = connInfo.GetDbConnection()
+	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.Log.Error(err, "failed getting connection")
+		r.Log.Error(err, "failed building dbConnection")
 		return false, err
 	}
 
-	r.dbs, err = GetPgDbs(r.conn)
+	r.dbs, err = r.conn.GetDbs()
 	if err != nil {
-		r.Log.Error(err, "failed getting PgDBs")
+		r.Log.Error(err, "failed getting DBs")
 		return false, err
 	}
 	_, exists := r.dbs[r.db.Spec.DbName]
@@ -82,14 +81,9 @@ func (r *DbReco) LoadObj() (bool, error) {
 		r.conn.Close()
 
 		// If the database exists allow to directly adress it
-		connInfo, err = GetDbConnectionInfoFromServerName(r.client, r.ctx, r.db.Spec.Server, r.db.Namespace, &r.db.Spec.DbName)
+		r.conn, err = r.GetDbConnection(dbServer, &r.db.Name)
 		if err != nil {
-			r.Log.Error(err, "failed building dbConnectionInfo")
-			return false, err
-		}
-		r.conn, err = connInfo.GetDbConnection()
-		if err != nil {
-			r.Log.Error(err, "failed getting connection")
+			r.Log.Error(err, "failed building dbConnection")
 			return false, err
 		}
 	}
@@ -113,14 +107,14 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	if r.conn == nil {
 		return ctrl.Result{}, fmt.Errorf("No database connection possible")
 	}
-	err = CreatePgDb(r.db.Spec.DbName, dbUser.Spec.UserName, r.conn)
+	err = r.conn.CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName)
 	return ctrl.Result{}, nil
 }
 
 func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 	if r.db.Spec.DropOnDeletion {
 		r.Log.Info(fmt.Sprintf("Dropping db %s", r.db.Spec.DbName))
-		err := DropPgDb(r.db.Spec.DbName, r.conn)
+		err := r.conn.DropDb(r.db.Spec.DbName)
 		if err != nil {
 			r.Log.Error(err, fmt.Sprintf("Failed to drop db %s", r.db.Spec.DbName))
 			return ctrl.Result{}, err
@@ -151,7 +145,7 @@ func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
 	}
 	if dbObj.Owner != dbUser.Spec.UserName {
 		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
-		err = MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName, r.conn)
+		err = r.conn.MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName)
 		if err != nil {
 			r.Log.Error(err, "Failed changing db ownership")
 			return ctrl.Result{}, err

@@ -1,80 +1,54 @@
 package controllers
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
-
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type PostgresUser struct {
-	UserName   string
-	Attributes string
+type PostgresConnection struct {
+	DbServerConnection
 }
 
-type PostgresDb struct {
-	DatbaseName string
-	Owner       string
-}
-
-type PostgresConnectInfo struct {
-	Host     string
-	Port     int
-	UserName string
-	Password string
-	Database string
-}
-
-func NewPostgresConnectInfo(host string, port int, userName string, password string, database *string) PostgresConnectInfo {
-	var dbName string
-	if database == nil {
-		dbName = "postgres"
-	} else {
-		dbName = *database
+func (p *PostgresConnection) GetConnectionString() string {
+	if len(p.Database) == 0 {
+		panic("No database configured")
 	}
-	return PostgresConnectInfo{
-		Host:     host,
-		Port:     port,
-		UserName: userName,
-		Password: password,
-		Database: dbName,
-	}
-}
-
-func (p *PostgresConnectInfo) GetConnectionString() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		p.Host, p.Port, p.UserName, p.Password, p.Database)
 }
 
-func (p *PostgresConnectInfo) GetDbConnection() (*sql.DB, error) {
-	pgDbServer, err := sql.Open("postgres", p.GetConnectionString())
+func (p *PostgresConnection) CreateUser(userName string, password string) error {
+	conn, err := p.GetDbConnection()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open a DB connection to: %s", p.Host)
+		return err
 	}
-	return pgDbServer, nil
-}
-
-func CreatePgUser(userName string, password string, dbServerConn *sql.DB) error {
-	_, err := dbServerConn.Exec(fmt.Sprintf(`CREATE ROLE %s LOGIN PASSWORD '%s';`, userName, password))
+	_, err = conn.Exec(fmt.Sprintf(`CREATE ROLE %s LOGIN PASSWORD '%s';`, userName, password))
 	return err
 }
 
-func DropPgUser(userName string, dbServerConn *sql.DB) error {
-	_, err := dbServerConn.Exec(fmt.Sprintf(`DROP ROLE IF EXISTS %s;`, userName))
+func (p *PostgresConnection) DropUser(userName string) error {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf(`DROP ROLE IF EXISTS %s;`, userName))
 	return err
 }
 
-func MakeUserDbOwner(userName string, dbName string, dbServerConn *sql.DB) error {
-	_, err := dbServerConn.Exec(fmt.Sprintf(PG_GRANT_SCRIPT, userName, userName, userName, userName, userName, userName, userName, dbName, userName))
+func (p *PostgresConnection) MakeUserDbOwner(userName string, dbName string) error {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf(PG_GRANT_SCRIPT, userName, userName, userName, userName, userName, userName, userName, dbName, userName))
 	return err
 }
 
-func GetPgUsers(dbServerConn *sql.DB) (map[string]PostgresUser, error) {
-	rows, err := dbServerConn.Query(
+func (p *PostgresConnection) GetUsers() (map[string]DbSideUser, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := conn.Query(
 		`SELECT usename AS role_name,
 			CASE 
 			WHEN usesuper AND usecreatedb THEN 
@@ -93,40 +67,51 @@ func GetPgUsers(dbServerConn *sql.DB) (map[string]PostgresUser, error) {
 		return nil, fmt.Errorf("Unable to read users from server")
 	}
 
-	postgresUsers := make(map[string]PostgresUser)
+	users := make(map[string]DbSideUser)
 
 	for rows.Next() {
-		var postgresUser PostgresUser
-		err := rows.Scan(&postgresUser.UserName, &postgresUser.Attributes)
+		var dbUser DbSideUser
+		err := rows.Scan(&dbUser.UserName, &dbUser.Attributes)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load PostgresUser")
+			return nil, fmt.Errorf("unable to load DbUser")
 		}
-		postgresUsers[postgresUser.UserName] = postgresUser
+		users[dbUser.UserName] = dbUser
 	}
-	return postgresUsers, nil
+	return users, nil
 }
 
-func CreatePgDb(dbName string, dbOwner string, dbServerConn *sql.DB) error {
-	_, err := dbServerConn.Exec(fmt.Sprintf("CREATE DATABASE %q WITH OWNER = '%s';", dbName, dbOwner))
+func (p *PostgresConnection) CreateDb(dbName string, dbOwner string) error {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE %q WITH OWNER = '%s';", dbName, dbOwner))
 	return err
 }
 
-func DropPgDb(dbName string, dbServerConn *sql.DB) error {
-	_, err := dbServerConn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
+func (p *PostgresConnection) DropDb(dbName string) error {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
 	return err
 }
 
-func GetPgDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
-
-	rows, err := dbServerConn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")
+func (p *PostgresConnection) GetDbs() (map[string]DbSideDb, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := conn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")
 	if err != nil {
 		return nil, err
 	}
 
-	databases := make(map[string]PostgresDb)
+	databases := make(map[string]DbSideDb)
 
 	for rows.Next() {
-		var database PostgresDb
+		var database DbSideDb
 		err := rows.Scan(&database.DatbaseName, &database.Owner)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load PostgresDb")
@@ -136,29 +121,17 @@ func GetPgDbs(dbServerConn *sql.DB) (map[string]PostgresDb, error) {
 	return databases, nil
 }
 
-func GetPgConnectInfo(k8sClient client.Client, ctx context.Context, dbServer *dboperatorv1alpha1.DbServer, dbName *string) (*PostgresConnectInfo, error) {
-	secretName := types.NamespacedName{
-		Name:      dbServer.Spec.SecretName,
-		Namespace: dbServer.Namespace,
+func (p *PostgresConnection) Close() error {
+	if p.Conn != nil {
+		err := p.Conn.Close()
+		p.Conn = nil
+		return err
 	}
-	secret := &v1.Secret{}
-
-	err := k8sClient.Get(ctx, secretName, secret)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
-	}
-
-	connectInfo := NewPostgresConnectInfo(
-		dbServer.Spec.Address,
-		dbServer.Spec.Port,
-		dbServer.Spec.UserName,
-		string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")]),
-		dbName,
-	)
-	return &connectInfo, nil
+	return nil
 }
 
-func GetDbConnectionInfoFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*PostgresConnectInfo, error) {
+/*
+func GetDbConnectionInfoFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*DbServerConnectInfo, error) {
 	serverNsName := types.NamespacedName{
 		Name:      serverName,
 		Namespace: namespace,
@@ -173,3 +146,4 @@ func GetDbConnectionInfoFromServerName(k8sClient client.Client, ctx context.Cont
 	info, err := GetPgConnectInfo(k8sClient, ctx, dbServer, dbName)
 	return info, err
 }
+*/

@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -39,8 +38,8 @@ type UserReconciler struct {
 type UserReco struct {
 	Reco
 	user  dboperatorv1alpha1.User
-	users map[string]PostgresUser
-	conn  *sql.DB
+	users map[string]DbSideUser
+	conn  DbServerConnectionInterface
 }
 
 func (r *UserReco) MarkedToBeDeleted() bool {
@@ -49,16 +48,18 @@ func (r *UserReco) MarkedToBeDeleted() bool {
 
 func (r *UserReco) LoadObj() (bool, error) {
 	var err error
-	connInfo, err := GetDbConnectionInfoFromServerName(r.client, r.ctx, r.user.Spec.DbServerName, r.user.Namespace, nil)
+	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
+		r.Log.Error(err, "failed getting DbServer")
 		return false, err
 	}
-	r.conn, err = connInfo.GetDbConnection()
+	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
+		r.Log.Error(err, "failed building dbConnection")
 		return false, err
 	}
 
-	r.users, err = GetPgUsers(r.conn)
+	r.users, err = r.conn.GetUsers()
 	if err != nil {
 		return false, err
 	}
@@ -73,7 +74,7 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{Requeue: true}, nil
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
-	err = CreatePgUser(r.user.Spec.UserName, *password, r.conn)
+	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
 		r.Log.Error(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
@@ -83,7 +84,7 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 
 func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
-	err := DropPgUser(r.user.Spec.UserName, r.conn)
+	err := r.conn.DropUser(r.user.Spec.UserName)
 	if err != nil {
 		r.Log.Error(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
@@ -121,8 +122,11 @@ func (r *UserReco) CleanupConn() {
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("user", req.NamespacedName)
-	ur := UserReco{}
-	ur.Reco = Reco{r.Client, ctx, r.Log, req.NamespacedName}
+	ur := UserReco{
+		Reco: Reco{
+			r.Client, ctx, r.Log, req.NamespacedName,
+		},
+	}
 	return ur.Reco.Reconcile(&ur)
 }
 

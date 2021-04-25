@@ -45,6 +45,7 @@ spec:
               user_name:
                 type: string
             required:
+            - db_server_name
             - secret_name
             - user_name
             type: object

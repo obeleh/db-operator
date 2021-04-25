@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
@@ -124,11 +125,11 @@ func (r *Reco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
 	return db, err
 }
 
-func (r *Reco) GetDbServer(db *dboperatorv1alpha1.Db) (*dboperatorv1alpha1.DbServer, error) {
-	r.Log.Info(fmt.Sprintf("loading dbServer %s", db.Spec.Server))
+func (r *Reco) GetDbServer(dbServerName string) (*dboperatorv1alpha1.DbServer, error) {
+	r.Log.Info(fmt.Sprintf("loading dbServer %s", dbServerName))
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	nsName := types.NamespacedName{
-		Name:      db.Spec.Server,
+		Name:      dbServerName,
 		Namespace: r.nsNm.Namespace,
 	}
 	err := r.client.Get(r.ctx, nsName, dbServer)
@@ -276,7 +277,7 @@ func (r *Reco) GetDbFull(dbName string) (*dboperatorv1alpha1.Db, *dboperatorv1al
 	if err != nil {
 		return nil, nil, err
 	}
-	dbServer, err := r.GetDbServer(db)
+	dbServer, err := r.GetDbServer(db.Spec.Server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -326,4 +327,50 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 		cronJobsMap[cronJob.Name] = cronJob
 	}
 	return cronJobsMap, nil
+}
+
+func GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, password string, database *string) (*PostgresConnection, error) {
+	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
+		var dbName string
+		if database == nil {
+			dbName = "postgres"
+		} else {
+			dbName = *database
+		}
+		conn := &PostgresConnection{
+			DbServerConnection: DbServerConnection{
+				DbServerConnectInfo: DbServerConnectInfo{
+					Host:     dbServer.Spec.Address,
+					Port:     dbServer.Spec.Port,
+					UserName: dbServer.Spec.UserName,
+					Password: password,
+					Database: dbName,
+				},
+				Driver: "postgres",
+			},
+		}
+		conn.DbServerConnectionInterface = conn
+		return conn, nil
+	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
+		return nil, fmt.Errorf("MYSQL NOT YET IMPLEMENTED")
+	} else {
+		return nil, fmt.Errorf("Expected either mysql or postgres server")
+	}
+}
+
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, database *string) (DbServerConnectionInterface, error) {
+	secretName := types.NamespacedName{
+		Name:      dbServer.Spec.SecretName,
+		Namespace: dbServer.Namespace,
+	}
+	secret := &v1.Secret{}
+
+	err := r.client.Get(r.ctx, secretName, secret)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
+	}
+
+	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
+
+	return GetDbConnection(dbServer, password, database)
 }

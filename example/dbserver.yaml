@@ -7,3 +7,4 @@ spec:
   port: 5432
   user_name: postgres
   secret_name: postgres
+  server_type: postgres

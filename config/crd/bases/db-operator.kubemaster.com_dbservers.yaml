@@ -47,6 +47,8 @@ spec:
               secret_name:
                 minLength: 1
                 type: string
+              server_type:
+                type: string
               user_name:
                 minLength: 1
                 type: string
@@ -56,6 +58,7 @@ spec:
             - address
             - port
             - secret_name
+            - server_type
             - user_name
             type: object
           status:
