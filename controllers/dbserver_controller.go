@@ -61,7 +61,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	defer conn.Close()
 	databases, err := conn.GetDbs()
 	if err != nil {
-		r.Log.Error(err, "Failed reading databases")
+		r.Log.Error(err, fmt.Sprintf("Failed reading databases: %s", err))
 		return ctrl.Result{}, nil
 	}
 	for name, db := range databases {

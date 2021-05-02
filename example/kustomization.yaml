@@ -2,6 +2,8 @@ resources:
  - dbserver.yaml
  - postgres-secret.yaml
  - postgres-deployment.yaml
+ - mysql-secret.yaml
+ - mysql-deployment.yaml
  - user.yaml
  - database.yaml
  - backup-job.yaml

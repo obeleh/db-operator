@@ -46,9 +46,10 @@ func (s *DbServerConnection) GetDbConnection() (*sql.DB, error) {
 	if s.Conn == nil {
 		var err error
 		connStr := s.GetConnectionString()
+
 		s.Conn, err = sql.Open(s.Driver, connStr)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to open a %s DB connection to: %s", s.Driver, s.Host)
+			return nil, fmt.Errorf("Failed to open a %s DB connection to: %s with error: %s", s.Driver, s.Host, err)
 		}
 	}
 	return s.Conn, nil

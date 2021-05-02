@@ -1,5 +1,7 @@
 package controllers
 
+// https://github.com/ansible-collections/community.postgresql/blob/main/plugins/modules/postgresql_user.py
+
 import (
 	"fmt"
 )
@@ -129,21 +131,3 @@ func (p *PostgresConnection) Close() error {
 	}
 	return nil
 }
-
-/*
-func GetDbConnectionInfoFromServerName(k8sClient client.Client, ctx context.Context, serverName string, namespace string, dbName *string) (*DbServerConnectInfo, error) {
-	serverNsName := types.NamespacedName{
-		Name:      serverName,
-		Namespace: namespace,
-	}
-	dbServer := &dboperatorv1alpha1.DbServer{}
-
-	err := k8sClient.Get(ctx, serverNsName, dbServer)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get Server: %s", serverName)
-	}
-
-	info, err := GetPgConnectInfo(k8sClient, ctx, dbServer, dbName)
-	return info, err
-}
-*/

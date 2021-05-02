@@ -329,7 +329,7 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 	return cronJobsMap, nil
 }
 
-func GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, password string, database *string) (*PostgresConnection, error) {
+func GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, password string, database *string) (DbServerConnectionInterface, error) {
 	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
 		var dbName string
 		if database == nil {
@@ -352,7 +352,26 @@ func GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, password string, dat
 		conn.DbServerConnectionInterface = conn
 		return conn, nil
 	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
-		return nil, fmt.Errorf("MYSQL NOT YET IMPLEMENTED")
+		var dbName string
+		if database == nil {
+			dbName = ""
+		} else {
+			dbName = *database
+		}
+		conn := &MySqlConnection{
+			DbServerConnection: DbServerConnection{
+				DbServerConnectInfo: DbServerConnectInfo{
+					Host:     dbServer.Spec.Address,
+					Port:     dbServer.Spec.Port,
+					UserName: dbServer.Spec.UserName,
+					Password: password,
+					Database: dbName,
+				},
+				Driver: "mysql",
+			},
+		}
+		conn.DbServerConnectionInterface = conn
+		return conn, nil
 	} else {
 		return nil, fmt.Errorf("Expected either mysql or postgres server")
 	}
@@ -373,4 +392,8 @@ func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, database *
 	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
 
 	return GetDbConnection(dbServer, password, database)
+}
+
+func (r *Reco) LogError(message string, err error) {
+	r.Log.Error(err, fmt.Sprintf(message+" Error: %s", err))
 }
