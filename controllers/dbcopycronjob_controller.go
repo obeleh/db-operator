@@ -65,22 +65,22 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating copyJob %s", r.copyCronJob.Name))
 
-	fromDb, fromDbServer, err := r.GetDbFull(r.copyCronJob.Spec.FromDbName)
+	fromDbInfo, err := r.GetDbInfo(r.copyCronJob.Spec.FromDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	toDb, toDbServer, err := r.GetDbFull(r.copyCronJob.Spec.ToDbName)
+	toDbInfo, err := r.GetDbInfo(r.copyCronJob.Spec.ToDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	backupContainer := BuildPostgresContainer(fromDbServer, fromDb, BACKUP_POSTGRES)
-	restoreContainer := BuildPostgresContainer(toDbServer, toDb, RESTORE_POSTGRES)
+	backupContainer := fromDbInfo.BuildBackupContainer()
+	restoreContainer := toDbInfo.BuildRestoreContainer()
 	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, restoreContainer, r.copyCronJob.Name, r.copyCronJob.Spec.Interval)
 
 	err = r.client.Create(r.ctx, &cronJob)
 	if err != nil {
-		r.Log.Error(err, "Failed to create copy cronJob")
+		r.LogError(err, "Failed to create copy cronJob")
 	}
 	return ctrl.Result{}, nil
 }

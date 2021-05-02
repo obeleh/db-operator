@@ -150,7 +150,7 @@ func (r *Reco) EnsureScripts() error {
 		if machineryErrors.IsNotFound(err) {
 			found = false
 		} else {
-			r.Log.Error(err, "Unable to lookup scripts CM")
+			r.LogError(err, "Unable to lookup scripts CM")
 			return err
 		}
 	}
@@ -172,7 +172,7 @@ func (r *Reco) EnsureScripts() error {
 	r.Log.Info("Creating scripts cm")
 	err = r.client.Create(r.ctx, cm)
 	if err != nil {
-		r.Log.Error(err, "Failed creating cm")
+		r.LogError(err, "Failed creating cm")
 		return fmt.Errorf("Failed creating configmap with scripts")
 	}
 	return nil
@@ -246,47 +246,72 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, *dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
+func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, *DbInfo, error) {
 	backupTarget, err := r.GetBackupTarget(backupTargetName)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	db, dbServer, err := r.GetDbFull(backupTarget.Spec.DbName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return backupTarget, db, dbServer, err
-}
-
-func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, *dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
-	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	db, dbServer, err := r.GetDbFull(restoreTarget.Spec.DbName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return restoreTarget, db, dbServer, err
-}
-
-func (r *Reco) GetDbFull(dbName string) (*dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
-	db, err := r.GetDb(dbName)
+	dbInfo, err := r.GetDbInfo(backupTarget.Spec.DbName)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	return backupTarget, dbInfo, err
+}
+
+func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, *DbInfo, error) {
+	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
+	if err != nil {
+		return nil, nil, err
+	}
+	dbInfo, err := r.GetDbInfo(restoreTarget.Spec.DbName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return restoreTarget, dbInfo, err
+}
+
+func (r *Reco) GetDbInfo(dbName string) (*DbInfo, error) {
+	db, err := r.GetDb(dbName)
+	if err != nil {
+		return nil, err
 	}
 	dbServer, err := r.GetDbServer(db.Spec.Server)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	err = r.EnsureScripts()
+	return r.GetDbInfo2(dbServer, db)
+}
+
+func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (*DbInfo, error) {
+	err := r.EnsureScripts()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return db, dbServer, err
+	var actions DbActions
+	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
+		pgActions := &PostgresDbActions{}
+		actions = pgActions
+	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
+		myActions := &MySqlDbActions{}
+		actions = myActions
+	} else {
+		return nil, fmt.Errorf("Expected either mysql or postgres server")
+	}
+
+	password, err := r.GetPassword(dbServer)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting password %s", err)
+	}
+
+	return &DbInfo{
+		db,
+		dbServer,
+		*password,
+		actions,
+	}, err
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
@@ -298,7 +323,7 @@ func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
 	}
 	err = r.client.List(r.ctx, jobs, opts...)
 	if err != nil {
-		r.Log.Error(err, "failed listing Jobs")
+		r.LogError(err, "failed listing Jobs")
 		return nil, err
 	}
 	jobsMap := make(map[string]batchv1.Job)
@@ -318,7 +343,7 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 	}
 	err = r.client.List(r.ctx, cronJobs, opts...)
 	if err != nil {
-		r.Log.Error(err, "failed listing CronJobs")
+		r.LogError(err, "failed listing CronJobs")
 		return nil, err
 	}
 	cronJobsMap := make(map[string]batchv1beta.CronJob)
@@ -329,55 +354,11 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 	return cronJobsMap, nil
 }
 
-func GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, password string, database *string) (DbServerConnectionInterface, error) {
-	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
-		var dbName string
-		if database == nil {
-			dbName = "postgres"
-		} else {
-			dbName = *database
-		}
-		conn := &PostgresConnection{
-			DbServerConnection: DbServerConnection{
-				DbServerConnectInfo: DbServerConnectInfo{
-					Host:     dbServer.Spec.Address,
-					Port:     dbServer.Spec.Port,
-					UserName: dbServer.Spec.UserName,
-					Password: password,
-					Database: dbName,
-				},
-				Driver: "postgres",
-			},
-		}
-		conn.DbServerConnectionInterface = conn
-		return conn, nil
-	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
-		var dbName string
-		if database == nil {
-			dbName = ""
-		} else {
-			dbName = *database
-		}
-		conn := &MySqlConnection{
-			DbServerConnection: DbServerConnection{
-				DbServerConnectInfo: DbServerConnectInfo{
-					Host:     dbServer.Spec.Address,
-					Port:     dbServer.Spec.Port,
-					UserName: dbServer.Spec.UserName,
-					Password: password,
-					Database: dbName,
-				},
-				Driver: "mysql",
-			},
-		}
-		conn.DbServerConnectionInterface = conn
-		return conn, nil
-	} else {
-		return nil, fmt.Errorf("Expected either mysql or postgres server")
-	}
+func (r *Reco) LogError(err error, message string) {
+	r.LogError(err, fmt.Sprintf(message+" Error: %s", err))
 }
 
-func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, database *string) (DbServerConnectionInterface, error) {
+func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, error) {
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
 		Namespace: dbServer.Namespace,
@@ -390,10 +371,15 @@ func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, database *
 	}
 
 	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
-
-	return GetDbConnection(dbServer, password, database)
+	return &password, nil
 }
 
-func (r *Reco) LogError(message string, err error) {
-	r.Log.Error(err, fmt.Sprintf(message+" Error: %s", err))
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbServerConnectionInterface, error) {
+	dbInfo, err := r.GetDbInfo2(dbServer, db)
+	if err != nil {
+		r.LogError(err, "failed getting dbInfo")
+		return nil, err
+	}
+
+	return dbInfo.GetDbConnection()
 }

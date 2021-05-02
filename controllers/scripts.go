@@ -43,6 +43,26 @@ pg_restore \
 echo "pg_restore done"
 `
 
+const BACKUP_MYSQL_SCRIPT string = `#!/bin/bash -e
+mysqldump \
+	-u $MYSQL_USER \
+	-h $MYSQL_HOST \
+	–p $MYSQL_PASSWORD \
+	-d $MYSQL_DATABASE \
+	> ${1:-"$DATABASE"_"` + "`" + "date +%Y%m%d%H%M" + `.sql
+echo "mysqldump done"
+`
+
+const RESTORE_MYSQL_SCRIPT string = `#!/bin/bash -e
+LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
+mysql \ 
+	-u $MYSQL_USER \
+	-h $MYSQL_HOST \
+	–p $MYSQL_PASSWORD \
+	< $LATEST_BACKUP
+echo "mysql restore done"
+`
+
 const DOWNLOAD_AZ_BLOBS_SCRIPT string = `#!/bin/bash -e
 # Only supports up/downloading with service principal
 # But should be fairly simple to expand with other methods.
@@ -77,6 +97,8 @@ const BACKUP_VOLUME_NAME = "backups"
 
 const BACKUP_POSTGRES string = "backup_postgres.sh"
 const RESTORE_POSTGRES string = "restore_postgres.sh"
+const BACKUP_MYSQL string = "backup_mysql.sh"
+const RESTORE_MYSQL string = "restore_mysql.sh"
 const BACKUP_AZ_BLOBS string = "backup_az_blobs.sh"
 const DOWNLOAD_AZ_BLOBS string = "download_az_blobs.sh"
 const UPLOAD_S3 string = "upload_s3.sh"
@@ -85,6 +107,8 @@ const DOWNLOAD_S3 string = "download_s3.sh"
 var SCRIPTS_MAP map[string]string = map[string]string{
 	BACKUP_POSTGRES:   BACKUP_POSTGRES_SCRIPT,
 	RESTORE_POSTGRES:  RESTORE_POSTGRES_SCRIPT,
+	BACKUP_MYSQL:      BACKUP_MYSQL_SCRIPT,
+	RESTORE_MYSQL:     RESTORE_MYSQL_SCRIPT,
 	BACKUP_AZ_BLOBS:   BACKUP_AZ_BLOBS_SCRIPT,
 	DOWNLOAD_AZ_BLOBS: DOWNLOAD_AZ_BLOBS_SCRIPT,
 	UPLOAD_S3:         UPLOAD_S3_SCRIPT,

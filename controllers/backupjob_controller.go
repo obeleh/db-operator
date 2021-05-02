@@ -63,7 +63,7 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
 
-	backupTarget, db, dbServer, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
+	backupTarget, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -72,13 +72,13 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	backupContainer := BuildPostgresContainer(dbServer, db, BACKUP_POSTGRES)
+	backupContainer := dbInfo.BuildBackupContainer()
 	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3, r.backupJob.Spec.FixedFileName)
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {
-		r.Log.Error(err, "Failed to create backup job")
+		r.LogError(err, "Failed to create backup job")
 	}
 	return ctrl.Result{}, nil
 }

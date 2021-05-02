@@ -50,12 +50,12 @@ func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
-		r.Log.Error(err, "failed getting DbServer")
+		r.LogError(err, "failed getting DbServer")
 		return false, err
 	}
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.Log.Error(err, "failed building dbConnection")
+		r.LogError(err, "failed building dbConnection")
 		return false, err
 	}
 
@@ -70,13 +70,13 @@ func (r *UserReco) LoadObj() (bool, error) {
 func (r *UserReco) CreateObj() (ctrl.Result, error) {
 	password, err := GetUserPassword(&r.user, r.client, r.ctx)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprint(err))
+		r.LogError(err, fmt.Sprint(err))
 		return ctrl.Result{Requeue: true}, nil
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
+		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -86,7 +86,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
 	err := r.conn.DropUser(r.user.Spec.UserName)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
+		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
 	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))

@@ -61,18 +61,19 @@ func (r *DbReco) LoadObj() (bool, error) {
 	// First create conninfo without db name because we don't know whether it exists
 	dbServer, err := r.GetDbServer(r.db.Spec.Server)
 	if err != nil {
-		r.Log.Error(err, "failed getting DbServer")
+		r.LogError(err, "failed getting DbServer")
 		return false, err
 	}
+
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.Log.Error(err, "failed building dbConnection")
+		r.LogError(err, "failed building dbConnection")
 		return false, err
 	}
 
 	r.dbs, err = r.conn.GetDbs()
 	if err != nil {
-		r.Log.Error(err, "failed getting DBs")
+		r.LogError(err, "failed getting DBs")
 		return false, err
 	}
 	_, exists := r.dbs[r.db.Spec.DbName]
@@ -81,9 +82,9 @@ func (r *DbReco) LoadObj() (bool, error) {
 		r.conn.Close()
 
 		// If the database exists allow to directly adress it
-		r.conn, err = r.GetDbConnection(dbServer, &r.db.Name)
+		r.conn, err = r.GetDbConnection(dbServer, &r.db)
 		if err != nil {
-			r.Log.Error(err, "failed building dbConnection")
+			r.LogError(err, "failed building dbConnection")
 			return false, err
 		}
 	}
@@ -99,7 +100,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	dbUser := &dboperatorv1alpha1.User{}
 	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+		r.LogError(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
 		return ctrl.Result{}, err
 	}
 
@@ -116,7 +117,7 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("Dropping db %s", r.db.Spec.DbName))
 		err := r.conn.DropDb(r.db.Spec.DbName)
 		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to drop db %s", r.db.Spec.DbName))
+			r.LogError(err, fmt.Sprintf("Failed to drop db %s", r.db.Spec.DbName))
 			return ctrl.Result{}, err
 		}
 		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))
@@ -140,14 +141,14 @@ func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
 	dbUser := &dboperatorv1alpha1.User{}
 	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+		r.LogError(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
 		return ctrl.Result{}, err
 	}
 	if dbObj.Owner != dbUser.Spec.UserName {
 		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
 		err = r.conn.MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName)
 		if err != nil {
-			r.Log.Error(err, "Failed changing db ownership")
+			r.LogError(err, "Failed changing db ownership")
 			return ctrl.Result{}, err
 		}
 	}

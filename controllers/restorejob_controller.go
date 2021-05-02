@@ -65,7 +65,7 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating restoreJob %s", r.restoreJob.Name))
 
-	restoreTarget, db, dbServer, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
+	restoreTarget, dbInfo, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -74,14 +74,14 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
+	restoreContainer := dbInfo.BuildRestoreContainer()
 	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3, r.restoreJob.Spec.FixedFileName)
 
 	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {
-		r.Log.Error(err, "Failed to create restore job")
+		r.LogError(err, "Failed to create restore job")
 	}
 	return ctrl.Result{}, nil
 }

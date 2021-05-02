@@ -64,7 +64,7 @@ func (r *RestoreCronJobReco) LoadObj() (bool, error) {
 func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating restoreCronJob %s", r.restoreCronJob.Name))
 
-	restoreTarget, db, dbServer, err := r.GetRestoreTargetFull(r.restoreCronJob.Spec.RestoreTarget)
+	restoreTarget, dbInfo, err := r.GetRestoreTargetFull(r.restoreCronJob.Spec.RestoreTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -73,13 +73,13 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	restoreContainer := BuildPostgresContainer(dbServer, db, RESTORE_POSTGRES)
+	restoreContainer := dbInfo.BuildRestoreContainer()
 	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3, r.restoreCronJob.Spec.FixedFileName)
 	cronJob := r.BuildCronJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreCronJob.Name, r.restoreCronJob.Spec.Interval)
 
 	err = r.client.Create(r.ctx, &cronJob)
 	if err != nil {
-		r.Log.Error(err, "Failed to create restore cronjob")
+		r.LogError(err, "Failed to create restore cronjob")
 	}
 	return ctrl.Result{}, nil
 }

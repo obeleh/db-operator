@@ -65,23 +65,23 @@ func (r *DbCopyJobReco) LoadObj() (bool, error) {
 func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating copyJob %s", r.copyJob.Name))
 
-	fromDb, fromDbServer, err := r.GetDbFull(r.copyJob.Spec.FromDbName)
+	fromDbInfo, err := r.GetDbInfo(r.copyJob.Spec.FromDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	toDb, toDbServer, err := r.GetDbFull(r.copyJob.Spec.ToDbName)
+	toDbInfo, err := r.GetDbInfo(r.copyJob.Spec.ToDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	backupContainer := BuildPostgresContainer(fromDbServer, fromDb, BACKUP_POSTGRES)
-	restoreContainer := BuildPostgresContainer(toDbServer, toDb, RESTORE_POSTGRES)
+	backupContainer := fromDbInfo.BuildBackupContainer()
+	restoreContainer := toDbInfo.BuildRestoreContainer()
 
 	job := r.BuildJob([]v1.Container{backupContainer}, restoreContainer, r.copyJob.Name)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {
-		r.Log.Error(err, "Failed to create copy job")
+		r.LogError(err, "Failed to create copy job")
 	}
 	return ctrl.Result{}, nil
 }

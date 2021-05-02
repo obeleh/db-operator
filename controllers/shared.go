@@ -6,7 +6,6 @@ import (
 	"log"
 	path "path/filepath"
 	"regexp"
-	"strings"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
@@ -83,32 +82,6 @@ func ReplaceNonAllowedChars(input string) string {
 		log.Fatal(err)
 	}
 	return reg.ReplaceAllString(input, "-")
-}
-
-func BuildPostgresContainer(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, script string) v1.Container {
-	envVars := []v1.EnvVar{
-		{Name: "PGHOST", Value: dbServer.Spec.Address},
-		{Name: "PGUSER", Value: dbServer.Spec.UserName},
-		{Name: "PGPASSWORD", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: dbServer.Spec.SecretName,
-				},
-				Key: Nvl(dbServer.Spec.SecretKey, "password"),
-			},
-		}},
-		{Name: "DATABASE", Value: db.Spec.DbName},
-	}
-
-	return v1.Container{
-		Name:  "pg-" + ReplaceNonAllowedChars(strings.Replace(script, ".sh", "", 1)),
-		Image: "postgres:" + Nvl(dbServer.Spec.Version, "latest"),
-		Env:   envVars,
-		Command: []string{
-			path.Join("/", SCRIPTS_VOLUME_NAME, script),
-		},
-		VolumeMounts: VOLUME_MOUNTS,
-	}
 }
 
 func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string, fixedFileName *string) v1.Container {
