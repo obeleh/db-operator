@@ -246,7 +246,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, *DbInfo, error) {
+func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, DbActions, error) {
 	backupTarget, err := r.GetBackupTarget(backupTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -259,7 +259,7 @@ func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1
 	return backupTarget, dbInfo, err
 }
 
-func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, *DbInfo, error) {
+func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, DbActions, error) {
 	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -272,7 +272,7 @@ func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alph
 	return restoreTarget, dbInfo, err
 }
 
-func (r *Reco) GetDbInfo(dbName string) (*DbInfo, error) {
+func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
 	db, err := r.GetDb(dbName)
 	if err != nil {
 		return nil, err
@@ -284,21 +284,10 @@ func (r *Reco) GetDbInfo(dbName string) (*DbInfo, error) {
 	return r.GetDbInfo2(dbServer, db)
 }
 
-func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (*DbInfo, error) {
+func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbActions, error) {
 	err := r.EnsureScripts()
 	if err != nil {
 		return nil, err
-	}
-
-	var actions DbActions
-	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
-		pgActions := &PostgresDbActions{}
-		actions = pgActions
-	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
-		myActions := &MySqlDbActions{}
-		actions = myActions
-	} else {
-		return nil, fmt.Errorf("Expected either mysql or postgres server")
 	}
 
 	password, err := r.GetPassword(dbServer)
@@ -306,12 +295,30 @@ func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv
 		return nil, fmt.Errorf("Failed getting password %s", err)
 	}
 
-	return &DbInfo{
-		db,
-		dbServer,
-		*password,
-		actions,
-	}, err
+	var actions DbActions
+	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
+		pgActions := &PostgresDbInfo{
+			DbInfo: DbInfo{
+				DbServer: dbServer,
+				Db:       db,
+				Password: *password,
+			},
+		}
+		actions = pgActions
+	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
+		myActions := &MySqlDbInfo{
+			DbInfo: DbInfo{
+				DbServer: dbServer,
+				Db:       db,
+				Password: *password,
+			},
+		}
+		actions = myActions
+	} else {
+		return nil, fmt.Errorf("Expected either mysql or postgres server")
+	}
+
+	return actions, err
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {

@@ -10,23 +10,25 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type MySqlDbActions struct{}
+type MySqlDbInfo struct {
+	DbInfo
+}
 
-func (a *MySqlDbActions) GetDbConnection(dbInfo *DbInfo) (DbServerConnectionInterface, error) {
+func (i *MySqlDbInfo) GetDbConnection() (DbServerConnectionInterface, error) {
 	var dbName string
-	if dbInfo.Db == nil {
+	if i.Db == nil {
 		dbName = ""
 	} else {
-		dbName = *&dbInfo.Db.Spec.DbName
+		dbName = *&i.Db.Spec.DbName
 	}
-	dbServer := dbInfo.DbServer
+	dbServer := i.DbServer
 	conn := &MySqlConnection{
 		DbServerConnection: DbServerConnection{
 			DbServerConnectInfo: DbServerConnectInfo{
 				Host:     dbServer.Spec.Address,
 				Port:     dbServer.Spec.Port,
 				UserName: dbServer.Spec.UserName,
-				Password: dbInfo.Password,
+				Password: i.Password,
 				Database: dbName,
 			},
 			Driver: "mysql",
@@ -36,8 +38,8 @@ func (a *MySqlDbActions) GetDbConnection(dbInfo *DbInfo) (DbServerConnectionInte
 	return conn, nil
 }
 
-func (a *MySqlDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1.Container {
-	dbServer := dbInfo.DbServer
+func (i *MySqlDbInfo) buildContainer(scriptName string) v1.Container {
+	dbServer := i.DbServer
 	envVars := []v1.EnvVar{
 		{Name: "MYSQL_HOST", Value: dbServer.Spec.Address},
 		{Name: "MYSQL_USER", Value: dbServer.Spec.UserName},
@@ -49,7 +51,7 @@ func (a *MySqlDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1.Co
 				Key: Nvl(dbServer.Spec.SecretKey, "password"),
 			},
 		}},
-		{Name: "MYSQL_DATABASE", Value: dbInfo.Db.Spec.DbName},
+		{Name: "MYSQL_DATABASE", Value: i.Db.Spec.DbName},
 	}
 
 	return v1.Container{
@@ -63,10 +65,10 @@ func (a *MySqlDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1.Co
 	}
 }
 
-func (a *MySqlDbActions) BuildBackupContainer(dbInfo *DbInfo) v1.Container {
-	return a.buildContainer(dbInfo, BACKUP_MYSQL)
+func (i *MySqlDbInfo) BuildBackupContainer() v1.Container {
+	return i.buildContainer(BACKUP_MYSQL)
 }
 
-func (a *MySqlDbActions) BuildRestoreContainer(dbInfo *DbInfo) v1.Container {
-	return a.buildContainer(dbInfo, RESTORE_MYSQL)
+func (i *MySqlDbInfo) BuildRestoreContainer() v1.Container {
+	return i.buildContainer(RESTORE_MYSQL)
 }

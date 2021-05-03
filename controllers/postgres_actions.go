@@ -9,23 +9,25 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type PostgresDbActions struct{}
+type PostgresDbInfo struct {
+	DbInfo
+}
 
-func (a *PostgresDbActions) GetDbConnection(dbInfo *DbInfo) (DbServerConnectionInterface, error) {
+func (i *PostgresDbInfo) GetDbConnection() (DbServerConnectionInterface, error) {
 	var dbName string
-	if dbInfo.Db == nil {
+	if i.Db == nil {
 		dbName = "postgres"
 	} else {
-		dbName = dbInfo.Db.Spec.DbName
+		dbName = i.Db.Spec.DbName
 	}
-	dbServer := dbInfo.DbServer
+	dbServer := i.DbServer
 	conn := &PostgresConnection{
 		DbServerConnection: DbServerConnection{
 			DbServerConnectInfo: DbServerConnectInfo{
 				Host:     dbServer.Spec.Address,
 				Port:     dbServer.Spec.Port,
 				UserName: dbServer.Spec.UserName,
-				Password: dbInfo.Password,
+				Password: i.Password,
 				Database: dbName,
 			},
 			Driver: "postgres",
@@ -35,8 +37,8 @@ func (a *PostgresDbActions) GetDbConnection(dbInfo *DbInfo) (DbServerConnectionI
 	return conn, nil
 }
 
-func (a *PostgresDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1.Container {
-	dbServer := dbInfo.DbServer
+func (i *PostgresDbInfo) buildContainer(scriptName string) v1.Container {
+	dbServer := i.DbServer
 	envVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
 		{Name: "PGUSER", Value: dbServer.Spec.UserName},
@@ -48,7 +50,7 @@ func (a *PostgresDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1
 				Key: Nvl(dbServer.Spec.SecretKey, "password"),
 			},
 		}},
-		{Name: "DATABASE", Value: dbInfo.Db.Spec.DbName},
+		{Name: "DATABASE", Value: i.Db.Spec.DbName},
 	}
 
 	return v1.Container{
@@ -62,10 +64,10 @@ func (a *PostgresDbActions) buildContainer(dbInfo *DbInfo, scriptName string) v1
 	}
 }
 
-func (a *PostgresDbActions) BuildBackupContainer(dbInfo *DbInfo) v1.Container {
-	return a.buildContainer(dbInfo, BACKUP_POSTGRES)
+func (i *PostgresDbInfo) BuildBackupContainer() v1.Container {
+	return i.buildContainer(BACKUP_POSTGRES)
 }
 
-func (a *PostgresDbActions) BuildRestoreContainer(dbInfo *DbInfo) v1.Container {
-	return a.buildContainer(dbInfo, RESTORE_POSTGRES)
+func (i *PostgresDbInfo) BuildRestoreContainer() v1.Container {
+	return i.buildContainer(RESTORE_POSTGRES)
 }

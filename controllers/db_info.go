@@ -6,27 +6,14 @@ import (
 )
 
 type DbActions interface {
-	GetDbConnection(dbInfo *DbInfo) (DbServerConnectionInterface, error)
-	buildContainer(dbInfo *DbInfo, scriptName string) v1.Container
-	BuildBackupContainer(dbInfo *DbInfo) v1.Container
-	BuildRestoreContainer(dbInfo *DbInfo) v1.Container
+	GetDbConnection() (DbServerConnectionInterface, error)
+	buildContainer(scriptName string) v1.Container
+	BuildBackupContainer() v1.Container
+	BuildRestoreContainer() v1.Container
 }
 
 type DbInfo struct {
 	Db       *dboperatorv1alpha1.Db
 	DbServer *dboperatorv1alpha1.DbServer
 	Password string
-	Actions  DbActions
-}
-
-func (d *DbInfo) GetDbConnection() (DbServerConnectionInterface, error) {
-	return d.Actions.GetDbConnection(d)
-}
-
-func (d *DbInfo) BuildBackupContainer() v1.Container {
-	return d.Actions.BuildBackupContainer(d)
-}
-
-func (d *DbInfo) BuildRestoreContainer() v1.Container {
-	return d.Actions.BuildRestoreContainer(d)
 }
