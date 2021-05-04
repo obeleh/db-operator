@@ -65,6 +65,8 @@ func (r *DbReco) LoadObj() (bool, error) {
 		return false, err
 	}
 
+	// Do not point to DB in this controller
+	// Otherwise we would be connected to a database we potentially want to drop
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
 		r.LogError(err, "failed building dbConnection")
@@ -77,18 +79,6 @@ func (r *DbReco) LoadObj() (bool, error) {
 		return false, err
 	}
 	_, exists := r.dbs[r.db.Spec.DbName]
-
-	if exists {
-		r.conn.Close()
-
-		// If the database exists allow to directly adress it
-		r.conn, err = r.GetDbConnection(dbServer, &r.db)
-		if err != nil {
-			r.LogError(err, "failed building dbConnection")
-			return false, err
-		}
-	}
-
 	return exists, nil
 }
 
@@ -117,7 +107,7 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("Dropping db %s", r.db.Spec.DbName))
 		err := r.conn.DropDb(r.db.Spec.DbName)
 		if err != nil {
-			r.LogError(err, fmt.Sprintf("Failed to drop db %s", r.db.Spec.DbName))
+			r.LogError(err, fmt.Sprintf("Failed to drop db %s\n%s", r.db.Spec.DbName, err))
 			return ctrl.Result{}, err
 		}
 		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))

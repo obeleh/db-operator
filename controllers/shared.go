@@ -83,34 +83,3 @@ func ReplaceNonAllowedChars(input string) string {
 	}
 	return reg.ReplaceAllString(input, "-")
 }
-
-func BuildS3Container(s3Storage dboperatorv1alpha1.S3Storage, script string, fixedFileName *string) v1.Container {
-	envVars := []v1.EnvVar{
-		{Name: "S3_BUCKET_NAME", Value: s3Storage.Spec.BucketName},
-		{Name: "S3_PREFIX", Value: s3Storage.Spec.Prefix},
-		{Name: "AWS_DEFAULT_REGION", Value: s3Storage.Spec.Region},
-		{Name: "AWS_ACCESS_KEY_ID", Value: s3Storage.Spec.AccesKeyId},
-		{Name: "AWS_SECRET_ACCESS_KEY", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: s3Storage.Spec.AccessKeyK8sSecret,
-				},
-				Key: Nvl(s3Storage.Spec.AccessKeyK8sSecretKey, "SECRET_ACCESS_KEY"),
-			},
-		}},
-	}
-
-	if fixedFileName != nil {
-		envVars = append(envVars, v1.EnvVar{Name: "S3_FILE_NAME", Value: *fixedFileName})
-	}
-
-	return v1.Container{
-		Name:  "s3-upload",
-		Image: "amazon/aws-cli",
-		Env:   envVars,
-		Command: []string{
-			path.Join("/", SCRIPTS_VOLUME_NAME, script),
-		},
-		VolumeMounts: VOLUME_MOUNTS,
-	}
-}
