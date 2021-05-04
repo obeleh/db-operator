@@ -21,11 +21,16 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/kabisa/db-operator/api/v1alpha1"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DbServerReconciler reconciles a DbServer object
@@ -103,7 +108,29 @@ func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
+		Watches(&source.Kind{Type: &v1alpha1.Db{}}, handler.EnqueueRequestsFromMapFunc(
+			func(obj client.Object) []reconcile.Request {
+				db, _ := obj.(*dboperatorv1alpha1.Db)
+				reconcileRequest := reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      db.Spec.Server,
+						Namespace: db.Namespace,
+					},
+				}
+
+				reco := DbServerReconciler{
+					mgr.GetClient(),
+					mgr.GetLogger(),
+					mgr.GetScheme(),
+				}
+
+				defer reco.Reconcile(context.TODO(), reconcileRequest)
+				reconcileRequests := []reconcile.Request{}
+				return reconcileRequests
+			},
+		)).
 		Complete(r)
 }
