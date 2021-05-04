@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-operator
+  namespace: testns
+  labels:
+    app: db-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-operator
+  template:
+    metadata:
+      labels:
+        app: db-operator
+    spec:
+      containers:
+      - name: db-operator
+        image: obeleh/db-operator:latest

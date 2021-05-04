@@ -65,17 +65,13 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating restoreJob %s", r.restoreJob.Name))
 
-	restoreTarget, dbInfo, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	s3Storage, err := r.GetS3Storage(restoreTarget.Spec.StorageLocation)
+	storageInfo, dbInfo, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	restoreContainer := dbInfo.BuildRestoreContainer()
-	downloadContainer := BuildS3Container(s3Storage, DOWNLOAD_S3, r.restoreJob.Spec.FixedFileName)
+	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreJob.Spec.FixedFileName)
 
 	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name)
 

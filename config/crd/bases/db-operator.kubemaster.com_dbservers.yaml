@@ -63,6 +63,24 @@ spec:
             type: object
           status:
             description: DbServerStatus defines the observed state of DbServer
+            properties:
+              connection_available:
+                type: boolean
+              databases:
+                items:
+                  type: string
+                type: array
+              message:
+                type: string
+              users:
+                items:
+                  type: string
+                type: array
+            required:
+            - connection_available
+            - databases
+            - message
+            - users
             type: object
         type: object
     served: true

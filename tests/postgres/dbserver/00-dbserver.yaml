@@ -1,0 +1,10 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: example-host
+spec:
+  address: postgres
+  port: 5432
+  user_name: postgres
+  secret_name: postgres
+  server_type: postgres

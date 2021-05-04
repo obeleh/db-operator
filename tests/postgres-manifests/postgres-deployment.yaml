@@ -1,0 +1,60 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: testns
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  namespace: testns
+data:
+  password: cG9zdGdyZXNxbFBhc3N3b3Jk  # postgresqlPassword (plz do not use this pw in production)
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresdbserver
+  namespace: testns
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres
+        env:
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: postgres
+        ports:
+        - containerPort: 5432
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

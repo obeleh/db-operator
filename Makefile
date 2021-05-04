@@ -140,3 +140,7 @@ bundle: manifests kustomize
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+kuttl-tests:
+	make docker-build
+	kubectl kuttl test --start-kind=true --kind-config=tests/kind-config.yaml

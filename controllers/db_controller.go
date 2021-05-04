@@ -50,7 +50,7 @@ func (r *DbReco) MarkedToBeDeleted() bool {
 func (r *DbReco) LoadCR() (ctrl.Result, error) {
 	err := r.client.Get(r.ctx, r.nsNm, &r.db)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.db, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", r.db, r.nsNm.Name, err))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil

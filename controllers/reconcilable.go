@@ -246,7 +246,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1.BackupTarget, DbActions, error) {
+func (r *Reco) GetBackupTargetFull(backupTargetName string) (StorageActions, DbActions, error) {
 	backupTarget, err := r.GetBackupTarget(backupTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -255,11 +255,14 @@ func (r *Reco) GetBackupTargetFull(backupTargetName string) (*dboperatorv1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return backupTarget, dbInfo, err
+	storageInfo, err := r.GetStorageInfo(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
+	if err != nil {
+		return nil, nil, err
+	}
+	return storageInfo, dbInfo, err
 }
 
-func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alpha1.RestoreTarget, DbActions, error) {
+func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (StorageActions, DbActions, error) {
 	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -268,8 +271,11 @@ func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (*dboperatorv1alph
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return restoreTarget, dbInfo, err
+	storageInfo, err := r.GetStorageInfo(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
+	if err != nil {
+		return nil, nil, err
+	}
+	return storageInfo, dbInfo, err
 }
 
 func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
@@ -389,4 +395,19 @@ func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboper
 	}
 
 	return dbInfo.GetDbConnection()
+}
+
+func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (StorageActions, error) {
+	if strings.ToLower(storageType) == "s3" {
+		s3, err := r.GetS3Storage(storageLocation)
+		if err != nil {
+			return nil, err
+		}
+		storage := &S3StorageInfo{
+			S3Storage: s3,
+		}
+		return storage, nil
+	} else {
+		return nil, fmt.Errorf("Unknown storage type %s", storageType)
+	}
 }

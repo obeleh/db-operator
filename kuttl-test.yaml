@@ -1,0 +1,18 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+name: Postgres
+testDirs:
+- ./tests/postgres/
+crdDir: ./config/crd/bases/
+manifestDirs:
+- ./tests/postgres-manifests/
+- ./tests/operator-manifests/
+kindContainers:
+- obeleh/db-operator:latest
+commands:
+- command: kubectl wait --timeout=3m --for=condition=available deployment postgresdbserver -n testns
+- command: kubectl wait --timeout=1m --for=condition=available deployment db-operator -n testns
+parallel: 1
+artifactsDir: ./tests/outputs
+kindNodeCache: true
+namespace: testns

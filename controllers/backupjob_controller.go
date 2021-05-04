@@ -63,17 +63,13 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
 
-	backupTarget, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	s3Storage, err := r.GetS3Storage(backupTarget.Spec.StorageLocation)
+	backupInfo, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	backupContainer := dbInfo.BuildBackupContainer()
-	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3, r.backupJob.Spec.FixedFileName)
+	uploadContainer := backupInfo.BuildUploadContainer(r.backupJob.Spec.FixedFileName)
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name)
 
 	err = r.client.Create(r.ctx, &job)

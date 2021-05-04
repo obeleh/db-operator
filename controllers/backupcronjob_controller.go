@@ -63,17 +63,13 @@ func (r *BackupCronJobReco) LoadObj() (bool, error) {
 func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating backupCronJob %s", r.backupCronJob.Name))
 
-	backupTarget, dbInfo, err := r.GetBackupTargetFull(r.backupCronJob.Spec.BackupTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	s3Storage, err := r.GetS3Storage(backupTarget.Spec.StorageLocation)
+	storageInfo, dbInfo, err := r.GetBackupTargetFull(r.backupCronJob.Spec.BackupTarget)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	backupContainer := dbInfo.BuildBackupContainer()
-	uploadContainer := BuildS3Container(s3Storage, UPLOAD_S3, r.backupCronJob.Spec.FixedFileName)
+	uploadContainer := storageInfo.BuildUploadContainer(r.backupCronJob.Spec.FixedFileName)
 	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, uploadContainer, r.backupCronJob.Name, r.backupCronJob.Spec.Interval)
 
 	err = r.client.Create(r.ctx, &cronJob)

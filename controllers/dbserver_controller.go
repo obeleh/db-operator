@@ -21,12 +21,11 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
 
 // DbServerReconciler reconciles a DbServer object
@@ -50,27 +49,56 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
+	databaseNames := []string{}
+	userNames := []string{}
+	var message string
+
 	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
 
 	conn, err := reco.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.Log.Error(err, "failed building dbConnection")
+		message = fmt.Sprintf("failed building dbConnection %s", err)
+		r.Log.Error(err, message)
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, err
 	}
 
 	defer conn.Close()
 	databases, err := conn.GetDbs()
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed reading databases: %s", err))
+		message = fmt.Sprintf("Failed reading databases: %s", err)
+		r.Log.Error(err, message)
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, nil
 	}
 	for name, db := range databases {
 		r.Log.Info(fmt.Sprintf("Found DB %s with Owner %s", name, db.Owner))
+		databaseNames = append(databaseNames, name)
 	}
 
+	users, err := conn.GetUsers()
+	if err != nil {
+		message = fmt.Sprintf("Failed reading users: %s", err)
+		r.Log.Error(err, message)
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		return ctrl.Result{}, nil
+	}
+	for name := range users {
+		userNames = append(userNames, name)
+	}
+
+	r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
 	r.Log.Info("Done")
 
 	return ctrl.Result{}, nil
+}
+
+func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) {
+	dbServer.Status = dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
+	err := r.Status().Update(ctx, dbServer)
+	if err != nil {
+		r.Log.Error(err, "failed patching status %s", err)
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

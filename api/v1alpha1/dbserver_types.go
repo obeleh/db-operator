@@ -37,8 +37,10 @@ type DbServerSpec struct {
 
 // DbServerStatus defines the observed state of DbServer
 type DbServerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ConnectionAvailable bool     `json:"connection_available"`
+	Databases           []string `json:"databases"`
+	Users               []string `json:"users"`
+	Message             string   `json:"message"`
 }
 
 //+kubebuilder:object:root=true
