@@ -26,3 +26,4 @@ testbin/*
 
 *-secret.yaml
 tests/outputs
+kubeconfig

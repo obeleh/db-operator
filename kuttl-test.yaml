@@ -12,9 +12,9 @@ commands:
 - command: make deploy-kind
 - command: kubectl wait --timeout=3m --for=condition=available deployment postgresdbserver -n testns
 - command: kubectl get deployment -A
+- command: kubectl wait --timeout=1m --for=condition=available deployment db-operator-controller-manager -n db-operator-system
 # wait again, postgress might be restarting due to initialisation cycle
 - command: kubectl wait --timeout=30s --for=condition=available deployment postgresdbserver -n testns
-- command: kubectl wait --timeout=1m --for=condition=available deployment db-operator-controller-manager -n db-operator-system
 parallel: 1
 artifactsDir: ./tests/outputs
 kindNodeCache: true
