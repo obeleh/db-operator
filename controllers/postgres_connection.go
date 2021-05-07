@@ -63,7 +63,7 @@ func (p *PostgresConnection) GetUsers() (map[string]DbSideUser, error) {
 				CAST('' AS pg_catalog.text)
 			END role_attributes
 		FROM pg_catalog.pg_user
-		ORDER BY role_name desc;`,
+		ORDER BY role_name ASC;`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read users from server")
@@ -105,7 +105,7 @@ func (p *PostgresConnection) GetDbs() (map[string]DbSideDb, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := conn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false;")
+	rows, err := conn.Query("SELECT d.datname, pg_catalog.pg_get_userbyid(d.datdba) FROM pg_catalog.pg_database d WHERE d.datistemplate = false ORDER BY d.datname;")
 	if err != nil {
 		return nil, err
 	}
