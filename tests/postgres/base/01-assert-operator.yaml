@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-operator
+  namespace: db-operator-system
+  labels:
+    app: db-operator
+status:
+  readyReplicas: 1
