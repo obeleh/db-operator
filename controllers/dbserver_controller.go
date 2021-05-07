@@ -46,7 +46,6 @@ type DbServerReconciler struct {
 func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbserver", req.NamespacedName)
 
-	r.Log.Info("A")
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
@@ -60,7 +59,6 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
 
-	r.Log.Info("B")
 	conn, err := reco.GetDbConnection(dbServer, nil)
 	if err != nil {
 		message = fmt.Sprintf("failed building dbConnection %s", err)
@@ -70,7 +68,6 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	defer conn.Close()
-	r.Log.Info("C")
 	databases, err := conn.GetDbs()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
@@ -78,13 +75,11 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, nil
 	}
-	r.Log.Info("D")
 	for name, db := range databases {
 		r.Log.Info(fmt.Sprintf("Found DB %s with Owner %s", name, db.Owner))
 		databaseNames = append(databaseNames, name)
 	}
 
-	r.Log.Info("E")
 	users, err := conn.GetUsers()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading users: %s", err)
@@ -92,16 +87,13 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, nil
 	}
-	r.Log.Info("F")
 	for name := range users {
 		userNames = append(userNames, name)
 		r.Log.Info(fmt.Sprintf("Found user %s", name))
 	}
 
-	r.Log.Info("G")
 	r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
 	r.Log.Info("Done")
-
 	return ctrl.Result{}, nil
 }
 

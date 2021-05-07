@@ -6,11 +6,13 @@ testDirs:
 manifestDirs:
 - ./tests/postgres-manifests/
 kindContainers:
-- docker.io/obeleh/db-operator:latest
+# - docker.io/obeleh/db-operator:latest
 - library/postgres:latest
 commands:
-- command: make deploy
 - command: kubectl wait --timeout=3m --for=condition=available deployment postgresdbserver -n testns
+- command: make deploy-kind
+# wait again, postgress might be restarting due to initialisation cycle
+- command: kubectl wait --timeout=30s --for=condition=available deployment postgresdbserver -n testns
 parallel: 1
 artifactsDir: ./tests/outputs
 kindNodeCache: true

@@ -93,7 +93,6 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		if err == nil {
 			res, err = rc.EnsureFinalizer(cr)
 		}
-		rc.Log.Info("NOTIFY")
 		rcl.NotifyChanges()
 	}
 	rcl.CleanupConn()

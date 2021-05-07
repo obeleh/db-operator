@@ -79,15 +79,12 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprint(err))
 		return ctrl.Result{Requeue: true}, nil
 	}
-	r.Log.Info("USER!!!")
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
-		r.Log.Info("ERRR")
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
-	r.Log.Info("!!!")
 	return ctrl.Result{}, nil
 }
 
