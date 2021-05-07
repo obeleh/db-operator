@@ -38,6 +38,10 @@ type DbCopyCronJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/finalizers,verbs=update
+
 type DbCopyCronJobReco struct {
 	Reco
 	copyCronJob  dboperatorv1alpha1.DbCopyCronJob
@@ -117,9 +121,6 @@ func (r *DbCopyCronJobReco) EnsureCorrect() (ctrl.Result, error) {
 func (r *DbCopyCronJobReco) CleanupConn() {
 }
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/finalizers,verbs=update
 func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbcopycronjob", req.NamespacedName)
 

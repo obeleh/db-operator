@@ -38,6 +38,10 @@ type BackupJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/finalizers,verbs=update
+
 type BackupJobReco struct {
 	Reco
 	backupJob  dboperatorv1alpha1.BackupJob
@@ -104,16 +108,16 @@ func (r *BackupJobReco) GetCR() client.Object {
 	return &r.backupJob
 }
 
-func (r *BackupJobReco) EnsureCorrect() (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+func (r *BackupJobReco) EnsureCorrect() (bool, error) {
+	return false, nil
 }
 
 func (r *BackupJobReco) CleanupConn() {
 }
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backupjobs/finalizers,verbs=update
+func (r *BackupJobReco) NotifyChanges() {
+}
+
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("backupJob", req.NamespacedName)
 

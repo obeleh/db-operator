@@ -7,6 +7,78 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - db-operator.kubemaster.com
   resources:
   - backuptargets
@@ -28,6 +100,162 @@ rules:
   - db-operator.kubemaster.com
   resources:
   - backuptargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/status
   verbs:
   - get
   - patch

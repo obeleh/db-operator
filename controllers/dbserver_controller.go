@@ -21,16 +21,11 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/kabisa/db-operator/api/v1alpha1"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DbServerReconciler reconciles a DbServer object
@@ -43,10 +38,15 @@ type DbServerReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbservers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbservers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbservers/finalizers,verbs=update
-//+kubebuilder:rbac:resources=secret,verbs=get;list;watch
+
+// Generic Kubebuilder rules:
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+
 func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbserver", req.NamespacedName)
 
+	r.Log.Info("A")
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
@@ -60,6 +60,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
 
+	r.Log.Info("B")
 	conn, err := reco.GetDbConnection(dbServer, nil)
 	if err != nil {
 		message = fmt.Sprintf("failed building dbConnection %s", err)
@@ -69,6 +70,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	defer conn.Close()
+	r.Log.Info("C")
 	databases, err := conn.GetDbs()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
@@ -76,11 +78,13 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, nil
 	}
+	r.Log.Info("D")
 	for name, db := range databases {
 		r.Log.Info(fmt.Sprintf("Found DB %s with Owner %s", name, db.Owner))
 		databaseNames = append(databaseNames, name)
 	}
 
+	r.Log.Info("E")
 	users, err := conn.GetUsers()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading users: %s", err)
@@ -88,10 +92,13 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		return ctrl.Result{}, nil
 	}
+	r.Log.Info("F")
 	for name := range users {
 		userNames = append(userNames, name)
+		r.Log.Info(fmt.Sprintf("Found user %s", name))
 	}
 
+	r.Log.Info("G")
 	r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
 	r.Log.Info("Done")
 
@@ -111,26 +118,5 @@ func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
-		Watches(&source.Kind{Type: &v1alpha1.Db{}}, handler.EnqueueRequestsFromMapFunc(
-			func(obj client.Object) []reconcile.Request {
-				db, _ := obj.(*dboperatorv1alpha1.Db)
-				reconcileRequest := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      db.Spec.Server,
-						Namespace: db.Namespace,
-					},
-				}
-
-				reco := DbServerReconciler{
-					mgr.GetClient(),
-					mgr.GetLogger(),
-					mgr.GetScheme(),
-				}
-
-				defer reco.Reconcile(context.TODO(), reconcileRequest)
-				reconcileRequests := []reconcile.Request{}
-				return reconcileRequests
-			},
-		)).
 		Complete(r)
 }

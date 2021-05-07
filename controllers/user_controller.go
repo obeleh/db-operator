@@ -22,8 +22,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
@@ -34,6 +36,10 @@ type UserReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
+
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/finalizers,verbs=update
 
 type UserReco struct {
 	Reco
@@ -73,12 +79,15 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprint(err))
 		return ctrl.Result{Requeue: true}, nil
 	}
+	r.Log.Info("USER!!!")
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
+		r.Log.Info("ERRR")
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return ctrl.Result{}, err
 	}
+	r.Log.Info("!!!")
 	return ctrl.Result{}, nil
 }
 
@@ -106,8 +115,8 @@ func (r *UserReco) GetCR() client.Object {
 	return &r.user
 }
 
-func (r *UserReco) EnsureCorrect() (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+func (r *UserReco) EnsureCorrect() (bool, error) {
+	return false, nil
 }
 
 func (r *UserReco) CleanupConn() {
@@ -116,9 +125,23 @@ func (r *UserReco) CleanupConn() {
 	}
 }
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=users/finalizers,verbs=update
+func (r *UserReco) NotifyChanges() {
+	r.Log.Info("Notifying of User changes")
+	reconcileRequest := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      r.user.Spec.DbServerName,
+			Namespace: r.user.Namespace,
+		},
+	}
+
+	reco := DbServerReconciler{
+		r.client,
+		r.Log,
+		r.client.Scheme(),
+	}
+
+	reco.Reconcile(context.TODO(), reconcileRequest)
+}
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("user", req.NamespacedName)

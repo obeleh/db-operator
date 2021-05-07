@@ -24,9 +24,10 @@ type Reconcilable interface {
 	RemoveObj() (ctrl.Result, error)
 	LoadCR() (ctrl.Result, error)
 	LoadObj() (bool, error)
-	EnsureCorrect() (ctrl.Result, error)
+	EnsureCorrect() (bool, error)
 	GetCR() client.Object
 	CleanupConn()
+	NotifyChanges()
 	MarkedToBeDeleted() bool
 }
 
@@ -75,11 +76,16 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 					controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
 					err = rc.client.Update(rc.ctx, cr)
 				}
+				rcl.NotifyChanges()
 			}
 		} else {
-			res, err = rcl.EnsureCorrect()
+			var changes bool
+			changes, err = rcl.EnsureCorrect()
 			if err != nil {
 				res, err = rc.EnsureFinalizer(cr)
+			}
+			if changes {
+				rcl.NotifyChanges()
 			}
 		}
 	} else if !markedToBeDeleted {
@@ -87,6 +93,8 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		if err == nil {
 			res, err = rc.EnsureFinalizer(cr)
 		}
+		rc.Log.Info("NOTIFY")
+		rcl.NotifyChanges()
 	}
 	rcl.CleanupConn()
 	return res, err
@@ -368,7 +376,7 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 }
 
 func (r *Reco) LogError(err error, message string) {
-	r.LogError(err, fmt.Sprintf(message+" Error: %s", err))
+	r.Log.Error(err, fmt.Sprintf("%s Error: %s", message, err))
 }
 
 func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, error) {

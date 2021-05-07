@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 )
@@ -35,6 +36,10 @@ type DbReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
+
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/finalizers,verbs=update
 
 type DbReco struct {
 	Reco
@@ -121,7 +126,25 @@ func (r *DbReco) GetCR() client.Object {
 	return &r.db
 }
 
-func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
+func (r *DbReco) NotifyChanges() {
+	reconcileRequest := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      r.db.Spec.Server,
+			Namespace: r.db.Namespace,
+		},
+	}
+
+	reco := DbServerReconciler{
+		r.client,
+		r.Log,
+		r.client.Scheme(),
+	}
+
+	reco.Reconcile(context.TODO(), reconcileRequest)
+}
+
+func (r *DbReco) EnsureCorrect() (bool, error) {
+	var changes bool = false
 	dbObj, _ := r.dbs[r.db.Spec.DbName]
 
 	userNsName := types.NamespacedName{
@@ -132,18 +155,19 @@ func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
 	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
-		return ctrl.Result{}, err
+		return false, err
 	}
 	if dbObj.Owner != dbUser.Spec.UserName {
 		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
 		err = r.conn.MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName)
 		if err != nil {
 			r.LogError(err, "Failed changing db ownership")
-			return ctrl.Result{}, err
+			return false, err
 		}
+		changes = true
 	}
 
-	return ctrl.Result{}, nil
+	return changes, nil
 }
 
 func (r *DbReco) CleanupConn() {
@@ -152,9 +176,6 @@ func (r *DbReco) CleanupConn() {
 	}
 }
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbs/finalizers,verbs=update
 func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("db", req.NamespacedName)
 	dr := DbReco{}

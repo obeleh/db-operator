@@ -2,9 +2,20 @@ apiVersion: db-operator.kubemaster.com/v1alpha1
 kind: DbServer
 metadata:
   name: example-host
+  namespace: testns
 spec:
-  address: postgres
+  address: postgres.testns.svc.cluster.local
   port: 5432
   user_name: postgres
   secret_name: postgres
   server_type: postgres
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  namespace: testns
+data:
+  password: cG9zdGdyZXNxbFBhc3N3b3Jk  # postgresqlPassword (plz do not use this pw in production)

@@ -38,6 +38,10 @@ type DbCopyJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/finalizers,verbs=update
+
 type DbCopyJobReco struct {
 	Reco
 	copyJob  dboperatorv1alpha1.DbCopyJob
@@ -111,16 +115,16 @@ func (r *DbCopyJobReco) GetCR() client.Object {
 	return &r.copyJob
 }
 
-func (r *DbCopyJobReco) EnsureCorrect() (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+func (r *DbCopyJobReco) EnsureCorrect() (bool, error) {
+	return false, nil
 }
 
 func (r *DbCopyJobReco) CleanupConn() {
 }
 
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/finalizers,verbs=update
+func (r *DbCopyJobReco) NotifyChanges() {
+}
+
 func (r *DbCopyJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbcopyjob", req.NamespacedName)
 
