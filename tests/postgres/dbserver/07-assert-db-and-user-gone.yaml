@@ -1,0 +1,11 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: example-host
+  namespace: testns
+status:
+  connection_available: true
+  databases:
+    - postgres
+  users:
+    - postgres
