@@ -14,6 +14,7 @@ commands:
 - command: kubectl wait --timeout=1m --for=condition=available deployment db-operator-controller-manager -n db-operator-system
 # wait again, postgress might be restarting due to initialisation cycle
 - command: kubectl wait --timeout=30s --for=condition=available deployment postgres-db-server -n postgres
-parallel: 3
+# we're sharing the database, in order to have predictable state we don't do parallel tests
+parallel: 1
 artifactsDir: ./tests/outputs
 kindNodeCache: true

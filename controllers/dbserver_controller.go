@@ -101,7 +101,7 @@ func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ct
 	dbServer.Status = dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
 	err := r.Status().Update(ctx, dbServer)
 	if err != nil {
-		r.Log.Error(err, "failed patching status %s", err)
+		r.Log.Error(err, fmt.Sprintf("failed patching status %s", err))
 	}
 }
 

@@ -1,5 +1,7 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-commands:
-- command: kubectl assert exist-enhanced deployment postgres-db-server -n postgres --field-selector status.readyReplicas=1
-timeout: 50
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-db-server
+  namespace: postgres
+status:
+  readyReplicas: 1
