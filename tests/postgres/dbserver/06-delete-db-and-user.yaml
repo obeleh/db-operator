@@ -4,8 +4,6 @@ delete:
 - apiVersion: db-operator.kubemaster.com/v1alpha1
   kind: Db
   name: example-database
-  namespace: testns
 - apiVersion: db-operator.kubemaster.com/v1alpha1
   kind: User
   name: example-user
-  namespace: testns

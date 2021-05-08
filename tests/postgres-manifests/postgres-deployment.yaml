@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: testns
+  name: postgres
 
 ---
 
@@ -10,7 +10,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres
-  namespace: testns
+  namespace: postgres
 data:
   password: cG9zdGdyZXNxbFBhc3N3b3Jk  # postgresqlPassword (plz do not use this pw in production)
 
@@ -19,8 +19,8 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgresdbserver
-  namespace: testns
+  name: postgres-db-server
+  namespace: postgres
   labels:
     app: postgres
 spec:
@@ -51,7 +51,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: testns
+  namespace: postgres
 spec:
   selector:
     app: postgres

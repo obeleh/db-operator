@@ -2,7 +2,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: example-user-secret
-  namespace: testns
 data:
   password: YmxhCg==
 
@@ -12,7 +11,6 @@ apiVersion: db-operator.kubemaster.com/v1alpha1
 kind: User
 metadata:
   name: example-user
-  namespace: testns
 spec:
   db_server_name: example-host
   user_name: sjuul
