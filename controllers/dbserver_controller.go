@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
@@ -74,7 +75,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Log.Error(err, message)
 		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if err != nil {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{Requeue: true, RequeueAfter: time.Second}, nil
 		}
 		return ctrl.Result{}, nil
 	}
