@@ -72,6 +72,10 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			rc.Log.Info(fmt.Sprintf("%s is marked to be deleted", cr.GetName()))
 			if controllerutil.ContainsFinalizer(cr, DB_OPERATOR_FINALIZER) {
 				res, err = rcl.RemoveObj()
+				// let the reconciler choose to requeue or not
+				if res.Requeue {
+					return res, nil
+				}
 				if err == nil {
 					controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
 					err = rc.client.Update(rc.ctx, cr)
