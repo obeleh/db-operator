@@ -70,6 +70,11 @@ func (r *DbCopyJobReco) LoadObj() (bool, error) {
 func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating copyJob %s", r.copyJob.Name))
 
+	err := r.EnsureScripts()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	fromDbInfo, err := r.GetDbInfo(r.copyJob.Spec.FromDbName)
 	if err != nil {
 		return ctrl.Result{}, err

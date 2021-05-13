@@ -299,11 +299,6 @@ func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
 }
 
 func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbActions, error) {
-	err := r.EnsureScripts()
-	if err != nil {
-		return nil, err
-	}
-
 	password, err := r.GetPassword(dbServer)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting password %s", err)

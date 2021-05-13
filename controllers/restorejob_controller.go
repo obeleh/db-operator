@@ -69,6 +69,11 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating restoreJob %s", r.restoreJob.Name))
 
+	err := r.EnsureScripts()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	storageInfo, dbInfo, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
 	if err != nil {
 		return ctrl.Result{}, err

@@ -68,6 +68,11 @@ func (r *RestoreCronJobReco) LoadObj() (bool, error) {
 func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("creating restoreCronJob %s", r.restoreCronJob.Name))
 
+	err := r.EnsureScripts()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	storageInfo, dbInfo, err := r.GetRestoreTargetFull(r.restoreCronJob.Spec.RestoreTarget)
 	if err != nil {
 		return ctrl.Result{}, err
