@@ -63,7 +63,7 @@ func (p *PostgresConnection) GetUsers() (map[string]DbSideUser, error) {
 				CAST('' AS pg_catalog.text)
 			END role_attributes
 		FROM pg_catalog.pg_user
-		ORDER BY role_name ASC;`,
+		ORDER BY usename ASC;`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read users from server")

@@ -9,7 +9,7 @@ rules:
 - apiGroups:
   - batch
   resources:
-  - jobs
+  - cronjobs
   verbs:
   - create
   - delete
@@ -19,9 +19,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - batch/v1beta
+  - batch
   resources:
-  - cronjobs
+  - jobs
   verbs:
   - create
   - delete
