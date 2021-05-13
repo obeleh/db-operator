@@ -41,7 +41,7 @@ type DbCopyCronJobReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopycronjobs/finalizers,verbs=update
-//+kubebuilder:rbac:groups=batch/v1beta,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 
 type DbCopyCronJobReco struct {
 	Reco
