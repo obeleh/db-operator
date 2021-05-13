@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -93,7 +94,9 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	err := r.conn.DropUser(r.user.Spec.UserName)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
-		return ctrl.Result{}, err
+		return ctrl.Result{
+			RequeueAfter: time.Second,
+		}, err
 	}
 	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	return ctrl.Result{}, nil
