@@ -41,7 +41,7 @@ type DbCopyJobReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbcopyjobs/finalizers,verbs=update
-//+kubebuilder:rbac:groups=batch/v1,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 type DbCopyJobReco struct {
 	Reco
