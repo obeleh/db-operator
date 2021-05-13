@@ -101,9 +101,16 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 
 	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
 	if r.conn == nil {
-		return ctrl.Result{}, fmt.Errorf("No database connection possible")
+		message := "No database connection possible"
+		err = fmt.Errorf(message)
+		r.Log.Error(err, message)
+		return ctrl.Result{}, err
 	}
 	err = r.conn.CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName)
+	if err != nil {
+		r.LogError(err, fmt.Sprintf("Failed to Create DB: %s", r.db.Spec.DbName))
+		return ctrl.Result{}, err
+	}
 	return ctrl.Result{}, nil
 }
 
