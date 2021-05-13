@@ -72,7 +72,10 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
 		r.Log.Error(err, message)
-		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		if err != nil {
+			return ctrl.Result{Requeue: true}, nil
+		}
 		return ctrl.Result{}, nil
 	}
 	for name, db := range databases {
@@ -84,7 +87,10 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		message = fmt.Sprintf("Failed reading users: %s", err)
 		r.Log.Error(err, message)
-		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		if err != nil {
+			return ctrl.Result{Requeue: true}, nil
+		}
 		return ctrl.Result{}, nil
 	}
 	for name := range users {
@@ -92,17 +98,23 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Log.Info(fmt.Sprintf("Found user %s", name))
 	}
 
-	r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
+	err = r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
+	if err != nil {
+		return ctrl.Result{Requeue: true}, nil
+	}
 	r.Log.Info("Done")
 	return ctrl.Result{}, nil
 }
 
-func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) {
+func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) error {
 	dbServer.Status = dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
 	err := r.Status().Update(ctx, dbServer)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed patching status %s", err))
+		message := fmt.Sprintf("failed patching status %s", err)
+		r.Log.Info(message)
+		return fmt.Errorf(message)
 	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
