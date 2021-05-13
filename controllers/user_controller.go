@@ -95,6 +95,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
 		return ctrl.Result{
+			// Gradual backoff
 			RequeueAfter: time.Duration(time.Now().Sub(r.user.GetDeletionTimestamp().Time).Seconds()),
 		}, err
 	}
