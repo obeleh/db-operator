@@ -1,0 +1,12 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: db-operator.kubemaster.com/v1alpha1
+  kind: Db
+  name: source-db
+- apiVersion: db-operator.kubemaster.com/v1alpha1
+  kind: User
+  name: example-user
+- apiVersion: db-operator.kubemaster.com/v1alpha1
+  kind: Db
+  name: destination-db
