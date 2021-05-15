@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
@@ -45,6 +46,7 @@ type BackupCronJobReco struct {
 	Reco
 	backupCronJob  dboperatorv1alpha1.BackupCronJob
 	backupCronJobs map[string]batchv1beta.CronJob
+	StatusWriter   client.StatusWriter
 }
 
 func (r *BackupCronJobReco) MarkedToBeDeleted() bool {
@@ -61,7 +63,19 @@ func (r *BackupCronJobReco) LoadObj() (bool, error) {
 
 	_, exists := r.backupCronJobs[r.backupCronJob.Name]
 	r.Log.Info(fmt.Sprintf("backupCronJob %s exists: %t", r.backupCronJob.Name, exists))
+	r.UpdateStatus(exists)
 	return exists, nil
+}
+
+func (r *BackupCronJobReco) UpdateStatus(exists bool) {
+	newStatus := dboperatorv1alpha1.BackupCronJobStatus{
+		Exists:      exists,
+		CronJobName: r.backupCronJob.Name,
+	}
+	if !reflect.DeepEqual(r.backupCronJob.Status, newStatus) {
+		r.backupCronJob.Status = newStatus
+		r.StatusWriter.Update(r.ctx, &r.backupCronJob)
+	}
 }
 
 func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
@@ -85,6 +99,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	if err != nil {
 		r.LogError(err, "Failed to create backup cronjob")
 	}
+	r.UpdateStatus(true)
 	return ctrl.Result{}, nil
 }
 
@@ -97,6 +112,7 @@ func (r *BackupCronJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.client.Delete(r.ctx, cronJob)
+	r.UpdateStatus(false)
 	return ctrl.Result{}, err
 }
 
@@ -127,7 +143,8 @@ func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	_ = r.Log.WithValues("backupCronJob", req.NamespacedName)
 
 	br := BackupCronJobReco{
-		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco:         Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		StatusWriter: r.Status(),
 	}
 	return br.Reco.Reconcile((&br))
 }

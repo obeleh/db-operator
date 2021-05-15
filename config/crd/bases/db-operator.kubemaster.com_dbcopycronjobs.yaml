@@ -49,6 +49,14 @@ spec:
             type: object
           status:
             description: DbCopyCronJobStatus defines the observed state of DbCopyCronJob
+            properties:
+              cronjob_name:
+                type: string
+              exists:
+                type: boolean
+            required:
+            - cronjob_name
+            - exists
             type: object
         type: object
     served: true

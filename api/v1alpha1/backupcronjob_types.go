@@ -28,8 +28,8 @@ type BackupCronJobSpec struct {
 
 // BackupCronJobStatus defines the observed state of BackupCronJob
 type BackupCronJobStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Exists      bool   `json:"exists"`
+	CronJobName string `json:"cronjob_name"`
 }
 
 //+kubebuilder:object:root=true

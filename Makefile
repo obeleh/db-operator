@@ -33,6 +33,8 @@ IMG ?= obeleh/db-operator:$(shell git rev-parse --short HEAD)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
+TEST_NAME ?= postgres/base
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -89,6 +91,7 @@ start-test-cluster:
 	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml 
 	kubectl apply -f ./tests/postgres/dbserver/00-dbserver.yaml
 	# kubectl -n postgres port-forward svc/postgres 5432 &
+	
 
 ##@ Build
 

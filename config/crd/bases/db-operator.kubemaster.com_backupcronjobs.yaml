@@ -47,6 +47,14 @@ spec:
             type: object
           status:
             description: BackupCronJobStatus defines the observed state of BackupCronJob
+            properties:
+              cronjob_name:
+                type: string
+              exists:
+                type: boolean
+            required:
+            - cronjob_name
+            - exists
             type: object
         type: object
     served: true
