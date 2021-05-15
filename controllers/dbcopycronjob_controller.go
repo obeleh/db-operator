@@ -54,7 +54,7 @@ func (r *DbCopyCronJobReco) MarkedToBeDeleted() bool {
 }
 
 func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
-	r.Log.Info(fmt.Sprintf("loading copyJob %s", r.copyCronJob.Name))
+	r.Log.Info(fmt.Sprintf("loading copyCronJob %s", r.copyCronJob.Name))
 
 	var err error
 	r.copyCronJobs, err = r.GetCronJobMap()
@@ -63,12 +63,12 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 	}
 
 	_, exists := r.copyCronJobs[r.copyCronJob.Name]
-	r.Log.Info(fmt.Sprintf("copyJob %s exists: %t", r.copyCronJob.Name, exists))
+	r.Log.Info(fmt.Sprintf("copyCronJob %s exists: %t", r.copyCronJob.Name, exists))
 	return exists, nil
 }
 
 func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
-	r.Log.Info(fmt.Sprintf("creating copyJob %s", r.copyCronJob.Name))
+	r.Log.Info(fmt.Sprintf("creating copyCronJob %s", r.copyCronJob.Name))
 
 	err := r.EnsureScripts()
 	if err != nil {
