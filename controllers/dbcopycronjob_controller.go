@@ -110,7 +110,7 @@ func (r *DbCopyCronJobReco) RemoveObj() (ctrl.Result, error) {
 func (r *DbCopyCronJobReco) LoadCR() (ctrl.Result, error) {
 	err := r.client.Get(r.ctx, r.nsNm, &r.copyCronJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.copyCronJob, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not retrieved %s", r.copyCronJob, r.nsNm.Name, err))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
