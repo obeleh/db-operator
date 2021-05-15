@@ -120,17 +120,20 @@ func (r *DbCopyCronJobReco) GetCR() client.Object {
 	return &r.copyCronJob
 }
 
-func (r *DbCopyCronJobReco) EnsureCorrect() (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+func (r *DbCopyCronJobReco) EnsureCorrect() (bool, error) {
+	return true, nil
 }
 
 func (r *DbCopyCronJobReco) CleanupConn() {
 }
 
+func (r *DbCopyCronJobReco) NotifyChanges() {
+}
+
 func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("dbcopycronjob", req.NamespacedName)
 
-	cr := BackupCronJobReco{
+	cr := DbCopyCronJobReco{
 		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
 	}
 	return cr.Reco.Reconcile((&cr))

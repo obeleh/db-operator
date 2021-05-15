@@ -83,9 +83,12 @@ kind-cluster:
 
 start-test-cluster:
 	make docker-build
+	make kind-cluster
 	make deploy-kind
 	make install
+	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml 
 	kubectl apply -f ./tests/postgres/dbserver/00-dbserver.yaml
+	# kubectl -n postgres port-forward svc/postgres 5432 &
 
 ##@ Build
 
