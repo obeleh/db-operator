@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	batchv1beta "k8s.io/api/batch/v1beta1"
@@ -47,6 +48,7 @@ type DbCopyCronJobReco struct {
 	Reco
 	copyCronJob  dboperatorv1alpha1.DbCopyCronJob
 	copyCronJobs map[string]batchv1beta.CronJob
+	StatusWriter client.StatusWriter
 }
 
 func (r *DbCopyCronJobReco) MarkedToBeDeleted() bool {
@@ -64,7 +66,19 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 
 	_, exists := r.copyCronJobs[r.copyCronJob.Name]
 	r.Log.Info(fmt.Sprintf("copyCronJob %s exists: %t", r.copyCronJob.Name, exists))
+	r.UpdateStatus(exists)
 	return exists, nil
+}
+
+func (r *DbCopyCronJobReco) UpdateStatus(exists bool) {
+	newStatus := dboperatorv1alpha1.DbCopyCronJobStatus{
+		Exists:      exists,
+		CronJobName: r.copyCronJob.Name,
+	}
+	if !reflect.DeepEqual(r.copyCronJob.Status, newStatus) {
+		r.copyCronJob.Status = newStatus
+		r.StatusWriter.Update(r.ctx, &r.copyCronJob)
+	}
 }
 
 func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
@@ -92,6 +106,7 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 	if err != nil {
 		r.LogError(err, "Failed to create copy cronJob")
 	}
+	r.UpdateStatus(true)
 	return ctrl.Result{}, nil
 }
 
@@ -104,6 +119,7 @@ func (r *DbCopyCronJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.client.Delete(r.ctx, job)
+	r.UpdateStatus(false)
 	return ctrl.Result{}, err
 }
 
@@ -134,7 +150,8 @@ func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	_ = r.Log.WithValues("dbcopycronjob", req.NamespacedName)
 
 	cr := DbCopyCronJobReco{
-		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco:         Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		StatusWriter: r.Status(),
 	}
 	return cr.Reco.Reconcile((&cr))
 }
