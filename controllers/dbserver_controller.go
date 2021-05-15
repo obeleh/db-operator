@@ -111,6 +111,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) error {
 	newStatus := dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
 	if !reflect.DeepEqual(dbServer.Status, newStatus) {
+		dbServer.Status = newStatus
 		err := r.Status().Update(ctx, dbServer)
 		if err != nil {
 			message := fmt.Sprintf("failed patching status %s", err)
