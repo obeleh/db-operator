@@ -33,8 +33,6 @@ IMG ?= obeleh/db-operator:$(shell git rev-parse --short HEAD)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
-TEST_NAME ?= postgres/base
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -160,6 +158,6 @@ bundle: manifests kustomize
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-kuttl-tests:
+kuttl-test:
 	make docker-build
 	kubectl kuttl test --start-kind=true --kind-config=tests/kind-config.yaml

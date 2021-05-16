@@ -8,7 +8,12 @@ manifestDirs:
 kindContainers:
 - library/postgres:latest
 commands:
+# wait for DNS to be available to avoid flaky tests
+- command: kubectl wait --timeout=2m --for=condition=available deployment coredns -n kube-system
+- command: kubectl get deployment -A
+# deploy our operator
 - command: make deploy-kind
+# wait a bunch
 - command: kubectl get deployment -A
 - command: kubectl wait --timeout=3m --for=condition=available deployment postgres-db-server -n postgres
 - command: kubectl get deployment -A
