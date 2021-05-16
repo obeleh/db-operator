@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -109,6 +110,9 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) error {
+	sort.Strings(databaseNames)
+	sort.Strings(userNames)
+
 	newStatus := dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
 	if !reflect.DeepEqual(dbServer.Status, newStatus) {
 		dbServer.Status = newStatus
