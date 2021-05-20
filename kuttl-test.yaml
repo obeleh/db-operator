@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestSuite
 name: Postgres
 testDirs:
-- ./tests/postgres/
+- ./tests/postgres
 manifestDirs:
 - ./tests/postgres-manifests/
 kindContainers:
@@ -18,8 +18,6 @@ commands:
 - command: kubectl wait --timeout=3m --for=condition=available deployment postgres-db-server -n postgres
 - command: kubectl get deployment -A
 - command: kubectl wait --timeout=1m --for=condition=available deployment db-operator-controller-manager -n db-operator-system
-- command: kubectl get deployment -A
-- command: kubectl wait --timeout=1m --for=condition=available deployment coredns -n kube-system
 - command: kubectl get deployment -A
 # wait again, postgress might be restarting due to initialisation cycle
 - command: kubectl wait --timeout=30s --for=condition=available deployment postgres-db-server -n postgres
