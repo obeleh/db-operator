@@ -1,0 +1,6 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: RestoreJob
+metadata:
+  name: example-restore-job
+spec:
+  restore_target: example-restore-target

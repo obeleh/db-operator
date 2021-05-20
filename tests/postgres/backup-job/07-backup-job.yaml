@@ -1,8 +1,7 @@
 apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: BackupTarget
+kind: BackupJob
 metadata:
-  name: example-backup-target
+  name: example-backup-job
 spec:
-  db_name: example-db
-  storage_type: s3
-  storage_location: example-s3-storage
+  backup_target: example-backup-target
+
