@@ -43,7 +43,7 @@ func (i *MySqlDbInfo) buildContainer(scriptName string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "MYSQL_HOST", Value: dbServer.Spec.Address},
 		{Name: "MYSQL_USER", Value: dbServer.Spec.UserName},
-		{Name: "MYSQL_PASSWORD", ValueFrom: &v1.EnvVarSource{
+		{Name: "MYSQL_PWD", ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: dbServer.Spec.SecretName,

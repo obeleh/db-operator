@@ -33,8 +33,14 @@ func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface
 		return nil, err
 	}
 
-	rows, _ := conn.Query(query)
-	cols, _ := rows.Columns()
+	rows, err := conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 
 	rowMaps := make([]map[string]interface{}, 0)
 
@@ -79,7 +85,7 @@ func (m *MySqlConnection) MakeUserDbOwner(userName string, dbName string) error 
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`GRANT ALL PRIVILEGES ON %s.* TO '%s'@'%%';`, dbName, userName))
+	_, err = conn.Exec(fmt.Sprintf("GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%%';", dbName, userName))
 	return err
 }
 
@@ -101,7 +107,9 @@ func (m *MySqlConnection) GetUsers() (map[string]DbSideUser, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to load DbUser")
 		}
-		users[dbUser.UserName] = dbUser
+		if !strings.HasPrefix(dbUser.UserName, "mysql.") {
+			users[dbUser.UserName] = dbUser
+		}
 	}
 	return users, nil
 }
@@ -111,7 +119,7 @@ func (m *MySqlConnection) CreateDb(dbName string, dbOwner string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE %s; ", dbName))
+	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE `%s`;", dbName))
 	if err != nil {
 		return err
 	}
@@ -123,8 +131,12 @@ func (m *MySqlConnection) DropDb(dbName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %s;", dbName))
+	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE `%s`;", dbName))
 	return err
+}
+
+func ToString(val interface{}) string {
+	return string(val.([]uint8))
 }
 
 func (m *MySqlConnection) GetDbs() (map[string]DbSideDb, error) {
@@ -147,13 +159,13 @@ ROWS:
 			if ky == "Db" || ky == "Host" || ky == "User" || strings.HasPrefix(ky, "Grant_") {
 				continue
 			}
-			if vl.(string) != "Y" {
+			if ToString(vl) != "Y" {
 				continue ROWS
 			}
 		}
 
-		db := row["Db"].(string)
-		user := row["User"].(string)
+		db := ToString(row["Db"])
+		user := ToString(row["User"])
 
 		databases[db] = DbSideDb{DatbaseName: db, Owner: user}
 	}

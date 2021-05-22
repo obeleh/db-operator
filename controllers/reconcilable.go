@@ -89,12 +89,17 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 				rcl.NotifyChanges()
 			}
 		}
-	} else if !markedToBeDeleted {
-		res, err = rcl.CreateObj()
-		if err == nil {
-			res, err = rc.EnsureFinalizer(cr)
+	} else {
+		if markedToBeDeleted {
+			controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
+			err = rc.client.Update(rc.ctx, cr)
+		} else {
+			res, err = rcl.CreateObj()
+			if err == nil {
+				res, err = rc.EnsureFinalizer(cr)
+			}
+			rcl.NotifyChanges()
 		}
-		rcl.NotifyChanges()
 	}
 	rcl.CleanupConn()
 	return res, err

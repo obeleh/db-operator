@@ -47,9 +47,8 @@ const BACKUP_MYSQL_SCRIPT string = `#!/bin/bash -e
 mysqldump \
 	-u $MYSQL_USER \
 	-h $MYSQL_HOST \
-	–p $MYSQL_PASSWORD \
 	-d $MYSQL_DATABASE \
-	> ${1:-"$DATABASE"_"` + "`" + "date +%Y%m%d%H%M" + `.sql
+	> /backups/${1:-"$MYSQL_DATABASE"_"` + "`" + "date +%Y%m%d%H%M" + "`.sql\"}" + `
 echo "mysqldump done"
 `
 
@@ -58,7 +57,6 @@ LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
 mysql \ 
 	-u $MYSQL_USER \
 	-h $MYSQL_HOST \
-	–p $MYSQL_PASSWORD \
 	< $LATEST_BACKUP
 echo "mysql restore done"
 `
