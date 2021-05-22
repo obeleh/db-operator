@@ -5,4 +5,5 @@ metadata:
 status:
   connection_available: true
   databases: []
-  users: []
+  users: 
+  - root
