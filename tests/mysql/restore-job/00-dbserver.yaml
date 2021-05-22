@@ -1,0 +1,19 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: example-host
+spec:
+  address: mysql.mysql.svc.cluster.local
+  port: 3306
+  user_name: root
+  secret_name: mysql
+  server_type: mysql
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+data:
+  password: bXlzcWxQYXNzd29yZA==  # mysqlPassword (plz do not use this pw in production)
