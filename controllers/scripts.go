@@ -57,7 +57,7 @@ LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
 mysql \ 
 	-u $MYSQL_USER \
 	-h $MYSQL_HOST \
-	-d $MYSQL_DATABASE \
+	$MYSQL_DATABASE \
 	< $LATEST_BACKUP
 echo "mysql restore done"
 `
