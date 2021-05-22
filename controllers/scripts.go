@@ -54,11 +54,7 @@ echo "mysqldump done"
 
 const RESTORE_MYSQL_SCRIPT string = `#!/bin/bash -e
 LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
-mysql \ 
-	-u $MYSQL_USER \
-	-h $MYSQL_HOST \
-	$MYSQL_DATABASE \
-	< $LATEST_BACKUP
+mysql -u $MYSQL_USER -h $MYSQL_HOST $MYSQL_DATABASE < $LATEST_BACKUP
 echo "mysql restore done"
 `
 
