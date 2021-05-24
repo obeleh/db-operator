@@ -5,6 +5,9 @@ testDirs:
 - ./tests/mysql
 manifestDirs:
 - ./tests/mysql-manifests/
+kindConfig: tests/kind-config.yaml
+startKIND: true
+#startControlPlane: true
 kindContainers:
 - library/mysql:latest
 commands:

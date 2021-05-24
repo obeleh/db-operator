@@ -7,3 +7,4 @@ spec:
   region: eu-west-1
   secret_access_key_k8s_secret: s3-secret
   access_key_id: AKIA354V5YCFESZDSRQA
+  prefix: mysql/
