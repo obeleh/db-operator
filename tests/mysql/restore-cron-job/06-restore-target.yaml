@@ -1,0 +1,8 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: RestoreTarget
+metadata:
+  name: example-restore-target
+spec:
+  db_name: example-db
+  storage_type: s3
+  storage_location: example-s3-storage

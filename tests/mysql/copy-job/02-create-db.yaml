@@ -1,0 +1,21 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: Db
+metadata:
+  name: source-db
+spec:
+  db_name: source-db
+  drop_on_deletion: true
+  owner: example-user
+  server: example-host
+
+---
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: Db
+metadata:
+  name: destination-db
+spec:
+  db_name: destination-db
+  drop_on_deletion: true
+  owner: example-user
+  server: example-host
