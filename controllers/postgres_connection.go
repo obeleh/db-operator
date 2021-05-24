@@ -66,7 +66,7 @@ func (p *PostgresConnection) GetUsers() (map[string]DbSideUser, error) {
 		ORDER BY usename ASC;`,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read users from server")
+		return nil, fmt.Errorf("unable to read users from server")
 	}
 
 	users := make(map[string]DbSideUser)

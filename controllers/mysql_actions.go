@@ -19,7 +19,7 @@ func (i *MySqlDbInfo) GetDbConnection() (DbServerConnectionInterface, error) {
 	if i.Db == nil {
 		dbName = ""
 	} else {
-		dbName = *&i.Db.Spec.DbName
+		dbName = i.Db.Spec.DbName
 	}
 	dbServer := i.DbServer
 	conn := &MySqlConnection{

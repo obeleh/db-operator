@@ -55,12 +55,12 @@ func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, c
 	secret := &v1.Secret{}
 	err := k8sClient.Get(ctx, secretName, secret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get secret: %s", dbUser.Spec.SecretName)
+		return nil, fmt.Errorf("failed to get secret: %s", dbUser.Spec.SecretName)
 	}
 
 	passBytes, ok := secret.Data[Nvl(dbUser.Spec.SecretKey, "password")]
 	if !ok {
-		return nil, fmt.Errorf("Password key (%s) not found in secret", Nvl(dbUser.Spec.SecretKey, "password"))
+		return nil, fmt.Errorf("password key (%s) not found in secret", Nvl(dbUser.Spec.SecretKey, "password"))
 	}
 
 	password := string(passBytes)

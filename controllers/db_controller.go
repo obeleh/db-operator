@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -95,31 +96,34 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	dbUser := &dboperatorv1alpha1.User{}
 	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
-		r.LogError(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+		r.LogError(err, fmt.Sprintf("failed to get User: %s", r.db.Spec.Owner))
 		return ctrl.Result{}, err
 	}
 
 	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
 	if r.conn == nil {
-		message := "No database connection possible"
+		message := "no database connection possible"
 		err = fmt.Errorf(message)
 		r.Log.Error(err, message)
 		return ctrl.Result{}, err
 	}
 	err = r.conn.CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName)
 	if err != nil {
-		r.LogError(err, fmt.Sprintf("Failed to Create DB: %s", r.db.Spec.DbName))
-		return ctrl.Result{}, err
+		r.LogError(err, fmt.Sprintf("failed to Create DB: %s", r.db.Spec.DbName))
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: time.Second,
+		}, err
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 	if r.db.Spec.DropOnDeletion {
-		r.Log.Info(fmt.Sprintf("Dropping db %s", r.db.Spec.DbName))
+		r.Log.Info(fmt.Sprintf("dropping db %s", r.db.Spec.DbName))
 		err := r.conn.DropDb(r.db.Spec.DbName)
 		if err != nil {
-			r.LogError(err, fmt.Sprintf("Failed to drop db %s\n%s", r.db.Spec.DbName, err))
+			r.LogError(err, fmt.Sprintf("failed to drop db %s\n%s", r.db.Spec.DbName, err))
 			return ctrl.Result{}, err
 		}
 		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))
@@ -152,7 +156,7 @@ func (r *DbReco) NotifyChanges() {
 
 func (r *DbReco) EnsureCorrect() (bool, error) {
 	var changes bool = false
-	dbObj, _ := r.dbs[r.db.Spec.DbName]
+	dbObj := r.dbs[r.db.Spec.DbName]
 
 	userNsName := types.NamespacedName{
 		Name:      r.db.Spec.Owner,
@@ -161,14 +165,14 @@ func (r *DbReco) EnsureCorrect() (bool, error) {
 	dbUser := &dboperatorv1alpha1.User{}
 	err := r.client.Get(r.ctx, userNsName, dbUser)
 	if err != nil {
-		r.LogError(err, fmt.Sprintf("Failed to get User: %s", r.db.Spec.Owner))
+		r.LogError(err, fmt.Sprintf("failed to get User: %s", r.db.Spec.Owner))
 		return false, err
 	}
 	if dbObj.Owner != dbUser.Spec.UserName {
-		r.Log.Info(fmt.Sprintf("Change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
+		r.Log.Info(fmt.Sprintf("change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
 		err = r.conn.MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName)
 		if err != nil {
-			r.LogError(err, "Failed changing db ownership")
+			r.LogError(err, "failed changing db ownership")
 			return false, err
 		}
 		changes = true

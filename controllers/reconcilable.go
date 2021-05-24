@@ -185,8 +185,8 @@ func (r *Reco) EnsureScripts() error {
 	r.Log.Info("Creating scripts cm")
 	err = r.client.Create(r.ctx, cm)
 	if err != nil {
-		r.LogError(err, "Failed creating cm")
-		return fmt.Errorf("Failed creating configmap with scripts")
+		r.LogError(err, "failed creating cm")
+		return fmt.Errorf("failed creating configmap with scripts")
 	}
 	return nil
 }
@@ -306,7 +306,7 @@ func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
 func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbActions, error) {
 	password, err := r.GetPassword(dbServer)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting password %s", err)
+		return nil, fmt.Errorf("failed getting password %s", err)
 	}
 
 	var actions DbActions
@@ -329,7 +329,7 @@ func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv
 		}
 		actions = myActions
 	} else {
-		return nil, fmt.Errorf("Expected either mysql or postgres server")
+		return nil, fmt.Errorf("expected either mysql or postgres server")
 	}
 
 	return actions, err
@@ -388,7 +388,7 @@ func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, erro
 
 	err := r.client.Get(r.ctx, secretName, secret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get secret: %s %s", dbServer.Spec.SecretName, err)
+		return nil, fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
 	}
 
 	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
@@ -416,6 +416,6 @@ func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (Stora
 		}
 		return storage, nil
 	} else {
-		return nil, fmt.Errorf("Unknown storage type %s", storageType)
+		return nil, fmt.Errorf("unknown storage type %s", storageType)
 	}
 }

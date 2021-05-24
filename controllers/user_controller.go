@@ -97,7 +97,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 		return ctrl.Result{
 			// Gradual backoff
 			Requeue:      true,
-			RequeueAfter: time.Duration(time.Now().Sub(r.user.GetDeletionTimestamp().Time).Seconds()),
+			RequeueAfter: time.Duration(time.Since(r.user.GetDeletionTimestamp().Time).Seconds()),
 		}, err
 	}
 	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
