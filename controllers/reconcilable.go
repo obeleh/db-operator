@@ -388,7 +388,7 @@ func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, erro
 
 	err := r.client.Get(r.ctx, secretName, secret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get secret: %s", dbServer.Spec.SecretName)
+		return nil, fmt.Errorf("Failed to get secret: %s %s", dbServer.Spec.SecretName, err)
 	}
 
 	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
