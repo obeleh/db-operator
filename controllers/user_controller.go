@@ -78,7 +78,11 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 	password, err := GetUserPassword(&r.user, r.client, r.ctx)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{
+			// Gradual backoff
+			Requeue:      true,
+			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
+		}, nil
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)

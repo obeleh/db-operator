@@ -111,8 +111,9 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("failed to Create DB: %s", r.db.Spec.DbName))
 		return ctrl.Result{
+			// Gradual backoff
 			Requeue:      true,
-			RequeueAfter: time.Second,
+			RequeueAfter: time.Duration(time.Since(r.db.GetCreationTimestamp().Time).Seconds()),
 		}, err
 	}
 	return ctrl.Result{}, nil
@@ -124,7 +125,11 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 		err := r.conn.DropDb(r.db.Spec.DbName)
 		if err != nil {
 			r.LogError(err, fmt.Sprintf("failed to drop db %s\n%s", r.db.Spec.DbName, err))
-			return ctrl.Result{}, err
+			return ctrl.Result{
+				// Gradual backoff
+				Requeue:      true,
+				RequeueAfter: time.Duration(time.Since(r.db.GetDeletionTimestamp().Time).Seconds()),
+			}, err
 		}
 		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))
 	} else {
