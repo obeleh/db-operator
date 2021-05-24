@@ -97,8 +97,8 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			res, err = rcl.CreateObj()
 			if err == nil {
 				res, err = rc.EnsureFinalizer(cr)
+				rcl.NotifyChanges()
 			}
-			rcl.NotifyChanges()
 		}
 	}
 	rcl.CleanupConn()
