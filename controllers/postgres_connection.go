@@ -1,7 +1,5 @@
 package controllers
 
-// https://github.com/ansible-collections/community.postgresql/blob/main/plugins/modules/postgresql_user.py
-
 import (
 	"fmt"
 )
@@ -32,7 +30,7 @@ func (p *PostgresConnection) DropUser(userName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`DROP ROLE IF EXISTS %s;`, userName))
+	_, err = conn.Exec("DROP ROLE IF EXISTS ?;", userName)
 	return err
 }
 
@@ -66,7 +64,7 @@ func (p *PostgresConnection) GetUsers() (map[string]DbSideUser, error) {
 		ORDER BY usename ASC;`,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read users from server")
+		return nil, fmt.Errorf("unable to read users from server %s", err)
 	}
 
 	users := make(map[string]DbSideUser)

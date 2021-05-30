@@ -20,12 +20,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type DbPriv struct {
+	DbName string `json:"db_name"`
+	Priv   string `json:"priv"`
+}
+
 // UserSpec defines the desired state of User
 type UserSpec struct {
-	UserName     string `json:"user_name"`
-	SecretName   string `json:"secret_name"`
-	SecretKey    string `json:"secret_key,omitempty"`
-	DbServerName string `json:"db_server_name"`
+	UserName     string   `json:"user_name"`
+	SecretName   string   `json:"secret_name"`
+	SecretKey    string   `json:"secret_key,omitempty"`
+	DbServerName string   `json:"db_server_name"`
+	Privs        []DbPriv `json:"privs"`
+	ServerPrivs  string   `json:"server_privs"`
 }
 
 // UserStatus defines the observed state of User

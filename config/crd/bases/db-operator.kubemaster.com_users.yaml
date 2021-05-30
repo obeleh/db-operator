@@ -38,15 +38,31 @@ spec:
             properties:
               db_server_name:
                 type: string
+              privs:
+                items:
+                  properties:
+                    db_name:
+                      type: string
+                    priv:
+                      type: string
+                  required:
+                  - db_name
+                  - priv
+                  type: object
+                type: array
               secret_key:
                 type: string
               secret_name:
+                type: string
+              server_privs:
                 type: string
               user_name:
                 type: string
             required:
             - db_server_name
+            - privs
             - secret_name
+            - server_privs
             - user_name
             type: object
           status:
