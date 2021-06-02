@@ -44,7 +44,7 @@ func (p *PostgresConnection) DropUser(userName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec("DROP ROLE IF EXISTS ?;", userName)
+	_, err = conn.Exec("DROP ROLE IF EXISTS %q;", userName)
 	return err
 }
 
@@ -107,7 +107,7 @@ func (p *PostgresConnection) CreateDb(dbName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec("CREATE DATABASE ?;", dbName)
+	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE %q;", dbName))
 	return err
 }
 
@@ -116,7 +116,7 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec("DROP DATABASE ?;", dbName)
+	_, err = conn.Exec("DROP DATABASE %q;", dbName)
 	return err
 }
 

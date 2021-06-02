@@ -3,7 +3,7 @@ module github.com/kabisa/db-operator
 go 1.15
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0 // indirect
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/go-logr/logr v0.3.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/lib/pq v1.10.0

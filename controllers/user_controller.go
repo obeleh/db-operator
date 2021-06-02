@@ -158,6 +158,7 @@ func (r *UserReco) EnsureCorrect() (bool, error) {
 	}
 	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, resolvedDbNamePrivs)
 	if err != nil {
+		r.LogError(err, "Failed updating user privs")
 		errors = append(errors, err)
 	}
 	var errsErr error

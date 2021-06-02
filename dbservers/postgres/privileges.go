@@ -145,7 +145,7 @@ func ParsePrivs(privs string, db string) (map[string]map[string][]string, error)
 
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
 	// Server Privs
-	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname=?", userName)
+	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname=$1", userName)
 	if err != nil {
 		return false, err
 	}
@@ -167,12 +167,12 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	if serverPrivsChanging {
-		alter := []string{"ALTER USER ?"}
+		alter := []string{fmt.Sprintf("ALTER USER %q", userName)}
 		if len(roleAttrFlags) > 0 {
 			alter = append(alter, fmt.Sprintf("WITH %s", strings.Join(roleAttrFlags, " ")))
 		}
 
-		_, err = conn.Exec(strings.Join(alter, " "), userName)
+		_, err = conn.Exec(strings.Join(alter, " "))
 		if err != nil {
 			return false, err
 		}
@@ -202,7 +202,7 @@ func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, erro
 		schema = "public"
 	}
 
-	query := "SELECT privilege_type FROM information_schema.role_table_grants WHERE grantee=? AND table_name=? AND table_schema=?"
+	query := "SELECT privilege_type FROM information_schema.role_table_grants WHERE grantee=$1 AND table_name=$2 AND table_schema=$3"
 	rows, err := conn.Query(query, user, table, schema)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read tablePrivs %s", err)
@@ -243,12 +243,12 @@ func diffPrivs(curPrivs []string, privs []string, err error) ([]string, []string
 }
 
 func grantTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec("GRANT ? ON TABLE ? TO ?", strings.Join(privs, ", "), table, user)
+	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %q TO %q", strings.Join(privs, ", "), table, user))
 	return err
 }
 
 func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec("REVOKE ? ON TABLE ? FROM ?", strings.Join(privs, ", "), table, user)
+	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %q FROM %q", strings.Join(privs, ", "), table, user))
 	return err
 }
 
@@ -267,7 +267,7 @@ func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string)
 
 func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, error) {
 
-	query := "SELECT datacl FROM pg_database WHERE datname = ?"
+	query := "SELECT datacl FROM pg_database WHERE datname = $1"
 	rows, err := conn.Query(query, db)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read databasePrivs %s", err)
@@ -276,19 +276,20 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 		return nil, fmt.Errorf("unable to read databasePrivs, no rows")
 	}
 
-	datacl := ""
+	var datacl sql.NullString
 	err = rows.Scan(&datacl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load dbPriv %s", err)
 	}
 
-	if datacl == "" {
+	// if null
+	if !datacl.Valid {
 		return []string{}, nil
 	}
 	rePattern := fmt.Sprintf(`%s\\?"?=(C?T?c?)/[^,]+,?`, user)
 	re := regexp.MustCompile(rePattern)
 	returnArray := []string{}
-	submatches := re.FindStringSubmatch(datacl)
+	submatches := re.FindStringSubmatch(datacl.String)
 	for _, chr := range submatches[1] {
 		returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
 	}
@@ -298,12 +299,12 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	if user == "PUBLIC" {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO PUBLIC", privsStr, db)
+		query := fmt.Sprintf("GRANT %s ON DATABASE %q TO PUBLIC", privsStr, db)
 		_, err := conn.Exec(query)
 		return err
 	} else {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO ?", privsStr, db)
-		_, err := conn.Exec(query, user)
+		query := fmt.Sprintf("GRANT %s ON DATABASE %q TO %q", privsStr, db, user)
+		_, err := conn.Exec(query)
 		return err
 	}
 }
@@ -311,12 +312,12 @@ func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []strin
 func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	if user == "PUBLIC" {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM PUBLIC", privsStr, db)
+		query := fmt.Sprintf("REVOKE %s ON DATABASE %q FROM PUBLIC", privsStr, db)
 		_, err := conn.Exec(query)
 		return err
 	} else {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM ?", privsStr, db)
-		_, err := conn.Exec(query, user)
+		query := fmt.Sprintf("REVOKE %s ON DATABASE %q FROM %q", privsStr, db, user)
+		_, err := conn.Exec(query)
 		return err
 	}
 }
@@ -326,26 +327,39 @@ func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[stri
 		return false, nil
 	}
 	changed := false
-
+	errors := []error{}
 	for privType, privsMap := range privsMapMap {
 		for name, privs := range privsMap {
 			checkFun := CHECK_PRIVILEGES_MAP[privType]
 			_, otherCurrent, desired, err := checkFun(conn, user, name, privs)
 			if err != nil {
-				return false, nil
+				return false, err
 			}
 			if len(otherCurrent) > 0 {
 				revokeFun := ADJUST_PRIVILEGES_MAP[privType]["revoke"]
-				revokeFun(conn, user, name, otherCurrent)
-				changed = true
+				err := revokeFun(conn, user, name, otherCurrent)
+				if err != nil {
+					errors = append(errors, err)
+				} else {
+					changed = true
+				}
 			}
 			if len(desired) > 0 {
 				grantFun := ADJUST_PRIVILEGES_MAP[privType]["grant"]
-				grantFun(conn, user, name, desired)
-				changed = true
+				err := grantFun(conn, user, name, desired)
+				if err != nil {
+					errors = append(errors, err)
+				} else {
+					changed = true
+				}
 			}
 		}
 	}
-
-	return changed, nil
+	var errsErr error
+	if len(errors) > 0 {
+		errsErr = fmt.Errorf("adjustPrivileges had errors %s", errors)
+	} else {
+		errsErr = nil
+	}
+	return changed, errsErr
 }

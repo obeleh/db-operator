@@ -89,11 +89,13 @@ func TestUpdateUserPrivs(t *testing.T) {
 	})
 	expected.AddRow("testuser", false, true, false, false, false, false, nil, -1, "********", nil, false, 1638)
 	mock.ExpectQuery(
-		"SELECT * FROM pg_roles WHERE rolname=?",
+		"SELECT * FROM pg_roles WHERE rolname=$1",
 	).WithArgs(
 		"testuser",
 	).WillReturnRows(expected)
-	mock.ExpectExec("ALTER USER ? WITH CREATEDB").WithArgs("testuser").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(
+		fmt.Sprintf("ALTER USER %q WITH CREATEDB", "testuser"),
+	).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	dbPrivs := []dboperatorv1alpha1.DbPriv{
 		{
@@ -117,7 +119,7 @@ func TestGetDatabasePrivilegest(t *testing.T) {
 
 	expected := sqlmock.NewRows([]string{"datacl"})
 	expected.AddRow("{=Tc/postgres,postgres=CTc/postgres,testuser=CTc/postgres}")
-	mock.ExpectQuery("SELECT datacl FROM pg_database WHERE datname = ?").WithArgs(
+	mock.ExpectQuery("SELECT datacl FROM pg_database WHERE datname = $1").WithArgs(
 		"testdb",
 	).WillReturnRows(expected)
 
