@@ -4,11 +4,12 @@ import (
 	path "path/filepath"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	"github.com/kabisa/db-operator/shared"
 	v1 "k8s.io/api/core/v1"
 )
 
 type StorageActions interface {
-	buildContainer(script string, fixedFileName *string) v1.Container
+	BuildContainer(script string, fixedFileName *string) v1.Container
 	BuildUploadContainer(fixedFileName *string) v1.Container
 	BuildDownloadContainer(fixedFileName *string) v1.Container
 }
@@ -17,7 +18,7 @@ type S3StorageInfo struct {
 	S3Storage dboperatorv1alpha1.S3Storage
 }
 
-func (s *S3StorageInfo) buildContainer(script string, fixedFileName *string) v1.Container {
+func (s *S3StorageInfo) BuildContainer(script string, fixedFileName *string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "S3_BUCKET_NAME", Value: s.S3Storage.Spec.BucketName},
 		{Name: "S3_PREFIX", Value: s.S3Storage.Spec.Prefix},
@@ -28,7 +29,7 @@ func (s *S3StorageInfo) buildContainer(script string, fixedFileName *string) v1.
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: s.S3Storage.Spec.AccessKeyK8sSecret,
 				},
-				Key: Nvl(s.S3Storage.Spec.AccessKeyK8sSecretKey, "SECRET_ACCESS_KEY"),
+				Key: shared.Nvl(s.S3Storage.Spec.AccessKeyK8sSecretKey, "SECRET_ACCESS_KEY"),
 			},
 		}},
 	}
@@ -42,16 +43,16 @@ func (s *S3StorageInfo) buildContainer(script string, fixedFileName *string) v1.
 		Image: "amazon/aws-cli",
 		Env:   envVars,
 		Command: []string{
-			path.Join("/", SCRIPTS_VOLUME_NAME, script),
+			path.Join("/", shared.SCRIPTS_VOLUME_NAME, script),
 		},
-		VolumeMounts: VOLUME_MOUNTS,
+		VolumeMounts: shared.VOLUME_MOUNTS,
 	}
 }
 
 func (s *S3StorageInfo) BuildUploadContainer(fixedFileName *string) v1.Container {
-	return s.buildContainer(UPLOAD_S3, fixedFileName)
+	return s.BuildContainer(shared.UPLOAD_S3, fixedFileName)
 }
 
 func (s *S3StorageInfo) BuildDownloadContainer(fixedFileName *string) v1.Container {
-	return s.buildContainer(DOWNLOAD_S3, fixedFileName)
+	return s.BuildContainer(shared.DOWNLOAD_S3, fixedFileName)
 }

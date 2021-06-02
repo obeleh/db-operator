@@ -81,8 +81,8 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		return ctrl.Result{}, nil
 	}
-	for name, db := range databases {
-		r.Log.Info(fmt.Sprintf("Found DB %s with Owner %s", name, db.Owner))
+	for name := range databases {
+		r.Log.Info(fmt.Sprintf("Found DB %s", name))
 		databaseNames = append(databaseNames, name)
 	}
 

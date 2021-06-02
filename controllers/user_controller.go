@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kabisa/db-operator/shared"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,8 +47,8 @@ type UserReconciler struct {
 type UserReco struct {
 	Reco
 	user  dboperatorv1alpha1.User
-	users map[string]DbSideUser
-	conn  DbServerConnectionInterface
+	users map[string]shared.DbSideUser
+	conn  shared.DbServerConnectionInterface
 }
 
 func (r *UserReco) MarkedToBeDeleted() bool {
@@ -88,7 +90,21 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
-		return ctrl.Result{}, err
+		return ctrl.Result{
+			// Gradual backoff
+			Requeue:      true,
+			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
+		}, err
+	}
+
+	_, err = r.EnsureCorrect()
+	if err != nil {
+		r.LogError(err, fmt.Sprint(err))
+		return ctrl.Result{
+			// Gradual backoff
+			Requeue:      true,
+			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
+		}, err
 	}
 	return ctrl.Result{}, nil
 }
@@ -122,7 +138,35 @@ func (r *UserReco) GetCR() client.Object {
 }
 
 func (r *UserReco) EnsureCorrect() (bool, error) {
-	return false, nil
+	errors := []error{}
+	resolvedDbNamePrivs := []dboperatorv1alpha1.DbPriv{}
+	for _, dbPriv := range r.user.Spec.DbPrivs {
+		db := dboperatorv1alpha1.Db{}
+		nsm := types.NamespacedName{
+			Name:      dbPriv.DbName,
+			Namespace: r.user.Namespace,
+		}
+		err := r.client.Get(r.ctx, nsm, &db)
+		if err == nil {
+			resolvedDbNamePrivs = append(resolvedDbNamePrivs, dboperatorv1alpha1.DbPriv{
+				DbName: db.Spec.DbName,
+				Priv:   dbPriv.Priv,
+			})
+		} else {
+			errors = append(errors, err)
+		}
+	}
+	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, resolvedDbNamePrivs)
+	if err != nil {
+		errors = append(errors, err)
+	}
+	var errsErr error
+	if len(errors) > 0 {
+		errsErr = fmt.Errorf("Got errors makeing sure user has correct privileges %s", errors)
+	} else {
+		errsErr = nil
+	}
+	return changes, errsErr
 }
 
 func (r *UserReco) CleanupConn() {
@@ -164,4 +208,25 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.User{}).
 		Complete(r)
+}
+
+func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*string, error) {
+	secretName := types.NamespacedName{
+		Name:      dbUser.Spec.SecretName,
+		Namespace: dbUser.Namespace,
+	}
+	secret := &v1.Secret{}
+	err := k8sClient.Get(ctx, secretName, secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret: %s", dbUser.Spec.SecretName)
+	}
+
+	passBytes, ok := secret.Data[shared.Nvl(dbUser.Spec.SecretKey, "password")]
+	if !ok {
+		return nil, fmt.Errorf("password key (%s) not found in secret", shared.Nvl(dbUser.Spec.SecretKey, "password"))
+	}
+
+	password := string(passBytes)
+
+	return &password, nil
 }

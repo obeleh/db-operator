@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	"github.com/kabisa/db-operator/shared"
 )
 
 // DbReconciler reconciles a Db object
@@ -45,8 +46,8 @@ type DbReconciler struct {
 type DbReco struct {
 	Reco
 	db   dboperatorv1alpha1.Db
-	dbs  map[string]DbSideDb
-	conn DbServerConnectionInterface
+	dbs  map[string]shared.DbSideDb
+	conn shared.DbServerConnectionInterface
 }
 
 func (r *DbReco) MarkedToBeDeleted() bool {
@@ -89,25 +90,15 @@ func (r *DbReco) LoadObj() (bool, error) {
 }
 
 func (r *DbReco) CreateObj() (ctrl.Result, error) {
-	userNsName := types.NamespacedName{
-		Name:      r.db.Spec.Owner,
-		Namespace: r.nsNm.Namespace,
-	}
-	dbUser := &dboperatorv1alpha1.User{}
-	err := r.client.Get(r.ctx, userNsName, dbUser)
-	if err != nil {
-		r.LogError(err, fmt.Sprintf("failed to get User: %s", r.db.Spec.Owner))
-		return ctrl.Result{}, err
-	}
-
 	r.Log.Info(fmt.Sprintf("Creating db %s", r.db.Spec.DbName))
+	var err error
 	if r.conn == nil {
 		message := "no database connection possible"
 		err = fmt.Errorf(message)
 		r.Log.Error(err, message)
 		return ctrl.Result{}, err
 	}
-	err = r.conn.CreateDb(r.db.Spec.DbName, dbUser.Spec.UserName)
+	err = r.conn.CreateDb(r.db.Spec.DbName)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("failed to Create DB: %s", r.db.Spec.DbName))
 		return ctrl.Result{
@@ -160,30 +151,7 @@ func (r *DbReco) NotifyChanges() {
 }
 
 func (r *DbReco) EnsureCorrect() (bool, error) {
-	var changes bool = false
-	dbObj := r.dbs[r.db.Spec.DbName]
-
-	userNsName := types.NamespacedName{
-		Name:      r.db.Spec.Owner,
-		Namespace: r.nsNm.Namespace,
-	}
-	dbUser := &dboperatorv1alpha1.User{}
-	err := r.client.Get(r.ctx, userNsName, dbUser)
-	if err != nil {
-		r.LogError(err, fmt.Sprintf("failed to get User: %s", r.db.Spec.Owner))
-		return false, err
-	}
-	if dbObj.Owner != dbUser.Spec.UserName {
-		r.Log.Info(fmt.Sprintf("change db %s owner to %s (%s)", dbObj.DatbaseName, r.db.Spec.Owner, dbUser.Spec.UserName))
-		err = r.conn.MakeUserDbOwner(dbUser.Spec.UserName, r.db.Spec.DbName)
-		if err != nil {
-			r.LogError(err, "failed changing db ownership")
-			return false, err
-		}
-		changes = true
-	}
-
-	return changes, nil
+	return false, nil
 }
 
 func (r *DbReco) CleanupConn() {

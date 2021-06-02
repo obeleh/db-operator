@@ -22,7 +22,7 @@ import (
 
 type DbPriv struct {
 	DbName string `json:"db_name"`
-	Priv   string `json:"priv"`
+	Privs  string `json:"privs"`
 }
 
 // UserSpec defines the desired state of User
@@ -31,7 +31,7 @@ type UserSpec struct {
 	SecretName   string   `json:"secret_name"`
 	SecretKey    string   `json:"secret_key,omitempty"`
 	DbServerName string   `json:"db_server_name"`
-	Privs        []DbPriv `json:"privs"`
+	DbPrivs      []DbPriv `json:"db_privs"`
 	ServerPrivs  string   `json:"server_privs"`
 }
 

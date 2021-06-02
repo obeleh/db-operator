@@ -36,20 +36,20 @@ spec:
           spec:
             description: UserSpec defines the desired state of User
             properties:
-              db_server_name:
-                type: string
-              privs:
+              db_privs:
                 items:
                   properties:
                     db_name:
                       type: string
-                    priv:
+                    privs:
                       type: string
                   required:
                   - db_name
-                  - priv
+                  - privs
                   type: object
                 type: array
+              db_server_name:
+                type: string
               secret_key:
                 type: string
               secret_name:
@@ -59,8 +59,8 @@ spec:
               user_name:
                 type: string
             required:
+            - db_privs
             - db_server_name
-            - privs
             - secret_name
             - server_privs
             - user_name

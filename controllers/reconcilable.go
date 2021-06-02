@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	"github.com/kabisa/db-operator/dbservers"
+	"github.com/kabisa/db-operator/shared"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
@@ -153,7 +155,7 @@ func (r *Reco) EnsureScripts() error {
 	r.Log.Info("Ensure scripts")
 	cm := &v1.ConfigMap{}
 	nsName := types.NamespacedName{
-		Name:      SCRIPTS_CONFIGMAP,
+		Name:      shared.SCRIPTS_CONFIGMAP,
 		Namespace: r.nsNm.Namespace,
 	}
 	err := r.client.Get(r.ctx, nsName, cm)
@@ -169,7 +171,7 @@ func (r *Reco) EnsureScripts() error {
 	}
 
 	if found {
-		if reflect.DeepEqual(cm.Data, SCRIPTS_MAP) {
+		if reflect.DeepEqual(cm.Data, shared.SCRIPTS_MAP) {
 			r.Log.Info("Scripts existed and were up to date")
 			return nil
 		} else {
@@ -178,7 +180,7 @@ func (r *Reco) EnsureScripts() error {
 		}
 	}
 
-	cm.Data = SCRIPTS_MAP
+	cm.Data = shared.SCRIPTS_MAP
 	cm.Name = nsName.Name
 	cm.Namespace = nsName.Namespace
 
@@ -209,7 +211,7 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 			container,
 		},
 		RestartPolicy: v1.RestartPolicyNever,
-		Volumes:       GetVolumes(),
+		Volumes:       shared.GetVolumes(),
 	}
 
 	return batchv1.Job{
@@ -235,7 +237,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 			container,
 		},
 		RestartPolicy: v1.RestartPolicyNever,
-		Volumes:       GetVolumes(),
+		Volumes:       shared.GetVolumes(),
 	}
 
 	return batchv1beta.CronJob{
@@ -259,7 +261,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetBackupTargetFull(backupTargetName string) (StorageActions, DbActions, error) {
+func (r *Reco) GetBackupTargetFull(backupTargetName string) (StorageActions, shared.DbActions, error) {
 	backupTarget, err := r.GetBackupTarget(backupTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -275,7 +277,7 @@ func (r *Reco) GetBackupTargetFull(backupTargetName string) (StorageActions, DbA
 	return storageInfo, dbInfo, err
 }
 
-func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (StorageActions, DbActions, error) {
+func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (StorageActions, shared.DbActions, error) {
 	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
 	if err != nil {
 		return nil, nil, err
@@ -291,7 +293,7 @@ func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (StorageActions, D
 	return storageInfo, dbInfo, err
 }
 
-func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
+func (r *Reco) GetDbInfo(dbName string) (shared.DbActions, error) {
 	db, err := r.GetDb(dbName)
 	if err != nil {
 		return nil, err
@@ -303,36 +305,13 @@ func (r *Reco) GetDbInfo(dbName string) (DbActions, error) {
 	return r.GetDbInfo2(dbServer, db)
 }
 
-func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbActions, error) {
+func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbActions, error) {
 	password, err := r.GetPassword(dbServer)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting password %s", err)
 	}
 
-	var actions DbActions
-	if strings.ToLower(dbServer.Spec.ServerType) == "postgres" {
-		pgActions := &PostgresDbInfo{
-			DbInfo: DbInfo{
-				DbServer: dbServer,
-				Db:       db,
-				Password: *password,
-			},
-		}
-		actions = pgActions
-	} else if strings.ToLower(dbServer.Spec.ServerType) == "mysql" {
-		myActions := &MySqlDbInfo{
-			DbInfo: DbInfo{
-				DbServer: dbServer,
-				Db:       db,
-				Password: *password,
-			},
-		}
-		actions = myActions
-	} else {
-		return nil, fmt.Errorf("expected either mysql or postgres server")
-	}
-
-	return actions, err
+	return dbservers.GetServerActions(dbServer.Spec.ServerType, dbServer, db, *password)
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
@@ -391,11 +370,11 @@ func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, erro
 		return nil, fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
 	}
 
-	password := string(secret.Data[Nvl(dbServer.Spec.SecretKey, "password")])
+	password := string(secret.Data[shared.Nvl(dbServer.Spec.SecretKey, "password")])
 	return &password, nil
 }
 
-func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (DbServerConnectionInterface, error) {
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbServerConnectionInterface, error) {
 	dbInfo, err := r.GetDbInfo2(dbServer, db)
 	if err != nil {
 		r.LogError(err, "failed getting dbInfo")
