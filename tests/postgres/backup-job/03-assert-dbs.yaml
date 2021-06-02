@@ -5,7 +5,7 @@ metadata:
 status:
   connection_available: true
   databases:
-    - example-db
+    - example-db-real-name
     - postgres
   users:
     - postgres

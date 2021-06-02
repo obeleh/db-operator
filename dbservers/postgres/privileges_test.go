@@ -97,6 +97,8 @@ func TestUpdateUserPrivs(t *testing.T) {
 		fmt.Sprintf("ALTER USER %q WITH CREATEDB", "testuser"),
 	).WillReturnResult(sqlmock.NewResult(1, 1))
 
+	expectGetDatabasePrivileges(mock)
+
 	dbPrivs := []dboperatorv1alpha1.DbPriv{
 		{
 			DbName: "testdb",
@@ -110,19 +112,21 @@ func TestUpdateUserPrivs(t *testing.T) {
 	}
 }
 
+func expectGetDatabasePrivileges(mock sqlmock.Sqlmock) {
+	expected := sqlmock.NewRows([]string{"datacl"})
+	expected.AddRow("{=Tc/postgres,postgres=CTc/postgres,testuser=CTc/postgres}")
+	mock.ExpectQuery("SELECT datacl FROM pg_database WHERE datname = $1").WithArgs(
+		"testdb",
+	).WillReturnRows(expected)
+}
+
 func TestGetDatabasePrivilegest(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer db.Close()
-
-	expected := sqlmock.NewRows([]string{"datacl"})
-	expected.AddRow("{=Tc/postgres,postgres=CTc/postgres,testuser=CTc/postgres}")
-	mock.ExpectQuery("SELECT datacl FROM pg_database WHERE datname = $1").WithArgs(
-		"testdb",
-	).WillReturnRows(expected)
-
+	expectGetDatabasePrivileges(mock)
 	privs, err := postgres.GetDatabasePrivileges(db, "testuser", "testdb")
 	if err != nil {
 		t.Errorf("database privileges failed %s", err)
