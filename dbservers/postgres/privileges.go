@@ -180,7 +180,7 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	for _, dbPriv := range dbPrivs {
-		privMap, err := ParsePrivs(dbPriv.Priv, dbPriv.DbName)
+		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.DbName)
 		if err != nil {
 			return changed, err
 		}

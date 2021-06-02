@@ -150,7 +150,7 @@ func (r *UserReco) EnsureCorrect() (bool, error) {
 		if err == nil {
 			resolvedDbNamePrivs = append(resolvedDbNamePrivs, dboperatorv1alpha1.DbPriv{
 				DbName: db.Spec.DbName,
-				Priv:   dbPriv.Priv,
+				Privs:  dbPriv.Privs,
 			})
 		} else {
 			errors = append(errors, err)

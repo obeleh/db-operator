@@ -98,7 +98,7 @@ func TestUpdateUserPrivs(t *testing.T) {
 	dbPrivs := []dboperatorv1alpha1.DbPriv{
 		{
 			DbName: "testdb",
-			Priv:   "ALL",
+			Privs:  "ALL",
 		},
 	}
 	_, err = postgres.UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
