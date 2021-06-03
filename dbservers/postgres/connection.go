@@ -116,7 +116,7 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec("DROP DATABASE %q;", dbName)
+	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
 	return err
 }
 
