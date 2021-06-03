@@ -84,7 +84,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		} else {
 			var changes bool
 			changes, err = rcl.EnsureCorrect()
-			if err != nil {
+			if err == nil {
 				res, err = rc.EnsureFinalizer(cr)
 			}
 			if changes {

@@ -134,6 +134,7 @@ func (r *DbReco) GetCR() client.Object {
 }
 
 func (r *DbReco) NotifyChanges() {
+	r.Log.Info("Notifying of DB changes")
 	reconcileRequest := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      r.db.Spec.Server,

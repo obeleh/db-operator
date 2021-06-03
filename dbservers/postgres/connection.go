@@ -44,7 +44,7 @@ func (p *PostgresConnection) DropUser(userName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec("DROP ROLE IF EXISTS %q;", userName)
+	_, err = conn.Exec(fmt.Sprintf("DROP ROLE IF EXISTS %q;", userName))
 	return err
 }
 
