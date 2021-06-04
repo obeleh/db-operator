@@ -15,3 +15,7 @@ spec:
   db_server_name: example-host
   user_name: sjuul
   secret_name: example-user-secret
+  server_privs: LOGIN
+  db_privs:
+    - db_name: example-db
+      privs: ALL

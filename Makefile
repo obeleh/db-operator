@@ -163,4 +163,4 @@ bundle-build:
 kuttl-test:
 	make docker-build
 	kubectl kuttl test --config kuttl-test-postgres.yaml
-	kubectl kuttl test --config kuttl-test-mysql.yaml
+	# kubectl kuttl test --config kuttl-test-mysql.yaml
