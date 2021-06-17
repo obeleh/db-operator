@@ -5,7 +5,6 @@ metadata:
 spec:
   db_name: source-db
   drop_on_deletion: true
-  owner: example-user
   server: example-host
 
 ---
@@ -17,5 +16,4 @@ metadata:
 spec:
   db_name: destination-db
   drop_on_deletion: true
-  owner: example-user
   server: example-host

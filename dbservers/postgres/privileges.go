@@ -1,5 +1,6 @@
-// https://github.com/ansible-collections/community.postgresql/blob/main/plugins/modules/postgresql_user.py
 package postgres
+
+// https://github.com/ansible-collections/community.postgresql/blob/main/plugins/modules/postgresql_user.py
 
 import (
 	"database/sql"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	"github.com/kabisa/db-operator/dbservers/query_utils"
 	"github.com/kabisa/db-operator/shared"
 	funk "github.com/thoas/go-funk"
 )
@@ -266,30 +268,14 @@ func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string)
 }
 
 func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, error) {
-
-	query := "SELECT datacl FROM pg_database WHERE datname = $1"
-	rows, err := conn.Query(query, db)
+	datacl, err := query_utils.SelectFirstValueString(conn, "SELECT datacl FROM pg_database WHERE datname = $1", db)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read databasePrivs %s", err)
-	}
-	if !rows.Next() {
-		return nil, fmt.Errorf("unable to read databasePrivs, no rows")
-	}
-
-	var datacl sql.NullString
-	err = rows.Scan(&datacl)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load dbPriv %s", err)
-	}
-
-	// if null
-	if !datacl.Valid {
-		return []string{}, nil
+		return nil, fmt.Errorf("unable to read databasePrivs")
 	}
 	rePattern := fmt.Sprintf(`%s\\?"?=(C?T?c?)/[^,]+,?`, user)
 	re := regexp.MustCompile(rePattern)
 	returnArray := []string{}
-	submatches := re.FindStringSubmatch(datacl.String)
+	submatches := re.FindStringSubmatch(datacl)
 	for _, chr := range submatches[1] {
 		returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
 	}

@@ -1,7 +1,5 @@
 package mysql
 
-// https://github.com/ansible-collections/community.mysql/blob/main/plugins/modules/mysql_user.py
-
 import (
 	"fmt"
 	"strings"

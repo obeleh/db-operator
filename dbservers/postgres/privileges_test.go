@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"fmt"
@@ -6,12 +6,11 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/dbservers/postgres"
 	"github.com/thoas/go-funk"
 )
 
 func TestParseRoleAttrs(t *testing.T) {
-	bla, err := postgres.ParseRoleAttrs("superuser,LOGIN,", 0)
+	bla, err := ParseRoleAttrs("superuser,LOGIN,", 0)
 	if err != nil {
 		t.Errorf("Got error parsing Role Attrs %s", err)
 	}
@@ -22,7 +21,7 @@ func TestParseRoleAttrs(t *testing.T) {
 }
 
 func TestParseRoleAttrsInvalidAttrs(t *testing.T) {
-	_, err := postgres.ParseRoleAttrs("INVALIDPARAM,LOGIN,", 0)
+	_, err := ParseRoleAttrs("INVALIDPARAM,LOGIN,", 0)
 	if err == nil {
 		t.Error("expected error from parsing invalid param")
 	}
@@ -33,7 +32,7 @@ func TestParseRoleAttrsInvalidAttrs(t *testing.T) {
 }
 
 func TestNormalizeDatabasePrivileges(t *testing.T) {
-	privs := postgres.NormalizePrivileges([]string{"ALL", "CONNECT"}, "database")
+	privs := NormalizePrivileges([]string{"ALL", "CONNECT"}, "database")
 
 	expected := []string{"CREATE", "CONNECT", "TEMPORARY"}
 	missing, unExpected := funk.Difference(expected, privs)
@@ -46,7 +45,7 @@ func TestNormalizeDatabasePrivileges(t *testing.T) {
 }
 
 func TestNormalizeTablePrivileges(t *testing.T) {
-	privs := postgres.NormalizePrivileges([]string{"ALL", "INSERT"}, "table")
+	privs := NormalizePrivileges([]string{"ALL", "INSERT"}, "table")
 
 	expected := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}
 	missing, unExpected := funk.Difference(expected, privs)
@@ -59,7 +58,7 @@ func TestNormalizeTablePrivileges(t *testing.T) {
 }
 
 func TestParsePrivs(t *testing.T) {
-	privMap, err := postgres.ParsePrivs("ALL/test_table:select,delete", "testdb")
+	privMap, err := ParsePrivs("ALL/test_table:select,delete", "testdb")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
@@ -105,7 +104,7 @@ func TestUpdateUserPrivs(t *testing.T) {
 			Privs:  "ALL",
 		},
 	}
-	_, err = postgres.UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
+	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
 
 	if err != nil {
 		t.Errorf("unexpected error updating userprivs %s", err)
@@ -127,7 +126,7 @@ func TestGetDatabasePrivilegest(t *testing.T) {
 	}
 	defer db.Close()
 	expectGetDatabasePrivileges(mock)
-	privs, err := postgres.GetDatabasePrivileges(db, "testuser", "testdb")
+	privs, err := GetDatabasePrivileges(db, "testuser", "testdb")
 	if err != nil {
 		t.Errorf("database privileges failed %s", err)
 	}
