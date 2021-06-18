@@ -270,7 +270,7 @@ func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string)
 func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, error) {
 	datacl, err := query_utils.SelectFirstValueString(conn, "SELECT datacl FROM pg_database WHERE datname = $1", db)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read databasePrivs")
+		return nil, fmt.Errorf("unable to read databasePrivs %s", err)
 	}
 	rePattern := fmt.Sprintf(`%s\\?"?=(C?T?c?)/[^,]+,?`, user)
 	re := regexp.MustCompile(rePattern)
