@@ -123,6 +123,10 @@ deploy-kind:
 	kind load docker-image ${IMG}
 	make deploy
 
+single-file-deploy:
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > db-operator-single-file-deploy.yaml
+
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
