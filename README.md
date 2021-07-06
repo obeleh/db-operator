@@ -31,5 +31,6 @@ But also:
 
 ```
 make docker-build
+make docker-push
 make single-file-deploy
 ```
