@@ -27,6 +27,27 @@ func SelectFirstValueString(conn *sql.DB, query string, args ...interface{}) (st
 	}
 }
 
+func SelectFirstValueStringNullToEmpty(conn *sql.DB, query string, args ...interface{}) (string, error) {
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return "", err
+	}
+
+	if rows.Next() {
+		value := sql.NullString{}
+		err := rows.Scan(&value)
+		if err != nil {
+			return "", fmt.Errorf("unable to load string")
+		}
+		if !value.Valid {
+			return "", nil
+		}
+		return value.String, nil
+	} else {
+		return "", fmt.Errorf("no rows returned")
+	}
+}
+
 func SelectFirstValueInt(conn *sql.DB, query string, args ...interface{}) (int, error) {
 	rows, err := conn.Query(query, args...)
 	if err != nil {
@@ -79,5 +100,5 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	if e == -1 {
 		return
 	}
-	return str[s:e]
+	return str[s : e+s]
 }

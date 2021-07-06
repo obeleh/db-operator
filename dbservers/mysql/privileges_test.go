@@ -1,10 +1,12 @@
 package mysql
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/thoas/go-funk"
 )
 
 func TestGetTlsRequiresNone(t *testing.T) {
@@ -63,5 +65,61 @@ func TestGetTlsRequiresTLS(t *testing.T) {
 	expectedTlsRequires := TlsRequires{RequiresStr: &expectedStr}
 	if !reflect.DeepEqual(tlsRequires, expectedTlsRequires) {
 		t.Fatalf("unexpected requires")
+	}
+}
+
+func TestRsplit5(t *testing.T) {
+	res := Rsplit("a,b,c,d", ",", 5)
+	expected := []string{
+		"a",
+		"b",
+		"c",
+		"d",
+	}
+	if !funk.Equal(res, expected) {
+		t.Fatalf("Split with more count than splits failed")
+	}
+}
+
+func TestRsplit1(t *testing.T) {
+	res := Rsplit("a,b,c,d", ",", 1)
+	expected := []string{
+		"a,b,c",
+		"d",
+	}
+	if !funk.Equal(res, expected) {
+		t.Fatalf("Split with fewer count than splits failed")
+	}
+}
+
+/*func TestPrivilegesUnpack(t *testing.T) {
+	example := "mydb.*:INSERT,UPDATE/anotherdb.*:SELECT(col1,col2),UPDATE/yetanother.*:ALL"
+	privilegesUnpack(example, "")
+}*/
+
+func TestParsePrivPiece(t *testing.T) {
+	result, resultStripped := parsePrivPiece("INSERT,SELECT(col1,col2),UPDATE")
+	expected := []string{"INSERT", "SELECT(col1,col2)", "UPDATE"}
+	expectedStripped := []string{"INSERT", "SELECT", "UPDATE"}
+	if !funk.Equal(result, expected) {
+		t.Fatalf("Parsing privlist failed for non stripped parts")
+	}
+	if !funk.Equal(resultStripped, expectedStripped) {
+		t.Fatalf("Parsing privlist failed for stripped parts")
+	}
+}
+
+func TestPointer(t *testing.T) {
+	var a *int
+	for n, str := range []string{"a", "b", "c"} {
+		if str == "b" {
+			curN := n
+			a = &curN
+			fmt.Printf("now %d", n)
+		}
+	}
+
+	if *a != 1 {
+		t.Fatalf("pointer behaviour not like I understood it %d", *a)
 	}
 }

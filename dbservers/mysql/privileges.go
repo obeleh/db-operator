@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -102,7 +103,7 @@ func sanitizeRequires(tlsRequires map[string]string) TlsRequires {
 		for key, value := range tlsRequires {
 			sanitizedRequires[strings.ToUpper(key)] = value
 		}
-		for key, _ := range tlsRequires {
+		for key := range tlsRequires {
 			if isSslKey(key) {
 				delete(sanitizedRequires, "SSL")
 				delete(sanitizedRequires, "X509")
@@ -214,7 +215,7 @@ func getTlsRequires(conn *sql.DB, serverInfo ServerInfo, user string, host strin
 		return TlsRequires{}, nil
 	}
 	requireLine = requireList[0]
-	requireLine = query_utils.GetStringInBetween(requireLine, "REQUIRES", "PASSWORD")
+	requireLine = query_utils.GetStringInBetween(requireLine, "REQUIRE", "PASSWORD")
 	words := strings.Fields(requireLine)
 	firstRequire := words[0]
 	if strings.HasPrefix(firstRequire, "NONE") {
@@ -289,6 +290,28 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, encry
 	return err
 }
 
+func Rsplit(s string, sep string, count int) []string {
+	if count == 0 {
+		return []string{s}
+	}
+	parts := strings.Split(s, sep)
+	splitsAvailable := len(parts) - 1
+	if splitsAvailable == 0 {
+		return []string{s}
+	}
+
+	var maxSplits int
+	if splitsAvailable < count {
+		maxSplits = splitsAvailable
+	} else {
+		maxSplits = count
+	}
+	splitLoc := len(parts) - maxSplits
+	firstPart := strings.Join(parts[:splitLoc], sep)
+	slice := []string{firstPart}
+	return append(slice, parts[splitLoc:]...)
+}
+
 /*
 def privileges_unpack(priv, mode):
     """ Take a privileges string, typically passed as a parameter, and unserialize
@@ -344,8 +367,164 @@ def privileges_unpack(priv, mode):
     return output
 */
 
+func parsePrivPiece(piece string) ([]string, []string) {
+	inParens := false
+	currentItemStripped := ""
+	currentItem := ""
+	privsStripped := []string{}
+	privs := []string{}
+	for _, char := range piece {
+		if inParens {
+			if char == ')' {
+				inParens = false
+			}
+			currentItem += string(char)
+		} else {
+			if char == ',' {
+				privsStripped = append(privsStripped, currentItemStripped)
+				currentItemStripped = ""
+				privs = append(privs, currentItem)
+				currentItem = ""
+			} else if char == '(' {
+				inParens = true
+				currentItem += string(char)
+			} else {
+				currentItemStripped += string(char)
+				currentItem += string(char)
+			}
+		}
+	}
+	if len(currentItemStripped) > 0 {
+		privsStripped = append(privsStripped, currentItemStripped)
+	}
+	if len(currentItem) > 0 {
+		privs = append(privs, currentItem)
+	}
+	return privs, privsStripped
+}
+
 /*
-func privilegesUnpack(priv string, mode string) map[string][]string {
+Check if there is a statement like SELECT (colA, colB)
+    in the privilege list.
+Return (start index, end index).
+*/
+func hasGrantOnCol(privileges []string, grant string) (*int, *int) {
+	var start *int
+	var end *int
+	for n, priv := range privileges {
+		if strings.Contains(priv, fmt.Sprintf("%s (", grant)) {
+			// We found the start element
+			curN := n
+			start = &curN
+		}
+
+		if start != nil && strings.Contains(priv, ")") {
+			// We found the end element
+			curN := n
+			end = &curN
+			break
+		}
+	}
+
+	if start != nil && end != nil {
+		// if the privileges list consist of, for example,
+		// ['SELECT (A', 'B), 'INSERT'], return indexes of related elements
+		return start, end
+	}
+
+	// If start and end position is the same element,
+	// it means there's expression like 'SELECT (A)',
+	// so no need to handle it
+	return nil, nil
+}
+
+/*
+Sort column order in grants like SELECT (colA, colB, ...).
+
+MySQL changes columns order like below:
+---------------------------------------
+mysql> GRANT SELECT (testColA, testColB), INSERT ON `testDb`.`testTable` TO 'testUser'@'localhost';
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> flush privileges;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> SHOW GRANTS FOR testUser@localhost;
++---------------------------------------------------------------------------------------------+
+| Grants for testUser@localhost                                                               |
++---------------------------------------------------------------------------------------------+
+| GRANT USAGE ON *.* TO 'testUser'@'localhost'                                                |
+| GRANT SELECT (testColB, testColA), INSERT ON `testDb`.`testTable` TO 'testUser'@'localhost' |
++---------------------------------------------------------------------------------------------+
+
+We should sort columns in our statement, otherwise the module always will return
+that the state has changed.
+*/
+func sortColumnOrder(statement string) string {
+	/*
+		1. Extract stuff inside ()
+		2. Split
+		3. Sort
+		4. Put between () and return
+	*/
+
+	// "SELECT/UPDATE/.. (colA, colB) => "colA, colB"
+	tmp := strings.Split(statement, "(")
+	privName := tmp[0]
+	columnsStr := strings.TrimRight(tmp[1], ")")
+
+	// "colA, colB" => ["colA", "colB"]
+	columns := strings.Split(columnsStr, ",")
+
+	for i, col := range columns {
+		col = strings.TrimSpace(col)
+		columns[i] = strings.Trim(col, "`")
+	}
+
+	sort.Strings(columns)
+	return fmt.Sprintf("%s(%s)", privName, strings.Join(columns, ", "))
+}
+
+/*
+Handle cases when the privs like SELECT (colA, ...) is in the privileges list.
+When the privileges list look like ['SELECT (colA,', 'colB)']
+(Notice that the statement is splitted)
+*/
+func handleGrantOnCol(privileges []string, start int, end int) []string {
+	var output = []string{}
+	if start != end {
+		copy(output, privileges[:start])
+		selectOnCol := strings.Join(privileges[start:end+1], ", ")
+		selectOnCol = sortColumnOrder(selectOnCol)
+		output = append(output, selectOnCol)
+		output = append(output, privileges[end+1:]...)
+	} else {
+		// When it looks like it should be, e.g. ['SELECT (colA, colB)'],
+		// we need to be sure, the columns is sorted
+		copy(output, privileges)
+		output[start] = sortColumnOrder(output[start])
+	}
+
+	return output
+}
+
+/*
+Fix and sort grants on columns in privileges list
+
+Make ['SELECT (A, B)', 'INSERT (A, B)', 'DETELE']
+from ['SELECT (A', 'B)', 'INSERT (B', 'A)', 'DELETE'].
+*/
+func normalizeColGrants(privileges []string) []string {
+	for _, grant := range []string{"SELECT", "UPDATE", "INSERT", "REFERENCES"} {
+		start, end := hasGrantOnCol(privileges, grant)
+		if start != nil {
+			privileges = handleGrantOnCol(privileges, *start, *end)
+		}
+	}
+	return privileges
+}
+
+func privilegesUnpack(priv string, mode string) (map[string][]string, error) {
 	var quote string
 	if mode == "ANSI" {
 		quote = "\""
@@ -353,22 +532,57 @@ func privilegesUnpack(priv string, mode string) map[string][]string {
 		quote = "`"
 	}
 	output := map[string][]string{}
-	privs := []string{}
+	//privs := []string{}
 
 	priv = strings.TrimSpace(priv)
+	for _, item := range strings.Split(priv, "/") {
+		pieces := Rsplit(strings.TrimSpace(item), ":", 1)
+		dbpriv := Rsplit(pieces[0], ".", 1)
 
-	for item := range strings.Split(priv, "/") {
-		allSplit := strings.Split(strings.TrimSpace(item))
-		//pieces =   .rsplit(':', 1)
-        dbpriv = pieces[0].rsplit(".", 1)
+		// Check for FUNCTION or PROCEDURE object types
+		parts := strings.SplitN(dbpriv[0], " ", 1)
+		objectType := ""
+		if len(parts) > 1 && (parts[0] == "FUNCTION" || parts[0] == "PROCEDURE") {
+			objectType = parts[0] + " "
+			dbpriv[0] = parts[1]
+		}
+
+		// Do not escape if privilege is for database or table, i.e.
+		// neither quote *. nor .*
+		for i, side := range dbpriv {
+			if strings.Trim(side, "`") != "*" {
+				dbpriv[i] = fmt.Sprintf("%s%s%s", quote, strings.TrimSpace(side), quote)
+			}
+		}
+		pieces[0] = objectType + strings.Join(dbpriv, ".")
+		privs, privsStripped := parsePrivPiece(strings.ToUpper(pieces[1]))
+		output[pieces[0]] = privs
+
+		if !funk.Contains(VALID_PRIVS, privsStripped) {
+			invalidPrivs := funk.Subtract(privsStripped, VALID_PRIVS).([]string)
+			return nil, fmt.Errorf("invalid privileges found %s", invalidPrivs)
+		}
+
+		// Handle cases when there's privs like GRANT SELECT (colA, ...) in privs.
+		output[pieces[0]] = normalizeColGrants(output[pieces[0]])
+
+		if !funk.Subset(privs, VALID_PRIVS) {
+			_, right := funk.Difference(VALID_PRIVS, privs)
+			diffStr := strings.Join(right.([]string), ", ")
+			return nil, fmt.Errorf("invalid privileges specified: %s", diffStr)
+		}
+
 	}
+
+	_, exists := output["foo"]
+	if !exists {
+		output["*.*"] = []string{"USAGE"}
+	}
+
+	return output, nil
 }
 
-func Rsplit(s string, sep string, count int) []string{
-	parts := strings.Split(s, sep)
-	if len(parts) == ?
-}
-
+/*
 func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[string][]string) (bool, error) {
 	mode, err := getMode(conn)
 	if err != nil {
@@ -376,5 +590,4 @@ func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[stri
 	}
 
 }
-
 */

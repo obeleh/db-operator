@@ -1,6 +1,6 @@
 package shared
 
-const BACKUP_AZ_BLOBS_SCRIPT string = `#!/bin/bash -e
+const UPLOAD_AZ_BLOBS_SCRIPT string = `#!/bin/bash -e
 # Only supports up/downloading with service principal
 # But should be fairly simple to expand with other methods.
 LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
@@ -73,8 +73,8 @@ echo "download done"
 const UPLOAD_S3_SCRIPT string = `#!/bin/bash -e
 LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
 LATEST_BACKUP_BASE_NAME=$(basename "$LATEST_BACKUP")
-# aws s3 cp test.txt s3://mybucket/test2.txt
-aws s3 cp $LATEST_BACKUP s3://$S3_BUCKET_NAME/$S3_PREFIX
+# aws s3 cp test.txt s3://mybucket/(prefix/)test2.txt
+aws s3 cp $LATEST_BACKUP s3://$S3_BUCKET_NAME/$S3_PREFIX$LATEST_BACKUP_BASE_NAME
 echo "upload done"
 `
 
@@ -94,7 +94,7 @@ const BACKUP_POSTGRES string = "backup_postgres.sh"
 const RESTORE_POSTGRES string = "restore_postgres.sh"
 const BACKUP_MYSQL string = "backup_mysql.sh"
 const RESTORE_MYSQL string = "restore_mysql.sh"
-const BACKUP_AZ_BLOBS string = "backup_az_blobs.sh"
+const UPLOAD_AZ_BLOBS string = "upload_az_blobs.sh"
 const DOWNLOAD_AZ_BLOBS string = "download_az_blobs.sh"
 const UPLOAD_S3 string = "upload_s3.sh"
 const DOWNLOAD_S3 string = "download_s3.sh"
@@ -104,7 +104,7 @@ var SCRIPTS_MAP map[string]string = map[string]string{
 	RESTORE_POSTGRES:  RESTORE_POSTGRES_SCRIPT,
 	BACKUP_MYSQL:      BACKUP_MYSQL_SCRIPT,
 	RESTORE_MYSQL:     RESTORE_MYSQL_SCRIPT,
-	BACKUP_AZ_BLOBS:   BACKUP_AZ_BLOBS_SCRIPT,
+	UPLOAD_AZ_BLOBS:   UPLOAD_AZ_BLOBS_SCRIPT,
 	DOWNLOAD_AZ_BLOBS: DOWNLOAD_AZ_BLOBS_SCRIPT,
 	UPLOAD_S3:         UPLOAD_S3_SCRIPT,
 	DOWNLOAD_S3:       DOWNLOAD_S3_SCRIPT,

@@ -100,7 +100,7 @@ func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 
 	rows, err := conn.Query("SELECT DISTINCT SCHEMA_NAME AS `database` FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys') ORDER BY SCHEMA_NAME;")
 	if err != nil {
-		return nil, fmt.Errorf("unable to read databases from server")
+		return nil, fmt.Errorf("unable to read databases from server %s", err)
 	}
 	for rows.Next() {
 		var db string

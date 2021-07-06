@@ -22,6 +22,14 @@ But also:
 
 ![](./screenshots/databases-diagram.png)
 
-### Backup Restore Diagram [todo]
+### Backup Restore Diagram
 
 ![](./screenshots/backup-restore-diagram.png)
+
+
+### Building
+
+```
+make docker-build
+make single-file-deploy
+```
