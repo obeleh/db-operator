@@ -1,0 +1,10 @@
+{{- range .Values.BackupCronJobs }}
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: BackupCronJob
+metadata:
+  name: {{ quote .name }}
+spec:
+  backup_target: {{ quote .backup_target }}
+  interval: {{ quote .interval }}
+---
+{{ end -}}

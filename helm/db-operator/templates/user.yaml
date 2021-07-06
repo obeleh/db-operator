@@ -1,0 +1,14 @@
+{{- range .Values.Users }}
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: User
+metadata:
+  name: {{ quote .name }}
+spec:
+  db_server_name: {{ quote .db_server_name }}
+  user_name: {{ quote .user_name }}
+  secret_name: {{ quote .secret_name }}
+  server_privs: {{ quote .server_privs }}
+  db_privs:
+{{- toYaml .db_privs | nindent 4}}
+---
+{{ end -}}

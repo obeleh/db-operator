@@ -1,0 +1,47 @@
+# Database Users
+Users: []
+#- name: backup-user
+#  db_server_name: mydbserver
+#  user_name: backup-user
+#  secret_name: backup-user-secret
+#  server_privs: LOGIN
+#  db_privs:
+#  - db_name: mydb
+#    privs: ALL
+
+# Passwords for those users and also the dbserver password
+UserSecrets: []
+#- name: backup-user-secret
+#  password: base64encodedpw
+#- name: mydbserver-secret
+#  password: base64encodedpw
+
+S3Storages:
+#- name: obeleh-backups
+#  bucket_name: obeleh-backup-archive
+#  region: eu-west-1
+#  secret_access_key_k8s_secret: s3-secret
+#  access_key_id: base64encodedkey
+
+S3Secrets: []
+#- name: s3-secret
+#  secret_access_key: "Some Secret"
+
+DbServers: []
+#- name: mydbserver
+#  port: 5432
+#  user_name: obeleh
+#  secret_name: mydbserver-secret
+#  server_type: postgres
+#  address: localhost
+
+BackupTargets: []
+#- name: obeleh-backups
+#  db_name: mydbserver
+#  storage_type: s3
+#  storage_location: obeleh-backups
+
+BackupCronJobs: []
+#- name: db-backup-cron-job
+#  backup_target: obeleh-backups
+#  interval: "4 3 * * *"

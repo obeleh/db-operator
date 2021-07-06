@@ -1,0 +1,12 @@
+{{- range .Values.S3Storages }}
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: S3Storage
+metadata:
+  name: {{ quote .name }}
+spec:
+  bucket_name: {{ quote .bucket_name }}
+  region: {{ quote .region }}
+  secret_access_key_k8s_secret: {{ quote .secret_access_key_k8s_secret }}
+  access_key_id: {{ quote .access_key_id }}
+---
+{{ end -}}
