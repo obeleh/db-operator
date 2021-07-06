@@ -1,3 +1,9 @@
+operator:
+  image:
+    repository: obeleh/db-operator
+    tag: 64f8233
+  namespace: db-operator-system
+
 # Database Users
 Users: []
 #- name: backup-user
@@ -16,7 +22,7 @@ UserSecrets: []
 #- name: mydbserver-secret
 #  password: base64encodedpw
 
-S3Storages:
+S3Storages: []
 #- name: obeleh-backups
 #  bucket_name: obeleh-backup-archive
 #  region: eu-west-1

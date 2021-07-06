@@ -29,7 +29,11 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= obeleh/db-operator:$(shell git rev-parse --short HEAD)
+REPO ?= obeleh/db-operator
+REPO_SED ?= obeleh\/db-operator
+GIT_SHA ?= $(shell git rev-parse --short HEAD)
+IMG ?= ${REPO}:${GIT_SHA}
+HELM_CHART_VERSION ?= 0.1.0
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -123,9 +127,17 @@ deploy-kind:
 	kind load docker-image ${IMG}
 	make deploy
 
-single-file-deploy:
+generate-deploys:
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > db-operator-single-file-deploy.yaml
+	cp db-operator-single-file-deploy.yaml helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	echo 's/${REPO_SED}:\w+/{{ .operator.image.tag}}/g'
+	sed -i.bak 's/db-operator-system/{{ .operator.namespace}}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	sed -i.bak 's/obeleh\/db-operator:[a-zA-Z0-9]*/{{ .operator.image.repository}}:{{ .operator.image.tag }}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	sed -i.bak 's/tag: [a-zA-Z0-9]*/tag: ${GIT_SHA}/g' helm/charts/db-operator/values.yaml
+	sed -i.bak 's/version: [0-9.]*/version: ${HELM_CHART_VERSION}/g' helm/charts/db-operator/Chart.yaml
+	cd helm && helm package charts/*
+	helm repo index --url https://obeleh.github.io/db-operator/helm/ helm/
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -

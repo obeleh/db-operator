@@ -2,13 +2,13 @@ apiVersion: v1
 entries:
   db-operator:
   - apiVersion: v2
-    appVersion: 1.16.0
-    created: "2021-07-06T14:55:04.73802+02:00"
-    description: A Helm chart for Kubernetes
-    digest: 1ccfd6d4323ca62e88c961f2aa90c5b9d209fe69098984fda3ec2c0a6b8b958e
+    appVersion: 0.0.1
+    created: "2021-07-06T20:32:38.917718+02:00"
+    description: Operator to manage Databases in existing Database Servers
+    digest: ee7785d748ae08fd5b3453579e2ea0a8ecfdda42eb8e97f6964458900951ebc8
     name: db-operator
     type: application
     urls:
     - https://obeleh.github.io/db-operator/helm/db-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2021-07-06T14:55:04.736422+02:00"
+generated: "2021-07-06T20:32:38.917025+02:00"
