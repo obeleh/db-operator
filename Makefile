@@ -133,10 +133,10 @@ generate-deploys:
 	echo '{{ if .Values.operator.install }}' > helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	cat db-operator-single-file-deploy.yaml >> helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	echo '{{ end }}' >> helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
-	echo 's/${REPO_SED}:\w+/{{ .operator.image.tag}}/g'
-	sed -i.bak 's/db-operator-system/{{ .operator.namespace}}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
-	sed -i.bak 's/obeleh\/db-operator:[a-zA-Z0-9]*/{{ .operator.image.repository}}:{{ .operator.image.tag }}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
-	sed -i.bak 's/tag: [a-zA-Z0-9]*/tag: "${GIT_SHA}"/g' helm/charts/db-operator/values.yaml
+	echo 's/${REPO_SED}:\w+/{{ .Values.operator.image.tag}}/g'
+	sed -i.bak 's/db-operator-system/{{ .Values.operator.namespace}}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	sed -i.bak 's/obeleh\/db-operator:[a-zA-Z0-9]*/{{ .Values.operator.image.repository}}:{{ .Values.operator.image.tag }}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	sed -i.bak 's/tag: "[a-zA-Z0-9]*"/tag: "${GIT_SHA}"/g' helm/charts/db-operator/values.yaml
 	sed -i.bak 's/version: [0-9.]*/version: ${HELM_CHART_VERSION}/g' helm/charts/db-operator/Chart.yaml
 	cd helm && helm package charts/*
 	helm repo index --url https://obeleh.github.io/db-operator/helm/ helm/

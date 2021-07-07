@@ -4,7 +4,7 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
-  name: {{ .operator.namespace}}
+  name: {{ .Values.operator.namespace}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -758,13 +758,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: db-operator-controller-manager
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: db-operator-leader-election-role
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 rules:
 - apiGroups:
   - ""
@@ -1183,7 +1183,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: db-operator-leader-election-rolebinding
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -1191,7 +1191,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: db-operator-controller-manager
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -1204,7 +1204,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: db-operator-controller-manager
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -1217,7 +1217,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: db-operator-controller-manager
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 ---
 apiVersion: v1
 data:
@@ -1236,7 +1236,7 @@ data:
 kind: ConfigMap
 metadata:
   name: db-operator-manager-config
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 ---
 apiVersion: v1
 kind: Service
@@ -1244,7 +1244,7 @@ metadata:
   labels:
     control-plane: controller-manager
   name: db-operator-controller-manager-metrics-service
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 spec:
   ports:
   - name: https
@@ -1259,7 +1259,7 @@ metadata:
   labels:
     control-plane: controller-manager
   name: db-operator-controller-manager
-  namespace: {{ .operator.namespace}}
+  namespace: {{ .Values.operator.namespace}}
 spec:
   replicas: 1
   selector:
@@ -1287,7 +1287,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: {{ .operator.image.repository}}:{{ .operator.image.tag }}
+        image: {{ .Values.operator.image.repository}}:{{ .Values.operator.image.tag }}
         livenessProbe:
           httpGet:
             path: /healthz
