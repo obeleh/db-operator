@@ -1,0 +1,102 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: db-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: BackupCronJob is the Schema for the backupcronjobs API
+      displayName: Backup Cron Job
+      kind: BackupCronJob
+      name: backupcronjobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: BackupJob is the Schema for the backupjobs API
+      displayName: Backup Job
+      kind: BackupJob
+      name: backupjobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: BackupTarget is the Schema for the backuptargets API
+      displayName: Backup Target
+      kind: BackupTarget
+      name: backuptargets.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: DbCopyCronJob is the Schema for the dbcopycronjobs API
+      displayName: Db Copy Cron Job
+      kind: DbCopyCronJob
+      name: dbcopycronjobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: DbCopyJob is the Schema for the dbcopyjobs API
+      displayName: Db Copy Job
+      kind: DbCopyJob
+      name: dbcopyjobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: Db is the Schema for the dbs API
+      displayName: Db
+      kind: Db
+      name: dbs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: DbServer is the Schema for the dbservers API
+      displayName: Db Server
+      kind: DbServer
+      name: dbservers.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: RestoreCronJob is the Schema for the restorecronjobs API
+      displayName: Restore Cron Job
+      kind: RestoreCronJob
+      name: restorecronjobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: RestoreJob is the Schema for the restorejobs API
+      displayName: Restore Job
+      kind: RestoreJob
+      name: restorejobs.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: RestoreTarget is the Schema for the restoretargets API
+      displayName: Restore Target
+      kind: RestoreTarget
+      name: restoretargets.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: S3Storage is the Schema for the s3storages API
+      displayName: S3 Storage
+      kind: S3Storage
+      name: s3storages.db-operator.kubemaster.com
+      version: v1alpha1
+    - description: User is the Schema for the users API
+      displayName: User
+      kind: User
+      name: users.db-operator.kubemaster.com
+      version: v1alpha1
+  description: Operator to create DB copies, backups, restores
+  displayName: DB Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - postgres
+  - mysql
+  - pgdump
+  - pgrestore
+  links:
+  - name: Db Operator
+    url: https://db-operator.domain
+  maturity: alpha
+  provider:
+    name: Obeleh
+  version: 0.0.0
