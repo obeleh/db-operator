@@ -1,0 +1,9 @@
+{{- range .Values.RestoreJobs }}
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: RestoreJob
+metadata:
+  name: {{ quote .name }}
+spec:
+  restore_target: {{ quote .restore_target }}
+---
+{{ end -}}

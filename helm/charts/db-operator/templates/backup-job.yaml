@@ -1,0 +1,9 @@
+{{- range .Values.BackupJobs }}
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: BackupJob
+metadata:
+  name: {{ quote .name }}
+spec:
+  backup_target: {{ quote .backup_target }}
+---
+{{ end -}}

@@ -29,6 +29,7 @@ S3Storages: []
 #  region: eu-west-1
 #  secret_access_key_k8s_secret: s3-secret
 #  access_key_id: base64encodedkey
+#  prefix: backups
 
 S3Secrets: []
 #- name: s3-secret
@@ -52,3 +53,33 @@ BackupCronJobs: []
 #- name: db-backup-cron-job
 #  backup_target: obeleh-backups
 #  interval: "4 3 * * *"
+
+BackupJobs: []
+#- name: db-backup-cron-job
+#  backup_target: obeleh-backups
+
+RestoreTargets: []
+#- name: obeleh-backups
+#  db_name: rds
+#  storage_type: s3
+#  storage_location: obeleh-backups
+
+RestoreCronJobs: []
+#- name: db-backup-cron-job
+#  backup_target: obeleh-backups
+#  interval: "4 3 * * *"
+
+RestoreJobs: []
+#- name: db-backup-cron-job
+#  backup_target: obeleh-backups
+
+DbCopyCronJobs: []
+#- name: example-db-copycronjob
+#  from_db_name: source-db
+#  to_db_name: destination-db
+#  interval: "0 0 30 2 *"
+
+DbCopyJobs: []
+#- name: example-db-copycronjob
+#  from_db_name: source-db
+#  to_db_name: destination-db
