@@ -27,10 +27,12 @@ But also:
 ![](./screenshots/backup-restore-diagram.png)
 
 
-### Building
+### Building / Packaging
 
 ```
+# git commit first
 make docker-build
 make docker-push
 make generate-deploys
+# git commit and push
 ```

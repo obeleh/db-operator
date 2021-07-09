@@ -33,7 +33,6 @@ REPO ?= obeleh/db-operator
 REPO_SED ?= obeleh\/db-operator
 GIT_SHA ?= $(shell git rev-parse --short HEAD)
 IMG ?= ${REPO}:${GIT_SHA}
-HELM_CHART_VERSION ?= 0.1.0
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -137,7 +136,6 @@ generate-deploys:
 	sed -i.bak 's/db-operator-system/{{ .Values.operator.namespace}}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	sed -i.bak 's/obeleh\/db-operator:[a-zA-Z0-9]*/{{ .Values.operator.image.repository}}:{{ .Values.operator.image.tag }}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	sed -i.bak 's/tag: "[a-zA-Z0-9]*"/tag: "${GIT_SHA}"/g' helm/charts/db-operator/values.yaml
-	sed -i.bak 's/version: [0-9.]*/version: ${HELM_CHART_VERSION}/g' helm/charts/db-operator/Chart.yaml
 	cd helm && helm package charts/*
 	helm repo index --url https://obeleh.github.io/db-operator/helm/ helm/
 

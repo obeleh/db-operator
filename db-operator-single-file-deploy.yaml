@@ -1286,7 +1286,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: obeleh/db-operator:91d3d41
+        image: obeleh/db-operator:23237cc
         livenessProbe:
           httpGet:
             path: /healthz
