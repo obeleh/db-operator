@@ -2,7 +2,7 @@ operator:
   install: true
   image:
     repository: obeleh/db-operator
-    tag: "8894484"
+    tag: "e4c6696"
   namespace: db-operator-system
 
 # Database Users
@@ -42,6 +42,13 @@ DbServers: []
 #  secret_name: mydbserver-secret
 #  server_type: postgres
 #  address: localhost
+
+Dbs: []
+#- name: example-db
+#  db_name: example-db
+#  drop_on_deletion: false
+#  owner: example-user
+#  server: example-host
 
 BackupTargets: []
 #- name: obeleh-backups
