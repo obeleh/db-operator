@@ -8,5 +8,6 @@ spec:
   user_name: {{ quote .user_name}}
   secret_name: {{ quote .secret_name }}
   server_type: {{ quote .server_type }}
+  address: {{ quote .address }}
 ---
 {{ end -}}
