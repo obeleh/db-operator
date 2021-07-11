@@ -35,7 +35,7 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`CREATE ROLE %s LOGIN PASSWORD '%s';`, userName, password))
+	_, err = conn.Exec(fmt.Sprintf(`CREATE ROLE %q LOGIN PASSWORD '%s';`, userName, password))
 	return err
 }
 
