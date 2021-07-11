@@ -3,12 +3,12 @@ entries:
   db-operator:
   - apiVersion: v2
     appVersion: 0.0.1
-    created: "2021-07-11T18:26:15.527289+02:00"
+    created: "2021-07-11T18:28:15.910416+02:00"
     description: Operator to manage Databases in existing Database Servers
-    digest: dfe39cc795da9556e73dc6d3a0d5c5bb76dc56768a5ef2c40bd44c7c5bc953d2
+    digest: a8ed1d08d7afacd9d08f9278584b44852882e2f63515dd710d752b3995ef87ec
     name: db-operator
     type: application
     urls:
     - https://obeleh.github.io/db-operator/helm/db-operator-0.1.4.tgz
     version: 0.1.4
-generated: "2021-07-11T18:26:15.526438+02:00"
+generated: "2021-07-11T18:28:15.909445+02:00"

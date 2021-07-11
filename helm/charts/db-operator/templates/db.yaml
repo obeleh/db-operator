@@ -1,4 +1,4 @@
-{{- range .Values.DbCopyJobs }}
+{{- range .Values.Dbs }}
 apiVersion: db-operator.kubemaster.com/v1alpha1
 kind: Db
 metadata:
