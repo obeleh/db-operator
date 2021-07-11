@@ -276,8 +276,10 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 	re := regexp.MustCompile(rePattern)
 	returnArray := []string{}
 	submatches := re.FindStringSubmatch(datacl)
-	for _, chr := range submatches[1] {
-		returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
+	if len(submatches) > 0 {
+		for _, chr := range submatches[1] {
+			returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
+		}
 	}
 	return NormalizePrivileges(returnArray, "database"), nil
 }
