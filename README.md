@@ -30,9 +30,11 @@ But also:
 ### Building / Packaging
 
 ```
-# git commit first
+# up helm chart version
+# git commit
 make docker-build
 make docker-push
 make generate-deploys
+# git add new tgz file
 # git commit and push
 ```
