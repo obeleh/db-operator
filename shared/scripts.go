@@ -37,6 +37,7 @@ pg_restore \
 	--dbname=$DATABASE \
 	--single-transaction \
 	--no-owner \
+	--clean \
 	--no-acl \
 	-n public \
 	$LATEST_BACKUP
