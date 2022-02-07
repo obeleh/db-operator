@@ -6,5 +6,6 @@ metadata:
 spec:
   restore_target: {{ quote .restore_target }}
   interval: {{ quote .interval }}
+  suspend: {{ .suspend }}
 ---
 {{ end -}}

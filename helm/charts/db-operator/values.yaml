@@ -75,6 +75,7 @@ RestoreCronJobs: []
 #- name: db-backup-cron-job
 #  backup_target: obeleh-backups
 #  interval: "4 3 * * *"
+#  suspend: true
 
 RestoreJobs: []
 #- name: db-backup-cron-job
@@ -85,6 +86,7 @@ DbCopyCronJobs: []
 #  from_db_name: source-db
 #  to_db_name: destination-db
 #  interval: "0 0 30 2 *"
+#  suspend: true
 
 DbCopyJobs: []
 #- name: example-db-copycronjob

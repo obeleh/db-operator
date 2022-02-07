@@ -24,6 +24,7 @@ type RestoreCronJobSpec struct {
 	RestoreTarget string  `json:"restore_target"`
 	Interval      string  `json:"interval"`
 	FixedFileName *string `json:"fixed_file_name,omitempty"`
+	Suspend       bool    `json:"suspend"`
 }
 
 // RestoreCronJobStatus defines the observed state of RestoreCronJob

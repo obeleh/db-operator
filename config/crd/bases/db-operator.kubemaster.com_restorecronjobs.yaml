@@ -41,9 +41,12 @@ spec:
                 type: string
               restore_target:
                 type: string
+              suspend:
+                type: boolean
             required:
             - interval
             - restore_target
+            - suspend
             type: object
           status:
             description: RestoreCronJobStatus defines the observed state of RestoreCronJob

@@ -5,3 +5,4 @@ metadata:
 spec:
   restore_target: example-restore-target
   interval: "0 0 30 2 *"
+  suspend: false

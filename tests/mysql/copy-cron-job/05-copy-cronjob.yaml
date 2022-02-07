@@ -6,3 +6,4 @@ spec:
   from_db_name: source-db
   to_db_name: destination-db
   interval: "0 0 30 2 *"
+  suspend: false 

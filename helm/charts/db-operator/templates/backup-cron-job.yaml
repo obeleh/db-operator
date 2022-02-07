@@ -6,5 +6,6 @@ metadata:
 spec:
   backup_target: {{ quote .backup_target }}
   interval: {{ quote .interval }}
+  suspend: {{ .suspend }}
 ---
 {{ end -}}
