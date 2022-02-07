@@ -36,9 +36,12 @@ spec:
                 type: string
               interval:
                 type: string
+              suspend:
+                type: boolean
             required:
             - backup_target
             - interval
+            - suspend
             type: object
           status:
             description: BackupCronJobStatus defines the observed state of BackupCronJob
@@ -209,11 +212,14 @@ spec:
                 type: string
               interval:
                 type: string
+              suspend:
+                type: boolean
               to_db_name:
                 type: string
             required:
             - from_db_name
             - interval
+            - suspend
             - to_db_name
             type: object
           status:
@@ -478,9 +484,12 @@ spec:
                 type: string
               restore_target:
                 type: string
+              suspend:
+                type: boolean
             required:
             - interval
             - restore_target
+            - suspend
             type: object
           status:
             description: RestoreCronJobStatus defines the observed state of RestoreCronJob
