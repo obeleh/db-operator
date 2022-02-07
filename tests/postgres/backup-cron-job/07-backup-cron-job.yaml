@@ -5,3 +5,4 @@ metadata:
 spec:
   backup_target: example-backup-target
   interval: "0 0 30 2 *"
+  suspend: false

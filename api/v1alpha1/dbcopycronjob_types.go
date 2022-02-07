@@ -28,6 +28,7 @@ type DbCopyCronJobSpec struct {
 	FromDbName string `json:"from_db_name"`
 	ToDbName   string `json:"to_db_name"`
 	Interval   string `json:"interval"`
+	Suspend    bool   `json:"suspend"`
 }
 
 // DbCopyCronJobStatus defines the observed state of DbCopyCronJob

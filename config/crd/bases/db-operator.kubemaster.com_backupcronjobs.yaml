@@ -41,9 +41,12 @@ spec:
                 type: string
               interval:
                 type: string
+              suspend:
+                type: boolean
             required:
             - backup_target
             - interval
+            - suspend
             type: object
           status:
             description: BackupCronJobStatus defines the observed state of BackupCronJob

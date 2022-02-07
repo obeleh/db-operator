@@ -230,7 +230,7 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 	}
 }
 
-func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string) batchv1beta.CronJob {
+func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string, suspend bool) batchv1beta.CronJob {
 	podSpec := v1.PodSpec{
 		InitContainers: initContainers,
 		Containers: []v1.Container{
@@ -257,6 +257,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 				},
 			},
 			Schedule: schedule,
+			Suspend:  &suspend,
 		},
 	}
 }

@@ -100,7 +100,7 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	backupContainer := fromDbInfo.BuildBackupContainer()
 	restoreContainer := toDbInfo.BuildRestoreContainer()
-	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, restoreContainer, r.copyCronJob.Name, r.copyCronJob.Spec.Interval)
+	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, restoreContainer, r.copyCronJob.Name, r.copyCronJob.Spec.Interval, r.copyCronJob.Spec.Suspend)
 
 	err = r.client.Create(r.ctx, &cronJob)
 	if err != nil {

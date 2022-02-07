@@ -24,6 +24,7 @@ type BackupCronJobSpec struct {
 	BackupTarget  string  `json:"backup_target"`
 	FixedFileName *string `json:"fixed_file_name,omitempty"`
 	Interval      string  `json:"interval"`
+	Suspend       bool    `json:"suspend"`
 }
 
 // BackupCronJobStatus defines the observed state of BackupCronJob

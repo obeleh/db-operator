@@ -27,10 +27,35 @@ But also:
 ![](./screenshots/backup-restore-diagram.png)
 
 
+### Dev Requirements
+
+- docker
+- kind
+- kuttl
+- golang
+
+### Running tests
+
+Quick way:
+
+```
+docker pull postgres:latest
+make kuttl-test  # you might want to 
+```
+
+Manually:
+
+First disable the cluster creation in kuttl-test-postgres.yaml
+
+```
+make start-test-cluster
+kubectl kuttl test --config kuttl-test-postgres.yaml
+```
+
 ### Building / Packaging
 
 ```
-# up helm chart version
+# up helm chart version in helm/charts/db-operator/Chart.yaml
 # git commit
 make docker-build
 make docker-push
