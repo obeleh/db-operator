@@ -36,6 +36,8 @@ But also:
 
 ### Running tests
 
+Unfortunately the credentials for S3 are not included in this git repo.
+
 Quick way:
 
 ```
