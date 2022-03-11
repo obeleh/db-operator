@@ -142,6 +142,8 @@ generate-deploys:
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+deploy-test-yamls-postgres:
+	cd tests && ./deploy-test-resources.sh postgres
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

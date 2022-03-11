@@ -29,7 +29,7 @@ type DbPriv struct {
 type UserSpec struct {
 	UserName     string   `json:"user_name"`
 	SecretName   string   `json:"secret_name"`
-	SecretKey    string   `json:"secret_key,omitempty"`
+	SecretKey    string   `json:"secret_key,omitempty"` // defaults to password
 	DbServerName string   `json:"db_server_name"`
 	DbPrivs      []DbPriv `json:"db_privs"`
 	ServerPrivs  string   `json:"server_privs"`

@@ -5,5 +5,4 @@ metadata:
 spec:
   db_name: some-example-database
   drop_on_deletion: true
-  owner: example-user
   server: example-host

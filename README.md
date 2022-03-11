@@ -40,7 +40,8 @@ Quick way:
 
 ```
 docker pull postgres:latest
-make kuttl-test  # you might want to 
+make start-test-cluster
+make kuttl-test  # currently only postgres is enabled in these tests
 ```
 
 Manually:
@@ -48,6 +49,7 @@ Manually:
 First disable the cluster creation in kuttl-test-postgres.yaml
 
 ```
+docker pull postgres:latest
 make start-test-cluster
 kubectl kuttl test --config kuttl-test-postgres.yaml
 ```
@@ -62,4 +64,39 @@ make docker-push
 make generate-deploys
 # git add new tgz file
 # git commit and push
+```
+
+### Running the operator on your machine with the resources in Kind cluster
+
+```
+make start-test-cluster
+kubectl -n postgres port-forward svc/postgres 5432 &
+```
+
+If you want to run as binary
+```
+make run
+```
+
+Vscode:
+```
+{
+    "name": "Debug",
+    "type": "go",
+    "request": "launch",
+    "mode": "debug",
+    "program": "${workspaceRoot}"
+}
+```
+
+If you want to run the test scenario's while you're in debug mode:
+
+```
+make deploy-test-yamls-postgres
+```
+
+cleanup:
+
+```
+kind delete cluster
 ```
