@@ -178,5 +178,6 @@ bundle-build:
 
 kuttl-test:
 	make docker-build
+	mkdir -p tests/outputs
 	kubectl kuttl test --config kuttl-test-postgres.yaml
 	# kubectl kuttl test --config kuttl-test-mysql.yaml
