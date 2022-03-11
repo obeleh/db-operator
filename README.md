@@ -70,6 +70,12 @@ make generate-deploys
 
 ### Running the operator on your machine with the resources in Kind cluster
 
+add this line to your `/etc/hosts` file:
+
+```
+127.0.0.1	localhost postgres.postgres.svc.cluster.local mysql.mysql.svc.cluster.local
+```
+
 ```
 make start-test-cluster
 kubectl -n postgres port-forward svc/postgres 5432 &
