@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -109,17 +108,102 @@ func TestParsePrivPiece(t *testing.T) {
 	}
 }
 
-func TestPointer(t *testing.T) {
-	var a *int
-	for n, str := range []string{"a", "b", "c"} {
-		if str == "b" {
-			curN := n
-			a = &curN
-			fmt.Printf("now %d", n)
-		}
+func TestGetModeAnsi(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	mockOutput := sqlmock.NewRows([]string{"@@GLOBAL.sql_mode"})
+	mockOutput.AddRow("ANSI")
+	mock.ExpectQuery("SELECT @@GLOBAL.sql_mode;").WillReturnRows(mockOutput)
+
+	mode, err := getMode(db)
+	if mode != "ANSI" {
+		t.Fatal("failed getting mode")
 	}
 
-	if *a != 1 {
-		t.Fatalf("pointer behaviour not like I understood it %d", *a)
+	if err != nil {
+		t.Errorf("GetMode failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestGetModeNotAnsi(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	mockOutput := sqlmock.NewRows([]string{"@@GLOBAL.sql_mode"})
+	mockOutput.AddRow("NO_ENGINE_SUBSTITUTION, NO_AUTO_CREATE_USER")
+	mock.ExpectQuery("SELECT @@GLOBAL.sql_mode;").WillReturnRows(mockOutput)
+
+	mode, err := getMode(db)
+	if mode != "NOTANSI" {
+		t.Fatal("failed getting mode")
+	}
+
+	if err != nil {
+		t.Errorf("GetMode failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestUserExists(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	mockOutput := sqlmock.NewRows([]string{"count(*)"})
+	mockOutput.AddRow(1)
+	mock.ExpectQuery("SELECT count(*) FROM mysql.user WHERE user = ?").WithArgs("jantje").WillReturnRows(mockOutput)
+
+	exists, err := userExists(db, "jantje", "myhost", true)
+	if !exists {
+		t.Fatal("Expected user to exist")
+	}
+
+	if err != nil {
+		t.Errorf("userExists failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestUserDoesntExistForHost(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	mockOutput := sqlmock.NewRows([]string{"count(*)"})
+	mockOutput.AddRow(0)
+	mock.ExpectQuery("SELECT count(*) FROM mysql.user WHERE user = ? AND host = ?").WithArgs("jantje", "myhost").WillReturnRows(mockOutput)
+
+	exists, err := userExists(db, "jantje", "myhost", false)
+	if exists {
+		t.Fatal("Expected user not to exist")
+	}
+
+	if err != nil {
+		t.Errorf("userExists failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }

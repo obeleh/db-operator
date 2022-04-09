@@ -109,6 +109,10 @@ func TestUpdateUserPrivs(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error updating userprivs %s", err)
 	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
 
 func expectGetDatabasePrivileges(mock sqlmock.Sqlmock) {
@@ -133,5 +137,9 @@ func TestGetDatabasePrivilegest(t *testing.T) {
 	expectedPrivs := []string{"CREATE", "TEMPORARY", "CONNECT"}
 	if !funk.Equal(privs, expectedPrivs) {
 		t.Errorf("got unexpected privileges %s expected %s", privs, expectedPrivs)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }

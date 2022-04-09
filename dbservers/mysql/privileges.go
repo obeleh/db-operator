@@ -12,6 +12,35 @@ import (
 	"github.com/thoas/go-funk"
 )
 
+/*
+Example of privileges on Host level:
+priv: '*.*:ALL' -> all database privileges
+priv: '*.*:ALL,GRANT' -> all database privileges with grant option
+priv: '*.*:REQUIRESSL' -> Note that REQUIRESSL is a special privilege that should only apply to *.* by itself. Setting this privilege in this manner is deprecated. Use 'tls_requires' instead.
+
+Example of privileges on DB level:
+priv:
+	'db1.*': 'ALL,GRANT'
+	'db2.*': 'ALL,GRANT'
+
+priv:
+	FUNCTION my_db.my_function: EXECUTE
+
+tls_requires: -> Modify user to require TLS connection with a valid client certificate
+	x509:
+
+tls_requires: -> Modify user to require TLS connection with a specific client certificate and cipher
+	subject: '/CN=alice/O=MyDom, Inc./C=US/ST=Oregon/L=Portland'
+	cipher: 'ECDHE-ECDSA-AES256-SHA384'
+
+tls_requires: -> Modify user to no longer require SSL
+
+Example privileges string format
+mydb.*:INSERT,UPDATE/anotherdb.*:SELECT/yetanotherdb.*:ALL
+
+
+*/
+
 // https://github.com/ansible-collections/community.mysql/blob/main/plugins/modules/mysql_user.py
 
 var VALID_PRIVS = []string{
@@ -52,6 +81,13 @@ var VALID_PRIVS = []string{
 	"REPLICA MONITOR",
 }
 
+// tls_requires description:
+// - Set requirement for secure transport as a dictionary of requirements (see the examples).
+// - Valid requirements are SSL, X509, SUBJECT, ISSUER, CIPHER.
+// - SUBJECT, ISSUER and CIPHER are complementary, and mutually exclusive with SSL and X509.
+// - U(https://mariadb.com/kb/en/securing-connections-for-client-and-server/#requiring-tls).
+//
+// The following struct should either contain a requires string or a map of requires, not both
 type TlsRequires struct {
 	RequiresMap map[string]string
 	RequiresStr *string
@@ -122,12 +158,12 @@ func sanitizeRequires(tlsRequires map[string]string) TlsRequires {
 	return TlsRequires{}
 }
 
-func (t TlsRequires) Mogrify(query string, params []interface{}) (string, []interface{}) {
+func (t TlsRequires) Mogrify(query string, params []string) (string, []string) {
 	if t.HasTlsRequirements() {
 		var requiresQuery string
 		if t.RequiresMap != nil {
 			keys := funk.Keys(t.RequiresMap).([]string)
-			values := funk.Values(t.RequiresMap).([]interface{})
+			values := funk.Values(t.RequiresMap).([]string)
 			criteria := funk.Map(keys, func(key string) string {
 				return fmt.Sprintf("%s %%s", key)
 			}).([]string)
@@ -194,6 +230,7 @@ func getServerInfo(conn *sql.DB) (*ServerInfo, error) {
 	return NewServerInfo(versionStr)
 }
 
+// Check if TLS is required for the user to connect???
 func getTlsRequires(conn *sql.DB, serverInfo ServerInfo, user string, host string) (TlsRequires, error) {
 	var query string
 	if serverInfo.UseOldUserMgmt() {
@@ -232,6 +269,7 @@ func getTlsRequires(conn *sql.DB, serverInfo ServerInfo, user string, host strin
 	return TlsRequires{RequiresMap: requiresMap}, nil
 }
 
+// Gets the list of things a user is allowed to do
 func getGrants(conn *sql.DB, user string, host string) ([]string, error) {
 	grants, err := query_utils.SelectFirstValueStringSlice(conn, fmt.Sprintf("SHOW GRANTS FOR %s@%s", user, host))
 	if err != nil {
@@ -244,6 +282,8 @@ func getGrants(conn *sql.DB, user string, host string) ([]string, error) {
 	return strings.Split(grantsLine, ", "), nil
 }
 
+// Create a user, it will first get the information from the server
+// This server info will help use understand the features it supports
 func CreateUser(conn *sql.DB, user string, host string, password string, encrypted bool, tlsRequires *TlsRequires) error {
 	serverInfo, err := getServerInfo(conn)
 
@@ -253,13 +293,23 @@ func CreateUser(conn *sql.DB, user string, host string, password string, encrypt
 	return CreateUserSi(conn, user, host, password, encrypted, serverInfo, tlsRequires)
 }
 
+func stringArrayToInterfaceArray(input []string) []interface{} {
+	new := make([]interface{}, len(input))
+	for i, v := range input {
+		new[i] = v
+	}
+	return new
+}
+
+// Create a user with server info.
+// This server info will help use understand the features it supports
 func CreateUserSi(conn *sql.DB, user string, host string, password string, encrypted bool, serverInfo *ServerInfo, tlsRequires *TlsRequires) error {
 	oldUserMgmt := serverInfo.UseOldUserMgmt()
 	var query string
-	var params []interface{}
 	var err error
 
 	if len(password) == 0 {
+		// No password plugin support implemented
 		return fmt.Errorf("password is required")
 	}
 
@@ -281,11 +331,11 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, encry
 		}
 	}
 
-	params = []interface{}{user, host, password}
+	params := []string{user, host, password}
 	if oldUserMgmt {
 		query, params = tlsRequires.Mogrify(query, params)
 	}
-	query = fmt.Sprintf(query, params...)
+	query = fmt.Sprintf(query, stringArrayToInterfaceArray(params)...)
 	_, err = conn.Exec(query)
 	return err
 }
@@ -524,6 +574,17 @@ func normalizeColGrants(privileges []string) []string {
 	return privileges
 }
 
+/*
+Take a privileges string, typically passed as a parameter, and unserialize
+it into a dictionary, the same format as privileges_get() above. We have this
+custom format to avoid using YAML/JSON strings inside YAML playbooks. Example
+of a privileges string:
+
+	mydb.*:INSERT,UPDATE/anotherdb.*:SELECT/yetanother.*:ALL
+
+The privilege USAGE stands for no privileges, so we add that in on *.* if it's
+not specified in the string, as MySQL will always provide this by default.
+*/
 func privilegesUnpack(priv string, mode string) (map[string][]string, error) {
 	var quote string
 	if mode == "ANSI" {
@@ -580,6 +641,48 @@ func privilegesUnpack(priv string, mode string) (map[string][]string, error) {
 	}
 
 	return output, nil
+}
+
+func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, priv []string, grantOption bool) error {
+	// Escape '%' since mysql db.execute() uses a format string
+	dbTable = strings.ReplaceAll(dbTable, "%", "%%")
+	if grantOption {
+		// Note this doesn't escape well, I _suspect_ parametrized queries won't work here
+		revokeGrantQuery := fmt.Sprintf("REVOKE GRANT OPTION ON %s FROM %s@%s;", dbTable, user, host)
+		_, err := conn.Exec(revokeGrantQuery)
+		if err != nil {
+			return err
+		}
+	}
+
+	nonGrantPrivs := funk.FilterString(priv, func(s string) bool {
+		return s != "GRANT"
+	})
+	privStr := strings.Join(nonGrantPrivs, ",")
+	revokePrivQuery := fmt.Sprintf("REVOKE %s ON %s FROM %s@%s;", privStr, dbTable, user, host)
+	_, err := conn.Exec(revokePrivQuery)
+	return err
+}
+
+func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, priv []string, tlsRequires TlsRequires, si ServerInfo) error {
+	// Escape '%' since mysql db.execute uses a format string and the
+	// specification of db and table often use a % (SQL wildcard)
+	dbTable = strings.ReplaceAll(dbTable, "%", "%%")
+	nonGrantPrivs := funk.FilterString(priv, func(s string) bool {
+		return s != "GRANT"
+	})
+	privStr := strings.Join(nonGrantPrivs, ",")
+	grantPrivQuery := fmt.Sprintf("GRANT %s ON %s TO %s@%s", privStr, dbTable, user, host)
+	if tlsRequires.HasTlsRequirements() && si.UseOldUserMgmt() {
+		params := []string{user, host}
+		tlsRequires.Mogrify(grantPrivQuery, params)
+	}
+	if funk.Contains(priv, "GRANT") {
+		grantPrivQuery += " WITH GRANT OPTION"
+	}
+
+	_, err := conn.Exec(grantPrivQuery)
+	return err
 }
 
 /*
