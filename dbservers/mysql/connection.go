@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
+	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	"github.com/kabisa/db-operator/shared"
 )
 
@@ -122,4 +123,13 @@ func (m *MySqlConnection) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (p *MySqlConnection) UpdateUserPrivs(userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return false, err
+	}
+
+	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs)
 }

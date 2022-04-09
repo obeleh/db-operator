@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	"github.com/thoas/go-funk"
 )
 
@@ -91,10 +92,27 @@ func TestRsplit1(t *testing.T) {
 	}
 }
 
-/*func TestPrivilegesUnpack(t *testing.T) {
-	example := "mydb.*:INSERT,UPDATE/anotherdb.*:SELECT(col1,col2),UPDATE/yetanother.*:ALL"
-	privilegesUnpack(example, "")
-}*/
+func TestPrivilegesUnpack(t *testing.T) {
+	privs := []dboperatorv1alpha1.DbPriv{
+		{
+			DbName: "mydb.*",
+			Privs:  "INSERT,UPDATE",
+		},
+		{
+			DbName: "anotherdb.*",
+			Privs:  "SELECT(col1,col2),UPDATE",
+		},
+		{
+			DbName: "yetanother.*",
+			Privs:  "ALL",
+		},
+	}
+	privMap, err := privilegesUnpack(privs, "ANSI")
+	if err != nil {
+		t.Fatalf("Failed unpacking privileges %s", err)
+	}
+	print(privMap)
+}
 
 func TestParsePrivPiece(t *testing.T) {
 	result, resultStripped := parsePrivPiece("INSERT,SELECT(col1,col2),UPDATE")

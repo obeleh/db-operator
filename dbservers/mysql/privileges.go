@@ -3,11 +3,13 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	version "github.com/hashicorp/go-version"
+	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	"github.com/kabisa/db-operator/dbservers/query_utils"
 	"github.com/thoas/go-funk"
 )
@@ -80,6 +82,8 @@ var VALID_PRIVS = []string{
 	"SLAVE MONITOR",
 	"REPLICA MONITOR",
 }
+
+var GRANTS_RE = regexp.MustCompile("GRANT (?P<privs>.+) ON (?P<on>.+) TO (['`\"]).*(['`\"])@(['`\"]).*(['`\"])( IDENTIFIED BY PASSWORD (['`\"]).+(['`\"]))? ?(?P<lastgroup>.*)")
 
 // tls_requires description:
 // - Set requirement for secure transport as a dictionary of requirements (see the examples).
@@ -585,7 +589,7 @@ of a privileges string:
 The privilege USAGE stands for no privileges, so we add that in on *.* if it's
 not specified in the string, as MySQL will always provide this by default.
 */
-func privilegesUnpack(priv string, mode string) (map[string][]string, error) {
+func privilegesUnpack(dbPrivs []dboperatorv1alpha1.DbPriv, mode string) (map[string][]string, error) {
 	var quote string
 	if mode == "ANSI" {
 		quote = "\""
@@ -593,49 +597,39 @@ func privilegesUnpack(priv string, mode string) (map[string][]string, error) {
 		quote = "`"
 	}
 	output := map[string][]string{}
-	//privs := []string{}
 
-	priv = strings.TrimSpace(priv)
-	for _, item := range strings.Split(priv, "/") {
-		pieces := Rsplit(strings.TrimSpace(item), ":", 1)
-		dbpriv := Rsplit(pieces[0], ".", 1)
+	for _, item := range dbPrivs {
+		dbPriv := strings.Split(item.DbName, ".")
 
 		// Check for FUNCTION or PROCEDURE object types
-		parts := strings.SplitN(dbpriv[0], " ", 1)
+		parts := strings.SplitN(item.Privs, " ", 2)
 		objectType := ""
 		if len(parts) > 1 && (parts[0] == "FUNCTION" || parts[0] == "PROCEDURE") {
 			objectType = parts[0] + " "
-			dbpriv[0] = parts[1]
+			dbPriv[0] = parts[1]
 		}
 
 		// Do not escape if privilege is for database or table, i.e.
 		// neither quote *. nor .*
-		for i, side := range dbpriv {
+		for i, side := range dbPriv {
 			if strings.Trim(side, "`") != "*" {
-				dbpriv[i] = fmt.Sprintf("%s%s%s", quote, strings.TrimSpace(side), quote)
+				dbPriv[i] = fmt.Sprintf("%s%s%s", quote, strings.TrimSpace(side), quote)
 			}
 		}
-		pieces[0] = objectType + strings.Join(dbpriv, ".")
-		privs, privsStripped := parsePrivPiece(strings.ToUpper(pieces[1]))
-		output[pieces[0]] = privs
+		item.DbName = objectType + strings.Join(dbPriv, ".")
+		privs, privsStripped := parsePrivPiece(strings.ToUpper(item.Privs))
+		output[item.DbName] = privs
 
-		if !funk.Contains(VALID_PRIVS, privsStripped) {
-			invalidPrivs := funk.Subtract(privsStripped, VALID_PRIVS).([]string)
+		invalidPrivs := funk.Subtract(privsStripped, VALID_PRIVS).([]string)
+		if len(invalidPrivs) > 0 {
 			return nil, fmt.Errorf("invalid privileges found %s", invalidPrivs)
 		}
 
 		// Handle cases when there's privs like GRANT SELECT (colA, ...) in privs.
-		output[pieces[0]] = normalizeColGrants(output[pieces[0]])
-
-		if !funk.Subset(privs, VALID_PRIVS) {
-			_, right := funk.Difference(VALID_PRIVS, privs)
-			diffStr := strings.Join(right.([]string), ", ")
-			return nil, fmt.Errorf("invalid privileges specified: %s", diffStr)
-		}
-
+		output[item.DbName] = normalizeColGrants(output[item.DbName])
 	}
 
-	_, exists := output["foo"]
+	_, exists := output["*.*"]
 	if !exists {
 		output["*.*"] = []string{"USAGE"}
 	}
@@ -685,12 +679,80 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 	return err
 }
 
-/*
-func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[string][]string) (bool, error) {
-	mode, err := getMode(conn)
+func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]string, error) {
+	query := fmt.Sprintf("SHOW GRANTS for '%s'@'%s'", userName, host)
+	rows, err := conn.Query(query)
 	if err != nil {
-		return false, fmt.Errorf("failed to get mode for adjustPrivileges %s", err)
+		return nil, fmt.Errorf("unable to read databases from server %s", err)
 	}
 
+	// first build a map to gather all privs per db
+	grants := map[string][]string{}
+
+	for rows.Next() {
+		var grant string
+		err = rows.Scan(&grant)
+		if err != nil {
+			return grants, err
+		}
+
+		matched := GRANTS_RE.MatchString(grant)
+		if !matched {
+			return grants, fmt.Errorf("getPrivileges: Regex string did not match expected format")
+		}
+		subExpNames := GRANTS_RE.SubexpNames()
+		privileges := strings.Split(subExpNames[1], ",")
+
+		for i, priv := range privileges {
+			privileges[i] = strings.TrimSpace(priv)
+			if privileges[i] == "ALL PRIVILEGES" {
+				privileges[i] = "ALL"
+			}
+		}
+
+		/* Handle cases when there's privs like GRANT SELECT (colA, ...) in privs.
+		To this point, the privileges list can look like
+		['SELECT (`A`', '`B`)', 'INSERT'] that is incorrect (SELECT statement is splitted).
+		Columns should also be sorted to compare it with desired privileges later.
+		Determine if there's a case similar to the above:
+		*/
+		privileges = normalizeColGrants(privileges)
+
+		strings.Contains(subExpNames[3], "WITH GRANT OPTION")
+		privileges = append(privileges, "GRANT")
+		db := subExpNames[2]
+
+		prevPrivs, exists := grants[db]
+		if exists {
+			grants[db] = append(prevPrivs, privileges...)
+		} else {
+			grants[db] = privileges
+		}
+	}
+
+	return grants, nil
 }
-*/
+
+func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
+
+	/*
+		mode, err := getMode(conn)
+		if err != nil {
+			return false, fmt.Errorf("failed to get mode for adjustPrivileges %s", err)
+		}
+
+		curPrivs, err := getPrivileges(conn, userName, "???")
+		if err != nil {
+			return false, fmt.Errorf("failed to UpdateUserPrivs %s", err)
+		}
+			desiredPrivs, err := privilegesUnpack(dbPrivs, mode)
+			if err != nil {
+				return false, fmt.Errorf("failed to privilegesUnpack desiredPrivs %s", err)
+			}
+
+			for dbTable, priv := range curPrivs {
+
+			}
+	*/
+	return true, nil
+}
