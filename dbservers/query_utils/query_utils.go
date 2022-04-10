@@ -75,7 +75,7 @@ func SelectFirstValueStringSlice(conn *sql.DB, query string, args ...interface{}
 		return nil, err
 	}
 	output := []string{}
-	if rows.Next() {
+	for rows.Next() {
 		value := sql.NullString{}
 		err := rows.Scan(&value)
 		if err != nil {

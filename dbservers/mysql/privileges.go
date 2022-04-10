@@ -190,20 +190,31 @@ type ServerType int
 
 type ServerInfo struct {
 	ServerType ServerType
+	Mode       string
+	Quote      string
 	Version    *version.Version
 }
 
-func NewServerInfo(versionStr string) (*ServerInfo, error) {
+func NewServerInfo(versionStr string, mode string) (*ServerInfo, error) {
 	version, err := version.NewVersion(versionStr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse version %s", err)
 	}
-	serverInfo := ServerInfo{Version: version}
+
+	var quote string
+	if mode == "ANSI" {
+		quote = "\""
+	} else {
+		quote = "`"
+	}
+
+	serverInfo := ServerInfo{Version: version, Mode: mode, Quote: quote}
 	if strings.Contains(strings.ToLower(versionStr), "mariadb") {
 		serverInfo.ServerType = MARIADB
 	} else {
 		serverInfo.ServerType = MYSQL
 	}
+
 	return &serverInfo, nil
 }
 
@@ -231,7 +242,12 @@ func getServerInfo(conn *sql.DB) (*ServerInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed getting server info %s", err)
 	}
-	return NewServerInfo(versionStr)
+
+	mode, err := getMode(conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting mode for server info %s", err)
+	}
+	return NewServerInfo(versionStr, mode)
 }
 
 // Check if TLS is required for the user to connect???
@@ -273,16 +289,15 @@ func getTlsRequires(conn *sql.DB, serverInfo ServerInfo, user string, host strin
 	return TlsRequires{RequiresMap: requiresMap}, nil
 }
 
-// Gets the list of things a user is allowed to do
-func getGrants(conn *sql.DB, user string, host string) ([]string, error) {
-	grants, err := query_utils.SelectFirstValueStringSlice(conn, fmt.Sprintf("SHOW GRANTS FOR %s@%s", user, host))
+func getServerGrants(conn *sql.DB, user string, host string) ([]string, error) {
+	grants, err := query_utils.SelectFirstValueStringSlice(conn, fmt.Sprintf("SHOW GRANTS FOR '%s'@'%s'", user, host))
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting grants  %s", err)
+		return nil, fmt.Errorf("failed getting grants  %s", err)
 	}
 	filtered := funk.FilterString(grants, func(s string) bool {
 		return strings.Contains(s, "ON *.*")
 	})
-	grantsLine := query_utils.GetStringInBetween(filtered[0], "GRANT", "ON")
+	grantsLine := strings.TrimSpace(query_utils.GetStringInBetween(filtered[0], "GRANT", "ON"))
 	return strings.Split(grantsLine, ", "), nil
 }
 
@@ -292,7 +307,7 @@ func CreateUser(conn *sql.DB, user string, host string, password string, encrypt
 	serverInfo, err := getServerInfo(conn)
 
 	if err != nil {
-		return fmt.Errorf("Unable to create user %s", err)
+		return fmt.Errorf("unable to create user %s", err)
 	}
 	return CreateUserSi(conn, user, host, password, encrypted, serverInfo, tlsRequires)
 }
@@ -642,8 +657,8 @@ func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, pr
 	dbTable = strings.ReplaceAll(dbTable, "%", "%%")
 	if grantOption {
 		// Note this doesn't escape well, I _suspect_ parametrized queries won't work here
-		revokeGrantQuery := fmt.Sprintf("REVOKE GRANT OPTION ON %s FROM %s@%s;", dbTable, user, host)
-		_, err := conn.Exec(revokeGrantQuery)
+		revokeGrantQuery := fmt.Sprintf("REVOKE GRANT OPTION ON ? FROM ?@?;")
+		_, err := conn.Exec(revokeGrantQuery, dbTable, user, host)
 		if err != nil {
 			return err
 		}
@@ -658,7 +673,15 @@ func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, pr
 	return err
 }
 
+func isQuoted(input string) bool {
+	return input[0] == '"' || input[0] == '`'
+}
+
 func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, priv []string, tlsRequires TlsRequires, si ServerInfo) error {
+	if isQuoted(host) || isQuoted(user) {
+		return fmt.Errorf("quoted user or host")
+	}
+
 	// Escape '%' since mysql db.execute uses a format string and the
 	// specification of db and table often use a % (SQL wildcard)
 	dbTable = strings.ReplaceAll(dbTable, "%", "%%")
@@ -666,7 +689,7 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 		return s != "GRANT"
 	})
 	privStr := strings.Join(nonGrantPrivs, ",")
-	grantPrivQuery := fmt.Sprintf("GRANT %s ON %s TO %s@%s", privStr, dbTable, user, host)
+	grantPrivQuery := fmt.Sprintf("GRANT %s ON %s%s%s TO '%s'@'%s';", privStr, si.Quote, dbTable, si.Quote, user, host)
 	if tlsRequires.HasTlsRequirements() && si.UseOldUserMgmt() {
 		params := []string{user, host}
 		tlsRequires.Mogrify(grantPrivQuery, params)
@@ -675,8 +698,17 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 		grantPrivQuery += " WITH GRANT OPTION"
 	}
 
-	_, err := conn.Exec(grantPrivQuery)
+	res, err := conn.Exec(grantPrivQuery)
+	print(res)
 	return err
+}
+
+func byteSliceSliceToStringSlice(inp [][]byte) []string {
+	output := make([]string, len(inp))
+	for i, val := range inp {
+		output[i] = string(val)
+	}
+	return output
 }
 
 func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]string, error) {
@@ -696,12 +728,12 @@ func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]str
 			return grants, err
 		}
 
-		matched := GRANTS_RE.MatchString(grant)
-		if !matched {
+		byteGroups := GRANTS_RE.FindSubmatch([]byte(grant))
+		stringGroups := byteSliceSliceToStringSlice(byteGroups)
+		if len(stringGroups) != 11 {
 			return grants, fmt.Errorf("getPrivileges: Regex string did not match expected format")
 		}
-		subExpNames := GRANTS_RE.SubexpNames()
-		privileges := strings.Split(subExpNames[1], ",")
+		privileges := strings.Split(stringGroups[1], ",")
 
 		for i, priv := range privileges {
 			privileges[i] = strings.TrimSpace(priv)
@@ -718,9 +750,10 @@ func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]str
 		*/
 		privileges = normalizeColGrants(privileges)
 
-		strings.Contains(subExpNames[3], "WITH GRANT OPTION")
-		privileges = append(privileges, "GRANT")
-		db := subExpNames[2]
+		if strings.Contains(stringGroups[3], "WITH GRANT OPTION") {
+			privileges = append(privileges, "GRANT")
+		}
+		db := stringGroups[2]
 
 		prevPrivs, exists := grants[db]
 		if exists {

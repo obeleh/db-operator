@@ -26,7 +26,7 @@ func TestGetTlsRequiresNone(t *testing.T) {
 		"SHOW CREATE USER 'user'@'%'",
 	).WillReturnRows(expected)
 
-	serverInfo, _ := NewServerInfo("8.0.25")
+	serverInfo, _ := NewServerInfo("8.0.25", "ANSI")
 	tlsRequires, err := getTlsRequires(db, *serverInfo, "user", "%")
 
 	if err != nil {
@@ -55,7 +55,7 @@ func TestGetTlsRequiresTLS(t *testing.T) {
 		"SHOW CREATE USER 'user'@'%'",
 	).WillReturnRows(expected)
 
-	serverInfo, _ := NewServerInfo("8.0.25")
+	serverInfo, _ := NewServerInfo("8.0.25", "ANSI")
 	tlsRequires, err := getTlsRequires(db, *serverInfo, "user", "%")
 
 	if err != nil {
@@ -111,7 +111,17 @@ func TestPrivilegesUnpack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed unpacking privileges %s", err)
 	}
-	print(privMap)
+
+	expected := map[string][]string{
+		"\"mydb\".*":       {"INSERT", "UPDATE"},
+		"\"anotherdb\".*":  {"SELECT(COL1,COL2)", "UPDATE"},
+		"\"yetanother\".*": {"ALL"},
+		"*.*":              {"USAGE"},
+	}
+
+	if !reflect.DeepEqual(privMap, expected) {
+		t.Fatal("privileges unpacking returned unexpected map of privs")
+	}
 }
 
 func TestParsePrivPiece(t *testing.T) {
@@ -187,13 +197,24 @@ func TestUserExists(t *testing.T) {
 	mockOutput.AddRow(1)
 	mock.ExpectQuery("SELECT count(*) FROM mysql.user WHERE user = ?").WithArgs("jantje").WillReturnRows(mockOutput)
 
-	exists, err := userExists(db, "jantje", "myhost", true)
+	mockOutput2 := sqlmock.NewRows([]string{"count(*)"})
+	mockOutput2.AddRow(1)
+	mock.ExpectQuery("SELECT count(*) FROM mysql.user WHERE user = ? AND host = ?").WithArgs("jantje", "%").WillReturnRows(mockOutput2)
+
+	exists, err := userExists(db, "jantje", "dummy", true)
+	if err != nil {
+		t.Errorf("userExists failed: %s", err)
+	}
 	if !exists {
 		t.Fatal("Expected user to exist")
 	}
 
+	exists, err = userExists(db, "jantje", "%", false)
 	if err != nil {
 		t.Errorf("userExists failed: %s", err)
+	}
+	if !exists {
+		t.Fatal("Expected user to exist")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -222,6 +243,57 @@ func TestUserDoesntExistForHost(t *testing.T) {
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
+		t.Errorf("TestUserDoesntExistForHost: there were unfulfilled expectations: %s", err)
 	}
+}
+
+func TestPrivilegesGrant(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	tlsReq := TlsRequires{}
+	si, err := NewServerInfo("10.3", "ANSI")
+	if err != nil {
+		t.Errorf("NewServerInfo failed: %s", err)
+	}
+
+	mock.ExpectExec("GRANT SELECT ON chair TO jantje@myhost;").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err = privilegesGrant(db, "jantje", "myhost", "chair", []string{"SELECT"}, tlsReq, *si)
+
+	if err != nil {
+		t.Errorf("privilegesGrant failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("TestPrivilegesGrant: there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPrivilegesRevoke(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("REVOKE GRANT OPTION ON ? FROM jantje@myhost;").WithArgs("chair").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("REVOKE SELECT ON chair FROM jantje@myhost;").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err = privilegesRevoke(db, "jantje", "myhost", "chair", []string{"SELECT"}, true)
+
+	if err != nil {
+		t.Errorf("privilegesRevoke failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("TestPrivilegesRevoke: there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestShowGrants(t *testing.T) {
+
 }
