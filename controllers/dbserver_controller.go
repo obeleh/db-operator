@@ -128,7 +128,6 @@ func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
 		Complete(r)

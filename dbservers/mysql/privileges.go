@@ -83,6 +83,22 @@ var VALID_PRIVS = []string{
 	"REPLICA MONITOR",
 }
 
+// TODO: Does this cover all database versions of "ALL" priveges???
+var ALL_PRIVS = []string{
+	"SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD", "SHUTDOWN", "PROCESS", "FILE",
+	"REFERENCES", "INDEX", "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES", "LOCK TABLES",
+	"EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT", "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE",
+	"ALTER ROUTINE", "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE", "CREATE ROLE", "DROP ROLE",
+	"APPLICATION_PASSWORD_ADMIN", "AUDIT_ABORT_EXEMPT", "AUDIT_ADMIN", "AUTHENTICATION_POLICY_ADMIN",
+	"BACKUP_ADMIN", "BINLOG_ADMIN", "BINLOG_ENCRYPTION_ADMIN", "CLONE_ADMIN", "CONNECTION_ADMIN",
+	"ENCRYPTION_KEY_ADMIN", "FIREWALL_EXEMPT", "FLUSH_OPTIMIZER_COSTS", "FLUSH_STATUS", "FLUSH_TABLES",
+	"FLUSH_USER_RESOURCES", "GROUP_REPLICATION_ADMIN", "GROUP_REPLICATION_STREAM", "INNODB_REDO_LOG_ARCHIVE",
+	"INNODB_REDO_LOG_ENABLE", "PASSWORDLESS_USER_ADMIN", "PERSIST_RO_VARIABLES_ADMIN", "REPLICATION_APPLIER",
+	"REPLICATION_SLAVE_ADMIN", "RESOURCE_GROUP_ADMIN", "RESOURCE_GROUP_USER", "ROLE_ADMIN",
+	"SENSITIVE_VARIABLES_OBSERVER", "SERVICE_CONNECTION_ADMIN", "SESSION_VARIABLES_ADMIN", "SET_USER_ID",
+	"SHOW_ROUTINE", "SYSTEM_USER", "SYSTEM_VARIABLES_ADMIN", "TABLE_ENCRYPTION_ADMIN", "XA_RECOVER_ADMIN",
+}
+
 var GRANTS_RE = regexp.MustCompile("GRANT (?P<privs>.+) ON (?P<on>.+) TO (['`\"]).*(['`\"])@(['`\"]).*(['`\"])( IDENTIFIED BY PASSWORD (['`\"]).+(['`\"]))? ?(?P<lastgroup>.*)")
 
 // tls_requires description:
@@ -566,7 +582,7 @@ func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, pr
 	if isQuoted(host) || isQuoted(user) {
 		return fmt.Errorf("quoted user or host")
 	}
-	if !isQuoted(dbTable) {
+	if dbTable != "*.*" && !isQuoted(dbTable) {
 		return fmt.Errorf("unquoted dbTable")
 	}
 
@@ -598,7 +614,7 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 	if isQuoted(host) || isQuoted(user) {
 		return fmt.Errorf("quoted user or host")
 	}
-	if !isQuoted(dbTable) {
+	if dbTable != "*.*" && !isQuoted(dbTable) {
 		return fmt.Errorf("unquoted dbTable")
 	}
 
@@ -701,16 +717,34 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	if err != nil {
 		return false, fmt.Errorf("failed to UpdateUserPrivs %s", err)
 	}
-	desiredPrivs, err := privilegesUnpack(dbPrivs, si.Mode)
+
+	var allPrivs []dboperatorv1alpha1.DbPriv
+	if len(serverPrivs) == 0 {
+		allPrivs = dbPrivs
+	} else {
+		allPrivs = append(dbPrivs, dboperatorv1alpha1.DbPriv{DbName: "*.*", Privs: serverPrivs})
+	}
+
+	desiredPrivs, err := privilegesUnpack(allPrivs, si.Mode)
 	if err != nil {
 		return false, fmt.Errorf("failed to privilegesUnpack desiredPrivs %s", err)
 	}
 
 	changes := false
 	for dbTable, curDbTablePrivs := range curPrivs {
-		desiredDbTablePrivs, desired := desiredPrivs[dbTable]
-		if !desired {
+		desiredDbTablePrivs, desiredFound := desiredPrivs[dbTable]
+		if !desiredFound {
 			desiredDbTablePrivs = []string{}
+		}
+
+		if len(curDbTablePrivs) > 50 {
+			subtracted := funk.Subtract(ALL_PRIVS, curDbTablePrivs).([]string)
+			if len(subtracted) == 0 {
+				curDbTablePrivs = []string{"ALL"}
+				curPrivs[dbTable] = curDbTablePrivs
+			} else {
+				panic("Not entirely sure if current list of privileges is equal to ALL privileges")
+			}
 		}
 
 		grantOption := false

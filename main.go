@@ -33,6 +33,7 @@ import (
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/controllers"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -91,6 +92,7 @@ func main() {
 
 	if err = (&controllers.DbCopyJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("DbCopyJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbCopyJob")
@@ -98,6 +100,7 @@ func main() {
 	}
 	if err = (&controllers.BackupCronJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("BackupCronJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupCronJob")
@@ -105,6 +108,7 @@ func main() {
 	}
 	if err = (&controllers.BackupJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("BackupJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupJob")
@@ -112,6 +116,7 @@ func main() {
 	}
 	if err = (&controllers.BackupTargetReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("BackupTargetReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupTarget")
@@ -119,6 +124,7 @@ func main() {
 	}
 	if err = (&controllers.DbReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("DbReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Db")
@@ -126,6 +132,7 @@ func main() {
 	}
 	if err = (&controllers.DbCopyCronJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("DbCopyCronJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbCopyCronJob")
@@ -133,6 +140,7 @@ func main() {
 	}
 	if err = (&controllers.DbServerReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("DbServerReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbServer")
@@ -140,6 +148,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreCronJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("RestoreCronJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreCronJob")
@@ -147,6 +156,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("RestoreJobReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreJob")
@@ -154,6 +164,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreTargetReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("RestoreTargetReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreTarget")
@@ -161,6 +172,7 @@ func main() {
 	}
 	if err = (&controllers.S3StorageReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("S3StorageReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "S3Storage")
@@ -168,6 +180,7 @@ func main() {
 	}
 	if err = (&controllers.UserReconciler{
 		Client: mgr.GetClient(),
+		Log:    logf.Log.WithName("UserReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "User")
