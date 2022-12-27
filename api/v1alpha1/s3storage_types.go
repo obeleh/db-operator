@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ type S3StorageSpec struct {
 	AccessKeyK8sSecretKey string `json:"secret_access_key_k8s_secret_key,omitempty"`
 	Prefix                string `json:"prefix,omitempty"`
 	AccesKeyId            string `json:"access_key_id"`
+	Endpoint              string `json:"endpoint,omitempty"`
 }
 
 // S3StorageStatus defines the observed state of S3Storage

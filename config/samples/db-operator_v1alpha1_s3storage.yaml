@@ -1,7 +1,12 @@
 apiVersion: db-operator.kubemaster.com/v1alpha1
 kind: S3Storage
 metadata:
+  labels:
+    app.kubernetes.io/name: s3storage
+    app.kubernetes.io/instance: s3storage-sample
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: db-operator
   name: s3storage-sample
 spec:
-  # Add fields here
-  foo: bar
+  # TODO(user): Add fields here

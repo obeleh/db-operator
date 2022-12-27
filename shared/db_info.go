@@ -1,7 +1,7 @@
 package shared
 
 import (
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 )
 

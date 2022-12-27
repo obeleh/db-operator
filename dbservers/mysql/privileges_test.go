@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/thoas/go-funk"
 )
 
@@ -117,6 +117,38 @@ func TestPrivilegesUnpack(t *testing.T) {
 		"\"anotherdb\".*":  {"SELECT(COL1,COL2)", "UPDATE"},
 		"\"yetanother\".*": {"ALL"},
 		"*.*":              {"USAGE"},
+	}
+
+	if !reflect.DeepEqual(privMap, expected) {
+		t.Fatal("privileges unpacking returned unexpected map of privs")
+	}
+}
+
+func TestPrivilegesUnpackNonAnsi(t *testing.T) {
+	privs := []dboperatorv1alpha1.DbPriv{
+		{
+			DbName: "mydb.*",
+			Privs:  "INSERT,UPDATE",
+		},
+		{
+			DbName: "anotherdb.*",
+			Privs:  "SELECT(col1,col2),UPDATE",
+		},
+		{
+			DbName: "yetanother.*",
+			Privs:  "ALL",
+		},
+	}
+	privMap, err := privilegesUnpack(privs, "")
+	if err != nil {
+		t.Fatalf("Failed unpacking privileges %s", err)
+	}
+
+	expected := map[string][]string{
+		"`mydb`.*":       {"INSERT", "UPDATE"},
+		"`anotherdb`.*":  {"SELECT(COL1,COL2)", "UPDATE"},
+		"`yetanother`.*": {"ALL"},
+		"*.*":            {"USAGE"},
 	}
 
 	if !reflect.DeepEqual(privMap, expected) {
@@ -260,9 +292,9 @@ func TestPrivilegesGrant(t *testing.T) {
 		t.Errorf("NewServerInfo failed: %s", err)
 	}
 
-	mock.ExpectExec("GRANT SELECT ON chair TO jantje@myhost;").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("GRANT SELECT ON `chair` TO 'jantje'@'myhost';").WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = privilegesGrant(db, "jantje", "myhost", "chair", []string{"SELECT"}, tlsReq, *si)
+	err = privilegesGrant(db, "jantje", "myhost", "`chair`", []string{"SELECT"}, tlsReq, *si)
 
 	if err != nil {
 		t.Errorf("privilegesGrant failed: %s", err)
@@ -280,10 +312,10 @@ func TestPrivilegesRevoke(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectExec("REVOKE GRANT OPTION ON ? FROM jantje@myhost;").WithArgs("chair").WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("REVOKE SELECT ON chair FROM jantje@myhost;").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("REVOKE GRANT OPTION ON ? FROM 'jantje'@'myhost';").WithArgs("`chair`").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("REVOKE SELECT ON `chair` FROM 'jantje'@'myhost';").WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = privilegesRevoke(db, "jantje", "myhost", "chair", []string{"SELECT"}, true)
+	err = privilegesRevoke(db, "jantje", "myhost", "`chair`", []string{"SELECT"}, true)
 
 	if err != nil {
 		t.Errorf("privilegesRevoke failed: %s", err)

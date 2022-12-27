@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kabisa/db-operator/shared"
+	"github.com/obeleh/db-operator/shared"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
 // UserReconciler reconciles a User object

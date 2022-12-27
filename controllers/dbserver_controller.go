@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
 	_ "github.com/lib/pq"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

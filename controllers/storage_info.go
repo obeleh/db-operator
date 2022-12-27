@@ -3,8 +3,8 @@ package controllers
 import (
 	path "path/filepath"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/shared"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 	v1 "k8s.io/api/core/v1"
 )
 

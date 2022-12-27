@@ -24,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
 // S3StorageReconciler reconciles a S3Storage object

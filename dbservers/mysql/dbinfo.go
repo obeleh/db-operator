@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kabisa/db-operator/shared"
+	"github.com/obeleh/db-operator/shared"
 	v1 "k8s.io/api/core/v1"
 )
 

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/dbservers/mysql"
-	"github.com/kabisa/db-operator/dbservers/postgres"
-	"github.com/kabisa/db-operator/shared"
 	_ "github.com/lib/pq"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/dbservers/mysql"
+	"github.com/obeleh/db-operator/dbservers/postgres"
+	"github.com/obeleh/db-operator/shared"
 )
 
 func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, password string) (shared.DbActions, error) {

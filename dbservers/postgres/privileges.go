@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/dbservers/query_utils"
-	"github.com/kabisa/db-operator/shared"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/dbservers/query_utils"
+	"github.com/obeleh/db-operator/shared"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -224,11 +224,12 @@ func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, erro
 
 /*
 Return the difference between the privileges that a user already has and
-    the privileges that they desire to have.
-    :returns: tuple of:
-        * privileges that they have and were requested
-        * privileges they currently hold but were not requested
-        * privileges requested that they do not hold
+
+	the privileges that they desire to have.
+	:returns: tuple of:
+	    * privileges that they have and were requested
+	    * privileges they currently hold but were not requested
+	    * privileges requested that they do not hold
 */
 func hasTablePrivileges(conn *sql.DB, user string, table string, privs []string) ([]string, []string, []string, error) {
 	curPrivs, err := getTablePrivileges(conn, user, table)
@@ -255,12 +256,12 @@ func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []stri
 }
 
 /*
-   Return the difference between the privileges that a user already has and
-   the privileges that they desire to have.
-   :returns: tuple of:
-       * privileges that they have and were requested
-       * privileges they currently hold but were not requested
-       * privileges requested that they do not hold
+Return the difference between the privileges that a user already has and
+the privileges that they desire to have.
+:returns: tuple of:
+  - privileges that they have and were requested
+  - privileges they currently hold but were not requested
+  - privileges requested that they do not hold
 */
 func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) ([]string, []string, []string, error) {
 	curPrivs, err := GetDatabasePrivileges(conn, user, db)

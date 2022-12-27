@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/shared"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 // DbReconciler reconciles a Db object

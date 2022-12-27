@@ -1,9 +1,0 @@
-apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: S3Storage
-metadata:
-  name: example-s3-storage
-spec:
-  bucket_name: db-operator-sjuul
-  region: eu-west-1
-  secret_access_key_k8s_secret: s3-secret
-  access_key_id: AKIA354V5YCFESZDSRQA

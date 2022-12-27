@@ -3,8 +3,8 @@ package postgres
 import (
 	"fmt"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/shared"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 const PG_GRANT_SCRIPT string = `

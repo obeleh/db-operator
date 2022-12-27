@@ -1,7 +1,12 @@
 apiVersion: db-operator.kubemaster.com/v1alpha1
 kind: DbCopyCronJob
 metadata:
+  labels:
+    app.kubernetes.io/name: dbcopycronjob
+    app.kubernetes.io/instance: dbcopycronjob-sample
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: db-operator
   name: dbcopycronjob-sample
 spec:
-  # Add fields here
-  foo: bar
+  # TODO(user): Add fields here

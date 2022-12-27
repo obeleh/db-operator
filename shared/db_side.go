@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
 type DbSideUser struct {

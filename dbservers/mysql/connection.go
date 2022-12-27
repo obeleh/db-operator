@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/shared"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 type MySqlConnection struct {

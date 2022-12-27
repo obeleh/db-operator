@@ -9,8 +9,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	version "github.com/hashicorp/go-version"
-	dboperatorv1alpha1 "github.com/kabisa/db-operator/api/v1alpha1"
-	"github.com/kabisa/db-operator/dbservers/query_utils"
+	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/dbservers/query_utils"
 	"github.com/thoas/go-funk"
 )
 
@@ -131,35 +131,6 @@ func userExists(conn *sql.DB, user string, host string, hostAll bool) (bool, err
 		return false, fmt.Errorf("unable to read mysql.user %s", err)
 	}
 	return count > 0, nil
-}
-
-func isSslKey(key string) bool {
-	return key == "CIPHER" || key == "ISSUER" || key == "SUBJECT"
-}
-
-func sanitizeRequires(tlsRequires map[string]string) TlsRequires {
-	sanitizedRequires := map[string]string{}
-	if len(tlsRequires) > 0 {
-		for key, value := range tlsRequires {
-			sanitizedRequires[strings.ToUpper(key)] = value
-		}
-		for key := range tlsRequires {
-			if isSslKey(key) {
-				delete(sanitizedRequires, "SSL")
-				delete(sanitizedRequires, "X509")
-				return TlsRequires{RequiresMap: sanitizedRequires, RequiresStr: nil}
-			}
-		}
-		_, exists := sanitizedRequires["X509"]
-		var reqStr string
-		if exists {
-			reqStr = "X509"
-		} else {
-			reqStr = "SSL"
-		}
-		return TlsRequires{RequiresMap: nil, RequiresStr: &reqStr}
-	}
-	return TlsRequires{}
 }
 
 func (t TlsRequires) Mogrify(query string, params []string) (string, []string) {
@@ -303,13 +274,13 @@ func getServerGrants(conn *sql.DB, user string, host string) ([]string, error) {
 
 // Create a user, it will first get the information from the server
 // This server info will help use understand the features it supports
-func CreateUser(conn *sql.DB, user string, host string, password string, encrypted bool, tlsRequires *TlsRequires) error {
+func CreateUser(conn *sql.DB, user string, host string, password string, tlsRequires *TlsRequires) error {
 	serverInfo, err := getServerInfo(conn)
 
 	if err != nil {
 		return fmt.Errorf("unable to create user %s", err)
 	}
-	return CreateUserSi(conn, user, host, password, encrypted, serverInfo, tlsRequires)
+	return CreateUserSi(conn, user, host, password, serverInfo, tlsRequires)
 }
 
 func stringArrayToInterfaceArray(input []string) []interface{} {
@@ -322,7 +293,7 @@ func stringArrayToInterfaceArray(input []string) []interface{} {
 
 // Create a user with server info.
 // This server info will help use understand the features it supports
-func CreateUserSi(conn *sql.DB, user string, host string, password string, encrypted bool, serverInfo *ServerInfo, tlsRequires *TlsRequires) error {
+func CreateUserSi(conn *sql.DB, user string, host string, password string, serverInfo *ServerInfo, tlsRequires *TlsRequires) error {
 	oldUserMgmt := serverInfo.UseOldUserMgmt()
 	var query string
 	var err error
@@ -332,22 +303,14 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, encry
 		return fmt.Errorf("password is required")
 	}
 
-	if encrypted {
-		if serverInfo.SupportsIdentifiedByPassword() {
-			query = "CREATE USER %s@%s IDENTIFIED BY PASSWORD %s"
-		} else {
-			query = "CREATE USER %s@%s IDENTIFIED WITH mysql_native_password AS %s"
-		}
+	if oldUserMgmt {
+		query = "CREATE USER %s@%s IDENTIFIED BY %s"
 	} else {
-		if oldUserMgmt {
-			query = "CREATE USER %s@%s IDENTIFIED BY %s"
-		} else {
-			password, err = query_utils.SelectFirstValueString(conn, fmt.Sprintf("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(%s)))))", password))
-			if err != nil {
-				return fmt.Errorf("unable to create password for user %s %s", user, err)
-			}
-			query = "CREATE USER %s@%s IDENTIFIED WITH mysql_native_password AS %s"
+		password, err = query_utils.SelectFirstValueString(conn, fmt.Sprintf("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(%s)))))", password))
+		if err != nil {
+			return fmt.Errorf("unable to create password for user %s %s", user, err)
 		}
+		query = "CREATE USER %s@%s IDENTIFIED WITH mysql_native_password AS %s"
 	}
 
 	params := []string{user, host, password}
@@ -380,61 +343,6 @@ func Rsplit(s string, sep string, count int) []string {
 	slice := []string{firstPart}
 	return append(slice, parts[splitLoc:]...)
 }
-
-/*
-def privileges_unpack(priv, mode):
-    """ Take a privileges string, typically passed as a parameter, and unserialize
-    it into a dictionary, the same format as privileges_get() above. We have this
-    custom format to avoid using YAML/JSON strings inside YAML playbooks. Example
-    of a privileges string:
-     mydb.*:INSERT,UPDATE/anotherdb.*:SELECT/yetanother.*:ALL
-    The privilege USAGE stands for no privileges, so we add that in on *.* if it's
-    not specified in the string, as MySQL will always provide this by default.
-    """
-    if mode == 'ANSI':
-        quote = '"'
-    else:
-        quote = '`'
-    output = {}
-    privs = []
-    for item in priv.strip().split('/'):
-        pieces = item.strip().rsplit(':', 1)
-        dbpriv = pieces[0].rsplit(".", 1)
-
-        # Check for FUNCTION or PROCEDURE object types
-        parts = dbpriv[0].split(" ", 1)
-        object_type = ''
-        if len(parts) > 1 and (parts[0] == 'FUNCTION' or parts[0] == 'PROCEDURE'):
-            object_type = parts[0] + ' '
-            dbpriv[0] = parts[1]
-
-        # Do not escape if privilege is for database or table, i.e.
-        # neither quote *. nor .*
-        for i, side in enumerate(dbpriv):
-            if side.strip('`') != '*':
-                dbpriv[i] = '%s%s%s' % (quote, side.strip('`'), quote)
-        pieces[0] = object_type + '.'.join(dbpriv)
-
-        if '(' in pieces[1]:
-            output[pieces[0]] = re.split(r',\s*(?=[^)]*(?:\(|$))', pieces[1].upper())
-            for i in output[pieces[0]]:
-                privs.append(re.sub(r'\s*\(.*\)', '', i))
-        else:
-            output[pieces[0]] = pieces[1].upper().split(',')
-            privs = output[pieces[0]]
-
-        # Handle cases when there's privs like GRANT SELECT (colA, ...) in privs.
-        output[pieces[0]] = normalize_col_grants(output[pieces[0]])
-
-        new_privs = frozenset(privs)
-        if not new_privs.issubset(VALID_PRIVS):
-            raise InvalidPrivsError('Invalid privileges specified: %s' % new_privs.difference(VALID_PRIVS))
-
-    if '*.*' not in output:
-        output['*.*'] = ['USAGE']
-
-    return output
-*/
 
 func parsePrivPiece(piece string) ([]string, []string) {
 	inParens := false
@@ -474,7 +382,9 @@ func parsePrivPiece(piece string) ([]string, []string) {
 
 /*
 Check if there is a statement like SELECT (colA, colB)
-    in the privilege list.
+
+	in the privilege list.
+
 Return (start index, end index).
 */
 func hasGrantOnCol(privileges []string, grant string) (*int, *int) {
@@ -653,12 +563,19 @@ func privilegesUnpack(dbPrivs []dboperatorv1alpha1.DbPriv, mode string) (map[str
 }
 
 func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, priv []string, grantOption bool) error {
+	if isQuoted(host) || isQuoted(user) {
+		return fmt.Errorf("quoted user or host")
+	}
+	if !isQuoted(dbTable) {
+		return fmt.Errorf("unquoted dbTable")
+	}
+
 	// Escape '%' since mysql db.execute() uses a format string
 	dbTable = strings.ReplaceAll(dbTable, "%", "%%")
 	if grantOption {
 		// Note this doesn't escape well, I _suspect_ parametrized queries won't work here
-		revokeGrantQuery := fmt.Sprintf("REVOKE GRANT OPTION ON ? FROM ?@?;")
-		_, err := conn.Exec(revokeGrantQuery, dbTable, user, host)
+		revokeGrantQuery := fmt.Sprintf("REVOKE GRANT OPTION ON ? FROM '%s'@'%s';", user, host)
+		_, err := conn.Exec(revokeGrantQuery, dbTable)
 		if err != nil {
 			return err
 		}
@@ -668,7 +585,7 @@ func privilegesRevoke(conn *sql.DB, user string, host string, dbTable string, pr
 		return s != "GRANT"
 	})
 	privStr := strings.Join(nonGrantPrivs, ",")
-	revokePrivQuery := fmt.Sprintf("REVOKE %s ON %s FROM %s@%s;", privStr, dbTable, user, host)
+	revokePrivQuery := fmt.Sprintf("REVOKE %s ON %s FROM '%s'@'%s';", privStr, dbTable, user, host)
 	_, err := conn.Exec(revokePrivQuery)
 	return err
 }
@@ -681,6 +598,9 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 	if isQuoted(host) || isQuoted(user) {
 		return fmt.Errorf("quoted user or host")
 	}
+	if !isQuoted(dbTable) {
+		return fmt.Errorf("unquoted dbTable")
+	}
 
 	// Escape '%' since mysql db.execute uses a format string and the
 	// specification of db and table often use a % (SQL wildcard)
@@ -689,7 +609,7 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 		return s != "GRANT"
 	})
 	privStr := strings.Join(nonGrantPrivs, ",")
-	grantPrivQuery := fmt.Sprintf("GRANT %s ON %s%s%s TO '%s'@'%s';", privStr, si.Quote, dbTable, si.Quote, user, host)
+	grantPrivQuery := fmt.Sprintf("GRANT %s ON %s TO '%s'@'%s';", privStr, dbTable, user, host)
 	if tlsRequires.HasTlsRequirements() && si.UseOldUserMgmt() {
 		params := []string{user, host}
 		tlsRequires.Mogrify(grantPrivQuery, params)
@@ -698,8 +618,7 @@ func privilegesGrant(conn *sql.DB, user string, host string, dbTable string, pri
 		grantPrivQuery += " WITH GRANT OPTION"
 	}
 
-	res, err := conn.Exec(grantPrivQuery)
-	print(res)
+	_, err := conn.Exec(grantPrivQuery)
 	return err
 }
 
@@ -767,25 +686,65 @@ func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]str
 }
 
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
+	host := "%" // Not yet supporting other host names in crd spec
+	si, err := getServerInfo(conn)
+	if err != nil {
+		return false, fmt.Errorf("failed to getServerInfo for UpdateUserPrivs %s", err)
+	}
 
-	/*
-		mode, err := getMode(conn)
-		if err != nil {
-			return false, fmt.Errorf("failed to get mode for adjustPrivileges %s", err)
+	tlsRequires, err := getTlsRequires(conn, *si, userName, host)
+	if err != nil {
+		return false, fmt.Errorf("failed to getTlsRequires for UpdateUserPrivs %s", err)
+	}
+
+	curPrivs, err := getPrivileges(conn, userName, host)
+	if err != nil {
+		return false, fmt.Errorf("failed to UpdateUserPrivs %s", err)
+	}
+	desiredPrivs, err := privilegesUnpack(dbPrivs, si.Mode)
+	if err != nil {
+		return false, fmt.Errorf("failed to privilegesUnpack desiredPrivs %s", err)
+	}
+
+	changes := false
+	for dbTable, curDbTablePrivs := range curPrivs {
+		desiredDbTablePrivs, desired := desiredPrivs[dbTable]
+		if !desired {
+			desiredDbTablePrivs = []string{}
 		}
 
-		curPrivs, err := getPrivileges(conn, userName, "???")
-		if err != nil {
-			return false, fmt.Errorf("failed to UpdateUserPrivs %s", err)
+		grantOption := false
+		grantIndex := funk.IndexOfString(curDbTablePrivs, "GRANT")
+		if grantIndex != -1 {
+			grantOption = true
+			curDbTablePrivs = funk.DropString(curDbTablePrivs, grantIndex)
 		}
-			desiredPrivs, err := privilegesUnpack(dbPrivs, mode)
+
+		toRevoke := funk.SubtractString(curDbTablePrivs, desiredDbTablePrivs)
+		if len(toRevoke) > 0 {
+			privilegesRevoke(conn, userName, host, dbTable, toRevoke, grantOption)
 			if err != nil {
-				return false, fmt.Errorf("failed to privilegesUnpack desiredPrivs %s", err)
+				return changes, err
 			}
+			changes = true
+		}
+	}
 
-			for dbTable, priv := range curPrivs {
+	for dbTable, desiredDbTablePrivs := range desiredPrivs {
+		curDbTablePrivs, exists := curPrivs[dbTable]
 
+		if !exists {
+			curDbTablePrivs = []string{}
+		}
+
+		toGrant := funk.SubtractString(desiredDbTablePrivs, curDbTablePrivs)
+		if len(toGrant) > 0 {
+			err = privilegesGrant(conn, userName, host, dbTable, toGrant, tlsRequires, *si)
+			if err != nil {
+				return changes, err
 			}
-	*/
-	return true, nil
+			changes = true
+		}
+	}
+	return changes, nil
 }

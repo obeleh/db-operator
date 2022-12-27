@@ -1,7 +1,0 @@
-apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: DbCopyJob
-metadata:
-  name: example-db-copyjob
-spec:
-  from_db_name: example-database
-  to_db_name: example-database-2

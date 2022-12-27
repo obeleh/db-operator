@@ -1,10 +1,11 @@
 domain: kubemaster.com
-layout: go.kubebuilder.io/v3
+layout:
+- go.kubebuilder.io/v3
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: db-operator
-repo: github.com/kabisa/db-operator
+repo: github.com/obeleh/db-operator
 resources:
 - api:
     crdVersion: v1
@@ -12,89 +13,8 @@ resources:
   controller: true
   domain: kubemaster.com
   group: db-operator
-  kind: DbServer
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: Db
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: User
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: BackupTarget
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: RestoreTarget
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: BackupJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: RestoreJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: S3Storage
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
-  kind: RestoreCronJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kubemaster.com
-  group: db-operator
   kind: DbCopyJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
+  path: github.com/obeleh/db-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -103,7 +23,34 @@ resources:
   domain: kubemaster.com
   group: db-operator
   kind: BackupCronJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: BackupJob
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: BackupTarget
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: Db
+  path: github.com/obeleh/db-operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -112,6 +59,60 @@ resources:
   domain: kubemaster.com
   group: db-operator
   kind: DbCopyCronJob
-  path: github.com/kabisa/db-operator/api/v1alpha1
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: DbServer
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreCronJob
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreJob
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: RestoreTarget
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: S3Storage
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: User
+  path: github.com/obeleh/db-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
