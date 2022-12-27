@@ -1,10 +1,8 @@
 // This file was generated with:
-// tfk8s -f db-operator-single-file-deploy.yaml -p "kubernetes-alpha" --strip -o main.tf
+// tfk8s -f db-operator-single-file-deploy.yaml --strip -o main.tf
 // Afterwards manually add: "image" = var.image
 
 resource "kubernetes_manifest" "namespace_db_operator_system" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "v1"
     "kind" = "Namespace"
@@ -24,8 +22,6 @@ resource "kubernetes_manifest" "namespace_db_operator_system" {
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_backupcronjobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -116,8 +112,6 @@ resource "kubernetes_manifest" "customresourcedefinition_backupcronjobs_db_opera
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_backupjobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -188,8 +182,6 @@ resource "kubernetes_manifest" "customresourcedefinition_backupjobs_db_operator_
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_backuptargets_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -265,8 +257,6 @@ resource "kubernetes_manifest" "customresourcedefinition_backuptargets_db_operat
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_dbcopycronjobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -359,8 +349,6 @@ resource "kubernetes_manifest" "customresourcedefinition_dbcopycronjobs_db_opera
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_dbcopyjobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -432,8 +420,6 @@ resource "kubernetes_manifest" "customresourcedefinition_dbcopyjobs_db_operator_
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_dbs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -510,8 +496,6 @@ resource "kubernetes_manifest" "customresourcedefinition_dbs_db_operator_kubemas
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_dbservers_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -632,8 +616,6 @@ resource "kubernetes_manifest" "customresourcedefinition_dbservers_db_operator_k
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_restorecronjobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -712,8 +694,6 @@ resource "kubernetes_manifest" "customresourcedefinition_restorecronjobs_db_oper
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_restorejobs_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -784,8 +764,6 @@ resource "kubernetes_manifest" "customresourcedefinition_restorejobs_db_operator
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_restoretargets_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -861,8 +839,6 @@ resource "kubernetes_manifest" "customresourcedefinition_restoretargets_db_opera
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_s3storages_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -951,8 +927,6 @@ resource "kubernetes_manifest" "customresourcedefinition_s3storages_db_operator_
 }
 
 resource "kubernetes_manifest" "customresourcedefinition_users_db_operator_kubemaster_com" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apiextensions.k8s.io/v1"
     "kind" = "CustomResourceDefinition"
@@ -1055,8 +1029,6 @@ resource "kubernetes_manifest" "customresourcedefinition_users_db_operator_kubem
 }
 
 resource "kubernetes_manifest" "serviceaccount_db_operator_system_db_operator_controller_manager" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "v1"
     "kind" = "ServiceAccount"
@@ -1076,8 +1048,6 @@ resource "kubernetes_manifest" "serviceaccount_db_operator_system_db_operator_co
 }
 
 resource "kubernetes_manifest" "role_db_operator_system_db_operator_leader_election_role" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "Role"
@@ -1145,8 +1115,6 @@ resource "kubernetes_manifest" "role_db_operator_system_db_operator_leader_elect
 }
 
 resource "kubernetes_manifest" "clusterrole_db_operator_manager_role" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "ClusterRole"
@@ -1715,8 +1683,6 @@ resource "kubernetes_manifest" "clusterrole_db_operator_manager_role" {
 }
 
 resource "kubernetes_manifest" "clusterrole_db_operator_metrics_reader" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "ClusterRole"
@@ -1745,8 +1711,6 @@ resource "kubernetes_manifest" "clusterrole_db_operator_metrics_reader" {
 }
 
 resource "kubernetes_manifest" "clusterrole_db_operator_proxy_role" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "ClusterRole"
@@ -1789,8 +1753,6 @@ resource "kubernetes_manifest" "clusterrole_db_operator_proxy_role" {
 }
 
 resource "kubernetes_manifest" "rolebinding_db_operator_system_db_operator_leader_election_rolebinding" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "RoleBinding"
@@ -1822,8 +1784,6 @@ resource "kubernetes_manifest" "rolebinding_db_operator_system_db_operator_leade
 }
 
 resource "kubernetes_manifest" "clusterrolebinding_db_operator_manager_rolebinding" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "ClusterRoleBinding"
@@ -1854,8 +1814,6 @@ resource "kubernetes_manifest" "clusterrolebinding_db_operator_manager_rolebindi
 }
 
 resource "kubernetes_manifest" "clusterrolebinding_db_operator_proxy_rolebinding" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "rbac.authorization.k8s.io/v1"
     "kind" = "ClusterRoleBinding"
@@ -1886,8 +1844,6 @@ resource "kubernetes_manifest" "clusterrolebinding_db_operator_proxy_rolebinding
 }
 
 resource "kubernetes_manifest" "service_db_operator_system_db_operator_controller_manager_metrics_service" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "v1"
     "kind" = "Service"
@@ -1921,8 +1877,6 @@ resource "kubernetes_manifest" "service_db_operator_system_db_operator_controlle
 }
 
 resource "kubernetes_manifest" "deployment_db_operator_system_db_operator_controller_manager" {
-  provider = kubernetes-alpha
-
   manifest = {
     "apiVersion" = "apps/v1"
     "kind" = "Deployment"
