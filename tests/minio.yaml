@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: minio
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - args:
+        - server
+        - /data
+        - --console-address
+        - :9001
+        image: quay.io/minio/minio
+        imagePullPolicy: IfNotPresent
+        name: minio
+        ports:
+        - containerPort: 9000
+          protocol: TCP
+        - containerPort: 9001
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /data
+          mountPropagation: None
+          name: minio
+        env:
+        - name: MINIO_ROOT_USER
+          value: ROOTUSER
+        - name: MINIO_ROOT_PASSWORD
+          value: DO_NOT_USE_IN_PROD
+      restartPolicy: Always
+      volumes:
+      - name: minio
+        emptyDir: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ensure-minio-bucket
+spec:
+  template:
+    spec:
+      containers:
+      - name: initialize
+        image: minio/mc
+        command: 
+        - /bin/sh
+        - "-c"
+        - >
+          /usr/bin/mc config host add testminio http://minio:9000 ROOTUSER DO_NOT_USE_IN_PROD;
+          /usr/bin/mc rm -r --force testminio/testbucket;
+          /usr/bin/mc mb testminio/testbucket;
+          /usr/bin/mc policy download testminio/testbucket;
+          exit 0;
+      restartPolicy: Never
+  backoffLimit: 4

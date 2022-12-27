@@ -1,0 +1,17 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: RestoreJob
+metadata:
+  name: example-restore-job
+spec:
+  restore_target: example-restore-target
+
+---
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: RestoreTarget
+metadata:
+  name: example-restore-target
+spec:
+  db_name: example-database-2
+  storage_type: s3
+  storage_location: example-s3-storage

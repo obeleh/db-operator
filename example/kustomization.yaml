@@ -1,0 +1,13 @@
+resources:
+ - dbserver.yaml
+ - postgres-secret.yaml
+ - postgres-deployment.yaml
+#  - mysql-secret.yaml
+#  - mysql-deployment.yaml
+ - user.yaml
+ - database.yaml
+#  - backup-job.yaml
+#  - example-s3-storage-secret.yaml
+#  - example-s3-storage.yaml
+#  - db-copy-job.yaml
+#  - restore-job.yaml
