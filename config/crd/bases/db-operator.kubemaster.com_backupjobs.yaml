@@ -38,6 +38,8 @@ spec:
                 type: string
               fixed_file_name:
                 type: string
+              service_account:
+                type: string
             required:
             - backup_target
             type: object

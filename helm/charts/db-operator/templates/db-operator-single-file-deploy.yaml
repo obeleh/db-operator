@@ -36,6 +36,8 @@ spec:
                 type: string
               interval:
                 type: string
+              service_account:
+                type: string
               suspend:
                 type: boolean
             required:
@@ -94,6 +96,8 @@ spec:
               backup_target:
                 type: string
               fixed_file_name:
+                type: string
+              service_account:
                 type: string
             required:
             - backup_target
@@ -194,6 +198,8 @@ spec:
                 type: string
               interval:
                 type: string
+              service_account:
+                type: string
               suspend:
                 type: boolean
               to_db_name:
@@ -253,6 +259,8 @@ spec:
           spec:
             properties:
               from_db_name:
+                type: string
+              service_account:
                 type: string
               to_db_name:
                 type: string
@@ -442,6 +450,8 @@ spec:
                 type: string
               restore_target:
                 type: string
+              service_account:
+                type: string
               suspend:
                 type: boolean
             required:
@@ -492,6 +502,8 @@ spec:
               fixed_file_name:
                 type: string
               restore_target:
+                type: string
+              service_account:
                 type: string
             required:
             - restore_target
@@ -589,6 +601,8 @@ spec:
             properties:
               access_key_id:
                 type: string
+              assume_role_arn:
+                type: string
               bucket_name:
                 type: string
               endpoint:
@@ -605,7 +619,6 @@ spec:
             - access_key_id
             - bucket_name
             - region
-            - secret_access_key_k8s_secret
             type: object
           status:
             description: S3StorageStatus defines the observed state of S3Storage
