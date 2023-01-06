@@ -27,7 +27,7 @@ type S3StorageSpec struct {
 	AccessKeyK8sSecret    string `json:"secret_access_key_k8s_secret,omitempty"`
 	AccessKeyK8sSecretKey string `json:"secret_access_key_k8s_secret_key,omitempty"`
 	Prefix                string `json:"prefix,omitempty"`
-	AccesKeyId            string `json:"access_key_id"`
+	AccesKeyId            string `json:"access_key_id,omitempty"`
 	Endpoint              string `json:"endpoint,omitempty"`
 }
 

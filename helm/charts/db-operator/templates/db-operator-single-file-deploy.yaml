@@ -616,7 +616,6 @@ spec:
               secret_access_key_k8s_secret_key:
                 type: string
             required:
-            - access_key_id
             - bucket_name
             - region
             type: object

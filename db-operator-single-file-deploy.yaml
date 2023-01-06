@@ -628,7 +628,6 @@ spec:
               secret_access_key_k8s_secret_key:
                 type: string
             required:
-            - access_key_id
             - bucket_name
             - region
             type: object
@@ -1328,7 +1327,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: obeleh/db-operator:0b7ebb7
+        image: obeleh/db-operator:1fc0bff
         livenessProbe:
           httpGet:
             path: /healthz
