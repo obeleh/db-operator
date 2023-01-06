@@ -2,7 +2,7 @@ operator:
   install: true
   image:
     repository: obeleh/db-operator
-    tag: "cb7c558"
+    tag: "ae85b4f"
   namespace: db-operator-system
 
 # Database Users

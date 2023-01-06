@@ -29,7 +29,8 @@ func Remove(arr []string, item string) []string {
 }
 
 var VALID_PRIVS = map[string][]string{
-	"database": {"CREATE", "CONNECT", "TEMPORARY", "TEMP", "ALL"},
+	// TODO: "TEMPORARY", "TEMP"
+	"database": {"CREATE", "CONNECT", "ALL"},
 	"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
 }
 var FLAGS = []string{"SUPERUSER", "CREATEROLE", "CREATEDB", "INHERIT", "LOGIN", "REPLICATION"}

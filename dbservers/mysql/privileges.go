@@ -647,7 +647,7 @@ func byteSliceSliceToStringSlice(inp [][]byte) []string {
 }
 
 func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]string, error) {
-	query := fmt.Sprintf("SHOW GRANTS for '%s'@'%s'", userName, host)
+	query := fmt.Sprintf("SHOW GRANTS for '%s'@'%s';", userName, host)
 	rows, err := conn.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read databases from server %s", err)

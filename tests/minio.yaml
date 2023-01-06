@@ -67,15 +67,26 @@ metadata:
 spec:
   template:
     spec:
+      initContainers:
+      - name: wait-for-minio
+        image: subfuzion/netcat
+        command: 
+        - /bin/sh
+        - "-c"
+        - >
+          while ! nc -z minio 9000; do   
+            sleep 0.2
+          done
       containers:
-      - name: initialize
+      - name: initialize-minio
         image: minio/mc
         command: 
         - /bin/sh
         - "-c"
         - >
+          set -xe
           /usr/bin/mc config host add testminio http://minio:9000 ROOTUSER DO_NOT_USE_IN_PROD;
-          /usr/bin/mc rm -r --force testminio/testbucket;
+          /usr/bin/mc rm -r --force testminio/testbucket || true;
           /usr/bin/mc mb testminio/testbucket;
           /usr/bin/mc policy download testminio/testbucket;
           exit 0;

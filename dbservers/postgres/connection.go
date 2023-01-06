@@ -26,7 +26,8 @@ func (p *PostgresConnection) GetConnectionString() string {
 	if len(p.Database) == 0 {
 		panic("No database configured")
 	}
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+	// sslmode=disable
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s",
 		p.Host, p.Port, p.UserName, p.Password, p.Database)
 }
 
@@ -35,7 +36,7 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`CREATE ROLE %q LOGIN PASSWORD '%s';`, userName, password))
+	_, err = conn.Exec(fmt.Sprintf(`CREATE USER %q LOGIN PASSWORD '%s';`, userName, password))
 	return err
 }
 

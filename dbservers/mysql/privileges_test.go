@@ -139,7 +139,7 @@ func TestPrivilegesUnpackNonAnsi(t *testing.T) {
 			Privs:  "ALL",
 		},
 	}
-	privMap, err := privilegesUnpack(privs, "")
+	privMap, err := privilegesUnpack(privs, "NOTANSI")
 	if err != nil {
 		t.Fatalf("Failed unpacking privileges %s", err)
 	}
@@ -326,6 +326,27 @@ func TestPrivilegesRevoke(t *testing.T) {
 	}
 }
 
-func TestShowGrants(t *testing.T) {
+/*
+func TestGetPrivileges(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
 
+	mockOutput := sqlmock.NewRows([]string{"@@GLOBAL.sql_mode"})
+	mock.ExpectQuery("SHOW GRANTS for 'USER'@'HOST';").WillReturnRows(mockOutput)
+	_, err = getPrivileges(db, "USER", "HOST")
+	// if len(privs) != 3 {
+	// 	t.Errorf("Expected XXX")
+	// }
+
+	if err != nil {
+		t.Errorf("getPrivileges failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("TestGetPrivileges: there were unfulfilled expectations: %s", err)
+	}
 }
+*/

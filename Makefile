@@ -110,11 +110,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 kind-cluster:
 	kind create cluster --config ./tests/kind-config.yaml
 
-start-test-cluster:
-	make docker-build
-	make kind-cluster
+start-test-cluster: docker-build kind-cluster install
 	# make deploy-kind
-	make install
 	kubectl apply -f ./tests/minio.yaml
 	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
 	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
@@ -124,6 +121,11 @@ start-test-cluster:
 	# kubectl -n postgres port-forward svc/postgres 5432 &
 	# kubectl -n mysql port-forward svc/mysql 3306 &
 
+start-test-mysql: docker-build kind-cluster install
+	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
+	kubectl apply -f ./tests/mysql/copy-job/00-dbserver.yaml
+	kubectl apply -f ./tests/mysql/copy-job/01-create-user.yaml
+	kubectl apply -f ./tests/mysql/copy-job/02-create-db.yaml
 
 ##@ Build
 
