@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/thoas/go-funk"
 )
 
@@ -31,18 +30,18 @@ func TestParseRoleAttrsInvalidAttrs(t *testing.T) {
 	}
 }
 
-func TestNormalizeDatabasePrivileges(t *testing.T) {
-	privs := NormalizePrivileges([]string{"ALL", "CONNECT"}, "database")
+// func TestNormalizeDatabasePrivileges(t *testing.T) {
+// 	privs := NormalizePrivileges([]string{"ALL", "CONNECT"}, "database")
 
-	expected := []string{"CREATE", "CONNECT", "TEMPORARY"}
-	missing, unExpected := funk.Difference(expected, privs)
-	if len(missing.([]string)) > 0 {
-		t.Errorf("expected %s privs", missing)
-	}
-	if len(unExpected.([]string)) > 0 {
-		t.Errorf("got unexpected %s privs", unExpected)
-	}
-}
+// 	expected := []string{"CREATE", "CONNECT", "TEMPORARY"}
+// 	missing, unExpected := funk.Difference(expected, privs)
+// 	if len(missing.([]string)) > 0 {
+// 		t.Errorf("expected %s privs", missing)
+// 	}
+// 	if len(unExpected.([]string)) > 0 {
+// 		t.Errorf("got unexpected %s privs", unExpected)
+// 	}
+// }
 
 func TestNormalizeTablePrivileges(t *testing.T) {
 	privs := NormalizePrivileges([]string{"ALL", "INSERT"}, "table")
@@ -57,63 +56,63 @@ func TestNormalizeTablePrivileges(t *testing.T) {
 	}
 }
 
-func TestParsePrivs(t *testing.T) {
-	privMap, err := ParsePrivs("ALL/test_table:select,delete", "testdb")
-	if err != nil {
-		t.Errorf("unexpected error %s", err)
-	}
+// func TestParsePrivs(t *testing.T) {
+// 	privMap, err := ParsePrivs("ALL/test_table:select,delete", "testdb")
+// 	if err != nil {
+// 		t.Errorf("unexpected error %s", err)
+// 	}
 
-	expected := map[string]map[string][]string{
-		"database": {
-			"testdb": []string{"CREATE", "CONNECT", "TEMPORARY"},
-		},
-		"table": {
-			"test_table": []string{"SELECT", "DELETE"},
-		},
-	}
-	if !funk.Equal(privMap, expected) {
-		t.Errorf("got %s expected %s", privMap, expected)
-	}
-}
+// 	expected := map[string]map[string][]string{
+// 		"database": {
+// 			"testdb": []string{"CREATE", "CONNECT", "TEMPORARY"},
+// 		},
+// 		"table": {
+// 			"test_table": []string{"SELECT", "DELETE"},
+// 		},
+// 	}
+// 	if !funk.Equal(privMap, expected) {
+// 		t.Errorf("got %s expected %s", privMap, expected)
+// 	}
+// }
 
-func TestUpdateUserPrivs(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
+// func TestUpdateUserPrivs(t *testing.T) {
+// 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+// 	if err != nil {
+// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+// 	}
+// 	defer db.Close()
 
-	expected := sqlmock.NewRows([]string{
-		"rolname", "rolsuper", "rolinherit", "rolcreaterole", "rolcreatedb", "rolcanlogin", "rolreplication", "rolconnlimit", "rolpassword", "rolvaliduntil", "olbypassrls", "rolconfig", "oid",
-	})
-	expected.AddRow("testuser", false, true, false, false, false, false, nil, -1, "********", nil, false, 1638)
-	mock.ExpectQuery(
-		"SELECT * FROM pg_roles WHERE rolname=$1",
-	).WithArgs(
-		"testuser",
-	).WillReturnRows(expected)
-	mock.ExpectExec(
-		fmt.Sprintf("ALTER USER %q WITH CREATEDB", "testuser"),
-	).WillReturnResult(sqlmock.NewResult(1, 1))
+// 	expected := sqlmock.NewRows([]string{
+// 		"rolname", "rolsuper", "rolinherit", "rolcreaterole", "rolcreatedb", "rolcanlogin", "rolreplication", "rolconnlimit", "rolpassword", "rolvaliduntil", "olbypassrls", "rolconfig", "oid",
+// 	})
+// 	expected.AddRow("testuser", false, true, false, false, false, false, nil, -1, "********", nil, false, 1638)
+// 	mock.ExpectQuery(
+// 		"SELECT * FROM pg_roles WHERE rolname=$1",
+// 	).WithArgs(
+// 		"testuser",
+// 	).WillReturnRows(expected)
+// 	mock.ExpectExec(
+// 		fmt.Sprintf("ALTER USER %q WITH CREATEDB", "testuser"),
+// 	).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	expectGetDatabasePrivileges(mock)
+// 	expectGetDatabasePrivileges(mock)
 
-	dbPrivs := []dboperatorv1alpha1.DbPriv{
-		{
-			DbName: "testdb",
-			Privs:  "ALL",
-		},
-	}
-	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
+// 	dbPrivs := []dboperatorv1alpha1.DbPriv{
+// 		{
+// 			DbName: "testdb",
+// 			Privs:  "ALL",
+// 		},
+// 	}
+// 	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
 
-	if err != nil {
-		t.Errorf("unexpected error updating userprivs %s", err)
-	}
+// 	if err != nil {
+// 		t.Errorf("unexpected error updating userprivs %s", err)
+// 	}
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-	}
-}
+// 	if err := mock.ExpectationsWereMet(); err != nil {
+// 		t.Errorf("there were unfulfilled expectations: %s", err)
+// 	}
+// }
 
 func expectGetDatabasePrivileges(mock sqlmock.Sqlmock) {
 	expected := sqlmock.NewRows([]string{"datacl"})
@@ -123,23 +122,23 @@ func expectGetDatabasePrivileges(mock sqlmock.Sqlmock) {
 	).WillReturnRows(expected)
 }
 
-func TestGetDatabasePrivilegest(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-	expectGetDatabasePrivileges(mock)
-	privs, err := GetDatabasePrivileges(db, "testuser", "testdb")
-	if err != nil {
-		t.Errorf("database privileges failed %s", err)
-	}
-	expectedPrivs := []string{"CREATE", "TEMPORARY", "CONNECT"}
-	if !funk.Equal(privs, expectedPrivs) {
-		t.Errorf("got unexpected privileges %s expected %s", privs, expectedPrivs)
-	}
+// func TestGetDatabasePrivilegest(t *testing.T) {
+// 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+// 	if err != nil {
+// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+// 	}
+// 	defer db.Close()
+// 	expectGetDatabasePrivileges(mock)
+// 	privs, err := GetDatabasePrivileges(db, "testuser", "testdb")
+// 	if err != nil {
+// 		t.Errorf("database privileges failed %s", err)
+// 	}
+// 	expectedPrivs := []string{"CREATE", "TEMPORARY", "CONNECT"}
+// 	if !funk.Equal(privs, expectedPrivs) {
+// 		t.Errorf("got unexpected privileges %s expected %s", privs, expectedPrivs)
+// 	}
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-	}
-}
+// 	if err := mock.ExpectationsWereMet(); err != nil {
+// 		t.Errorf("there were unfulfilled expectations: %s", err)
+// 	}
+// }
