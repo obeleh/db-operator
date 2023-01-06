@@ -192,7 +192,7 @@ generate-deploys:
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > db-operator-single-file-deploy.yaml
 	echo '{{ if .Values.operator.install }}' > helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
-	tail -n +8 db-operator-single-file-deploy.yaml >> helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
+	tail -n +14 db-operator-single-file-deploy.yaml >> helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	echo '{{ end }}' >> helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
 	echo 's/${REPO_SED}:\w+/{{ .Values.operator.image.tag}}/g'
 	sed -i.bak 's/db-operator-system/{{ .Values.operator.namespace}}/g' helm/charts/db-operator/templates/db-operator-single-file-deploy.yaml
