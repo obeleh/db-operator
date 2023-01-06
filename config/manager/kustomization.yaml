@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: obeleh/db-operator
-  newTag: bd8bb44
+  newTag: "6874581"

@@ -61,8 +61,7 @@ kubectl kuttl test --config kuttl-test-postgres.yaml
 ```
 # up helm chart version in helm/charts/db-operator/Chart.yaml
 # git commit
-make docker-build
-make docker-push
+make docker-buildx
 make generate-deploys
 # git add new tgz file
 # git commit and push
