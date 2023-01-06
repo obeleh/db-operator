@@ -204,7 +204,7 @@ func (r *Reco) GetS3Storage(storageLocation string) (dboperatorv1alpha1.S3Storag
 	return *s3Storage, err
 }
 
-func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, jobName string) batchv1.Job {
+func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, jobName string, serviceAccount string) batchv1.Job {
 	podSpec := v1.PodSpec{
 		InitContainers: initContainers,
 		Containers: []v1.Container{
@@ -212,6 +212,10 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 		},
 		RestartPolicy: v1.RestartPolicyNever,
 		Volumes:       shared.GetVolumes(),
+	}
+
+	if serviceAccount != "" {
+		podSpec.ServiceAccountName = serviceAccount
 	}
 
 	return batchv1.Job{
@@ -230,7 +234,7 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 	}
 }
 
-func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string, suspend bool) batchv1beta.CronJob {
+func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string, suspend bool, serviceAccount string) batchv1beta.CronJob {
 	podSpec := v1.PodSpec{
 		InitContainers: initContainers,
 		Containers: []v1.Container{
@@ -238,6 +242,10 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 		},
 		RestartPolicy: v1.RestartPolicyNever,
 		Volumes:       shared.GetVolumes(),
+	}
+
+	if serviceAccount != "" {
+		podSpec.ServiceAccountName = serviceAccount
 	}
 
 	return batchv1beta.CronJob{

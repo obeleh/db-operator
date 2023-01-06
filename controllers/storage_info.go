@@ -23,15 +23,22 @@ func (s *S3StorageInfo) BuildContainer(script string, fixedFileName *string) v1.
 		{Name: "S3_BUCKET_NAME", Value: s.S3Storage.Spec.BucketName},
 		{Name: "S3_PREFIX", Value: s.S3Storage.Spec.Prefix},
 		{Name: "AWS_DEFAULT_REGION", Value: s.S3Storage.Spec.Region},
-		{Name: "AWS_ACCESS_KEY_ID", Value: s.S3Storage.Spec.AccesKeyId},
-		{Name: "AWS_SECRET_ACCESS_KEY", ValueFrom: &v1.EnvVarSource{
+	}
+
+	if s.S3Storage.Spec.AccesKeyId != "" {
+		envVars = append(envVars, v1.EnvVar{Name: "AWS_ACCESS_KEY_ID", Value: s.S3Storage.Spec.AccesKeyId})
+		envVars = append(envVars, v1.EnvVar{Name: "AWS_SECRET_ACCESS_KEY", ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: s.S3Storage.Spec.AccessKeyK8sSecret,
 				},
 				Key: shared.Nvl(s.S3Storage.Spec.AccessKeyK8sSecretKey, "SECRET_ACCESS_KEY"),
 			},
-		}},
+		}})
+	}
+
+	if s.S3Storage.Spec.RoleArn != "" {
+		envVars = append(envVars, v1.EnvVar{Name: "AWS_ROLE_ARN", Value: s.S3Storage.Spec.RoleArn})
 	}
 
 	if fixedFileName != nil {

@@ -21,8 +21,9 @@ import (
 )
 
 type DbCopyJobSpec struct {
-	FromDbName string `json:"from_db_name"`
-	ToDbName   string `json:"to_db_name"`
+	FromDbName     string `json:"from_db_name"`
+	ToDbName       string `json:"to_db_name"`
+	ServiceAccount string `json:"service_account,omitempty"`
 }
 
 // DbCopyJobStatus defines the observed state of DbCopyJob

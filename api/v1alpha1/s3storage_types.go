@@ -23,7 +23,8 @@ import (
 type S3StorageSpec struct {
 	BucketName            string `json:"bucket_name"`
 	Region                string `json:"region"`
-	AccessKeyK8sSecret    string `json:"secret_access_key_k8s_secret"`
+	RoleArn               string `json:"assume_role_arn,omitempty"`
+	AccessKeyK8sSecret    string `json:"secret_access_key_k8s_secret,omitempty"`
 	AccessKeyK8sSecretKey string `json:"secret_access_key_k8s_secret_key,omitempty"`
 	Prefix                string `json:"prefix,omitempty"`
 	AccesKeyId            string `json:"access_key_id"`

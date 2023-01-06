@@ -82,7 +82,7 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	restoreContainer := dbInfo.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreJob.Spec.FixedFileName)
 
-	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name)
+	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name, r.restoreJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {

@@ -25,10 +25,11 @@ import (
 
 // DbCopyCronJobSpec defines the desired state of DbCopyCronJob
 type DbCopyCronJobSpec struct {
-	FromDbName string `json:"from_db_name"`
-	ToDbName   string `json:"to_db_name"`
-	Interval   string `json:"interval"`
-	Suspend    bool   `json:"suspend"`
+	FromDbName     string `json:"from_db_name"`
+	ToDbName       string `json:"to_db_name"`
+	Interval       string `json:"interval"`
+	Suspend        bool   `json:"suspend"`
+	ServiceAccount string `json:"service_account,omitempty"`
 }
 
 // DbCopyCronJobStatus defines the observed state of DbCopyCronJob

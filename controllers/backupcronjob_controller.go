@@ -93,7 +93,14 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	backupContainer := dbInfo.BuildBackupContainer()
 	uploadContainer := storageInfo.BuildUploadContainer(r.backupCronJob.Spec.FixedFileName)
-	cronJob := r.BuildCronJob([]v1.Container{backupContainer}, uploadContainer, r.backupCronJob.Name, r.backupCronJob.Spec.Interval, r.backupCronJob.Spec.Suspend)
+	cronJob := r.BuildCronJob(
+		[]v1.Container{backupContainer},
+		uploadContainer,
+		r.backupCronJob.Name,
+		r.backupCronJob.Spec.Interval,
+		r.backupCronJob.Spec.Suspend,
+		r.backupCronJob.Spec.ServiceAccount,
+	)
 
 	err = r.client.Create(r.ctx, &cronJob)
 	if err != nil {

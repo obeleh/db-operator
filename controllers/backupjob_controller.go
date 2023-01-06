@@ -79,7 +79,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 
 	backupContainer := dbInfo.BuildBackupContainer()
 	uploadContainer := backupInfo.BuildUploadContainer(r.backupJob.Spec.FixedFileName)
-	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name)
+	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name, r.backupJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {

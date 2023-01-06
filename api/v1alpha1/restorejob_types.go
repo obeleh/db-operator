@@ -21,8 +21,9 @@ import (
 )
 
 type RestoreJobSpec struct {
-	RestoreTarget string  `json:"restore_target"`
-	FixedFileName *string `json:"fixed_file_name,omitempty"`
+	RestoreTarget  string  `json:"restore_target"`
+	FixedFileName  *string `json:"fixed_file_name,omitempty"`
+	ServiceAccount string  `json:"service_account,omitempty"`
 }
 
 // RestoreJobStatus defines the observed state of RestoreJob

@@ -87,7 +87,7 @@ func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
 	backupContainer := fromDbInfo.BuildBackupContainer()
 	restoreContainer := toDbInfo.BuildRestoreContainer()
 
-	job := r.BuildJob([]v1.Container{backupContainer}, restoreContainer, r.copyJob.Name)
+	job := r.BuildJob([]v1.Container{backupContainer}, restoreContainer, r.copyJob.Name, r.copyJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)
 	if err != nil {
