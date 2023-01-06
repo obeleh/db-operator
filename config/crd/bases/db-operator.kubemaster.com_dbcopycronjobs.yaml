@@ -39,6 +39,8 @@ spec:
                 type: string
               interval:
                 type: string
+              service_account:
+                type: string
               suspend:
                 type: boolean
               to_db_name:

@@ -38,6 +38,8 @@ spec:
                 type: string
               restore_target:
                 type: string
+              service_account:
+                type: string
             required:
             - restore_target
             type: object

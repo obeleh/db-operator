@@ -36,6 +36,8 @@ spec:
             properties:
               from_db_name:
                 type: string
+              service_account:
+                type: string
               to_db_name:
                 type: string
             required:

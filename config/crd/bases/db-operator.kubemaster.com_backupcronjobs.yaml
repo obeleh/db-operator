@@ -40,6 +40,8 @@ spec:
                 type: string
               interval:
                 type: string
+              service_account:
+                type: string
               suspend:
                 type: boolean
             required:
