@@ -4,6 +4,7 @@ package postgres
 
 import (
 	path "path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/obeleh/db-operator/shared"
@@ -43,6 +44,7 @@ func (i *PostgresDbInfo) BuildContainer(scriptName string) v1.Container {
 	envVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
 		{Name: "PGUSER", Value: dbServer.Spec.UserName},
+		{Name: "PGPORT", Value: strconv.Itoa(dbServer.Spec.Port)},
 		{Name: "PGPASSWORD", ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{

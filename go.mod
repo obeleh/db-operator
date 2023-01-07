@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/hashicorp/go-version v1.6.0
+	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.7
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0

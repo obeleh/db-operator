@@ -5,7 +5,9 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"regexp"
+	"strconv"
 	"strings"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
@@ -13,6 +15,33 @@ import (
 	"github.com/obeleh/db-operator/shared"
 	funk "github.com/thoas/go-funk"
 )
+
+type PostgresVersion struct {
+	ProductName string
+	VersionStr  string
+	Major       int
+	Minor       int
+	Patch       int
+}
+
+const PostgreSQL = "PostgreSQL"
+const CockroachDB = "CockroachDB"
+
+func (p *PostgresVersion) GetValidPrivs(privType string) []string {
+	if p.ProductName == PostgreSQL {
+		return map[string][]string{
+			"database": {"CREATE", "CONNECT", "TEMPORARY", "TEMP", "ALL"},
+			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
+		}[privType]
+	} else if p.ProductName == CockroachDB {
+		return map[string][]string{
+			"database": {"CREATE", "CONNECT", "ALL"},
+			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
+		}[privType]
+	}
+	log.Fatalf("Unknown product name %s", p.ProductName)
+	return []string{}
+}
 
 func StringNotEmpty(input string) bool {
 	return len(input) != 0
@@ -28,11 +57,6 @@ func Remove(arr []string, item string) []string {
 	return output
 }
 
-var VALID_PRIVS = map[string][]string{
-	// TODO: "TEMPORARY", "TEMP"
-	"database": {"CREATE", "CONNECT", "ALL"},
-	"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
-}
 var FLAGS = []string{"SUPERUSER", "CREATEROLE", "CREATEDB", "INHERIT", "LOGIN", "REPLICATION"}
 var PRIV_TO_AUTHID_COLUMN = map[string]string{
 	"SUPERUSER":   "rolsuper",
@@ -91,10 +115,10 @@ func ParseRoleAttrs(role_attr_flags string, version int) ([]string, error) {
 	return flags, nil
 }
 
-func NormalizePrivileges(privs []string, privType string) []string {
+func NormalizePrivileges(privs []string, privType string, serverVersion *PostgresVersion) []string {
 	newPrivs := privs
 	if funk.Contains(newPrivs, "ALL") {
-		newPrivs = append(newPrivs, VALID_PRIVS[privType]...)
+		newPrivs = append(newPrivs, serverVersion.GetValidPrivs(privType)...)
 		newPrivs = Remove(newPrivs, "ALL")
 	}
 	if funk.Contains(newPrivs, "TEMP") {
@@ -109,7 +133,7 @@ func toPrivSet(input string) []string {
 	return funk.Map(funk.FilterString(trimmedItems, StringNotEmpty), strings.ToUpper).([]string)
 }
 
-func ParsePrivs(privs string, db string) (map[string]map[string][]string, error) {
+func ParsePrivs(privs string, db string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
 	if len(privs) == 0 {
 		return nil, nil
 	}
@@ -136,14 +160,64 @@ func ParsePrivs(privs string, db string) (map[string]map[string][]string, error)
 			privSet = toPrivSet(token)
 		}
 
-		if !funk.Subset(privSet, VALID_PRIVS[privType]) {
-			invalidPrivs := strings.Join(funk.Subtract(privSet, VALID_PRIVS[privType]).([]string), " ")
+		if !funk.Subset(privSet, serverVersion.GetValidPrivs(privType)) {
+			invalidPrivs := strings.Join(funk.Subtract(privSet, serverVersion.GetValidPrivs(privType)).([]string), " ")
 			return nil, fmt.Errorf("invalid privs specified for %s: %s", privType, invalidPrivs)
 		}
-		privSet = NormalizePrivileges(privSet, privType)
+		privSet = NormalizePrivileges(privSet, privType, serverVersion)
 		oPrivs[privType][name] = privSet
 	}
 	return oPrivs, nil
+}
+
+func parseVersionString(versionResult string) (*PostgresVersion, error) {
+	parts := strings.Split(versionResult, " ")
+	productName := parts[0]
+	var versionStr string
+	var versionParts []string
+	if productName == PostgreSQL {
+		versionStr = parts[1]
+		versionParts = strings.Split(versionStr, ".")
+	} else if productName == CockroachDB {
+		versionStr = parts[2]
+		versionParts = strings.Split(versionStr[1:], ".")
+	} else {
+		return nil, fmt.Errorf("Unexpected productname %s", productName)
+	}
+
+	major, err := strconv.Atoi(versionParts[0])
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing major version")
+	}
+	minor, err := strconv.Atoi(versionParts[1])
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing minor version")
+	}
+
+	patch := -1
+	if len(versionParts) > 2 {
+		patch, err = strconv.Atoi(versionParts[2])
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing patch version")
+		}
+	}
+
+	return &PostgresVersion{
+		ProductName: productName,
+		VersionStr:  versionStr,
+		Major:       major,
+		Minor:       minor,
+		Patch:       patch,
+	}, nil
+}
+
+func getServerVersion(conn *sql.DB) (*PostgresVersion, error) {
+	versionResult, err := query_utils.SelectFirstValueString(conn, "SELECT version();")
+	if err != nil {
+		return nil, err
+	}
+
+	return parseVersionString(versionResult)
 }
 
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
@@ -156,6 +230,12 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	currentRoleAttrs := maps[0]
 	var serverPrivsChanging bool = false
 	// TODO Scan server version and add to parser
+
+	serverVersion, err := getServerVersion(conn)
+	if err != nil {
+		return false, err
+	}
+
 	roleAttrFlags, err := ParseRoleAttrs(serverPrivs, 0)
 	if err != nil {
 		return false, err
@@ -183,7 +263,7 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	for _, dbPriv := range dbPrivs {
-		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.DbName)
+		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.DbName, serverVersion)
 		if err != nil {
 			return changed, err
 		}
@@ -283,7 +363,13 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 			returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
 		}
 	}
-	return NormalizePrivileges(returnArray, "database"), nil
+
+	serverVersion, err := getServerVersion(conn)
+	if err != nil {
+		return returnArray, err
+	}
+
+	return NormalizePrivileges(returnArray, "database", serverVersion), nil
 }
 
 func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
