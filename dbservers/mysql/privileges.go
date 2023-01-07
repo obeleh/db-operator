@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	version "github.com/hashicorp/go-version"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
+	"github.com/obeleh/db-operator/shared"
 	"github.com/thoas/go-funk"
 )
 
@@ -39,9 +41,15 @@ tls_requires: -> Modify user to no longer require SSL
 
 Example privileges string format
 mydb.*:INSERT,UPDATE/anotherdb.*:SELECT/yetanotherdb.*:ALL
-
-
 */
+
+type MySQLVersion struct {
+	Product    string
+	VersionStr string
+	Major      int
+	Minor      int
+	Patch      int
+}
 
 // https://github.com/ansible-collections/community.mysql/blob/main/plugins/modules/mysql_user.py
 
@@ -781,4 +789,56 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 		}
 	}
 	return changes, nil
+}
+
+func propertiesMapToMySqlVersion(properties map[string]interface{}) (*MySQLVersion, error) {
+	version, found := properties["version"]
+	if !found {
+		return nil, fmt.Errorf("Unable to find 'version'")
+	}
+	versionComment, found := properties["version_comment"]
+	if !found {
+		return nil, fmt.Errorf("Unable to find 'version_comment'")
+	}
+
+	versionStr := version.(string)
+	versionParts := strings.Split(versionStr, ".")
+	major, err := strconv.Atoi(versionParts[0])
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing major version")
+	}
+	minor, err := strconv.Atoi(versionParts[1])
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing minor version")
+	}
+
+	patch := -1
+	if len(versionParts) > 2 {
+		// version = ["5", "5," "60-MariaDB"]
+		if strings.Contains(versionParts[2], "-") {
+			patchParts := strings.Split(versionParts[2], "-")
+			versionComment = fmt.Sprintf("%s %s", patchParts[1], versionComment)
+			versionParts[2] = patchParts[0]
+		}
+		patch, err = strconv.Atoi(versionParts[2])
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing patch version")
+		}
+	}
+
+	return &MySQLVersion{
+		Product:    versionComment.(string),
+		VersionStr: versionStr,
+		Major:      major,
+		Minor:      minor,
+		Patch:      patch,
+	}, nil
+}
+
+func getServerVersion(conn *sql.DB) (*MySQLVersion, error) {
+	properties, err := shared.SelectToPropertyMap(conn, "SHOW GLOBAL VARIABLES where Variable_name like 'version%';", "Variable_name", "Value")
+	if err != nil {
+		return nil, err
+	}
+	return propertiesMapToMySqlVersion(properties)
 }

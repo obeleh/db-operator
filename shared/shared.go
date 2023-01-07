@@ -2,6 +2,7 @@ package shared
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	path "path/filepath"
 	"regexp"
@@ -95,4 +96,54 @@ func SelectToArrayMap(conn *sql.DB, query string, args ...interface{}) ([]map[st
 	}
 
 	return rowMaps, nil
+}
+
+func SelectToPropertyMap(conn *sql.DB, query string, key string, value string, args ...interface{}) (map[string]interface{}, error) {
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var keyCol int = -1
+	var valCol int = -1
+	for i, colName := range cols {
+		if colName == key {
+			keyCol = i
+		}
+		if colName == value {
+			valCol = i
+		}
+	}
+	if keyCol == -1 {
+		return nil, fmt.Errorf("KeyColumn not found $s", key)
+	}
+	if valCol == -1 {
+		return nil, fmt.Errorf("ValueColumn not found $s", value)
+	}
+
+	propertyMap := make(map[string]interface{}, 0)
+
+	for rows.Next() {
+		// Create a slice of interface{}'s to represent each column,
+		// and a second slice to contain pointers to each item in the columns slice.
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		// Scan the result into the column pointers...
+		if err := rows.Scan(columnPointers...); err != nil {
+			return nil, err
+		}
+
+		keyVal := columns[keyCol].(string)
+		propertyMap[keyVal] = columns[valCol]
+	}
+
+	return propertyMap, nil
 }

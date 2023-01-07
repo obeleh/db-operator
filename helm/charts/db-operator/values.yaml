@@ -47,7 +47,6 @@ Dbs: []
 #- name: example-db
 #  db_name: example-db
 #  drop_on_deletion: false
-#  owner: example-user
 #  server: example-host
 
 BackupTargets: []

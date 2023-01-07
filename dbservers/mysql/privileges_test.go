@@ -350,3 +350,54 @@ func TestGetPrivileges(t *testing.T) {
 	}
 }
 */
+
+func TestPropertiesMapToMySQLVersion(t *testing.T) {
+	propertiesMap := map[string]interface{}{
+		"version":                 "8.0.31",
+		"version_comment":         "MySQL Community Server - GPL",
+		"version_compile_machine": "aarch64",
+		"version_compile_os":      "Linux",
+		"version_compile_zlib":    "1.2.12",
+	}
+	found, err := propertiesMapToMySqlVersion(propertiesMap)
+	if err != nil {
+		t.Errorf("propertiesMapToMySqlVersion failed: %s", err)
+	}
+
+	expected := &MySQLVersion{
+		Product:    "MySQL Community Server - GPL",
+		VersionStr: "8.0.31",
+		Major:      8,
+		Minor:      0,
+		Patch:      31,
+	}
+
+	if !reflect.DeepEqual(found, expected) {
+		t.Error("Version parsing for MySQL failed")
+	}
+}
+
+func TestPropertiesMapToMySQLVersionMariaDb(t *testing.T) {
+	propertiesMap := map[string]interface{}{
+		"version":                 "5.5.60-MariaDB",
+		"version_comment":         "Source distribution",
+		"version_compile_machine": "i686",
+		"version_compile_os":      "suse-linux",
+	}
+	found, err := propertiesMapToMySqlVersion(propertiesMap)
+	if err != nil {
+		t.Errorf("propertiesMapToMySqlVersion failed: %s", err)
+	}
+
+	expected := &MySQLVersion{
+		Product:    "MariaDB Source distribution",
+		VersionStr: "5.5.60-MariaDB",
+		Major:      5,
+		Minor:      5,
+		Patch:      60,
+	}
+
+	if !reflect.DeepEqual(found, expected) {
+		t.Error("Version parsing for MySQL failed")
+	}
+}
