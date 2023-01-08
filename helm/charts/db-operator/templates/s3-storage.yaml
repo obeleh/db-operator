@@ -6,6 +6,9 @@ metadata:
 spec:
   bucket_name: {{ quote .bucket_name }}
   region: {{ quote .region }}
+{{- if .endpoint }}
+  endpoint: {{ quote .endpoint }}
+{{ end -}}
   secret_access_key_k8s_secret: {{ quote .secret_access_key_k8s_secret }}
   access_key_id: {{ quote .access_key_id }}
   prefix: {{ quote .prefix }}

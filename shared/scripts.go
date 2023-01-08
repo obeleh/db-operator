@@ -72,6 +72,7 @@ echo "download done"
 `
 
 const UPLOAD_S3_SCRIPT string = `#!/bin/bash -e
+shopt -s expand_aliases
 if [[ ! -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi
 
 LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
@@ -82,6 +83,7 @@ echo "upload done"
 `
 
 const DOWNLOAD_S3_SCRIPT string = `#!/bin/bash -e
+shopt -s expand_aliases
 if [[ ! -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi
 
 if [[ -z "$S3_FILE_NAME" ]]; then

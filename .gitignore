@@ -25,7 +25,6 @@ Dockerfile.cross
 *.swo
 *~
 
-*-secret.yaml
 tests/outputs
 kubeconfig
 __debug_bin

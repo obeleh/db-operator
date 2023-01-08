@@ -3,8 +3,9 @@ kind: S3Storage
 metadata:
   name: example-s3-storage
 spec:
-  bucket_name: db-operator-sjuul
+  bucket_name: testbucket
   region: eu-west-1
+  endpoint: http://minio:9000
   secret_access_key_k8s_secret: s3-secret
-  access_key_id: AKIA354V5YCFESZDSRQA
+  access_key_id: MYKEY
   prefix: postgres/
