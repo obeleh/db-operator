@@ -72,7 +72,7 @@ echo "download done"
 `
 
 const UPLOAD_S3_SCRIPT string = `#!/bin/bash -e
-if [[ -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi 
+if [[ ! -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi
 
 LATEST_BACKUP=$(find /backups/ -type f | sort | tail -n 1)
 LATEST_BACKUP_BASE_NAME=$(basename "$LATEST_BACKUP")
@@ -82,7 +82,7 @@ echo "upload done"
 `
 
 const DOWNLOAD_S3_SCRIPT string = `#!/bin/bash -e
-if [[ -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi 
+if [[ ! -z "${S3_ENDPOINT}" ]]; then alias aws='aws --endpoint-url $S3_ENDPOINT'; fi
 
 if [[ -z "$S3_FILE_NAME" ]]; then
 	# if not set find the latest file
