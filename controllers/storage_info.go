@@ -45,6 +45,10 @@ func (s *S3StorageInfo) BuildContainer(script string, fixedFileName *string) v1.
 		envVars = append(envVars, v1.EnvVar{Name: "S3_FILE_NAME", Value: *fixedFileName})
 	}
 
+	if s.S3Storage.Spec.Endpoint != "" {
+		envVars = append(envVars, v1.EnvVar{Name: "S3_ENDPOINT", Value: s.S3Storage.Spec.Endpoint})
+	}
+
 	return v1.Container{
 		Name:  "s3-upload",
 		Image: "amazon/aws-cli",

@@ -119,10 +119,10 @@ func SelectToPropertyMap(conn *sql.DB, query string, key string, value string, a
 		}
 	}
 	if keyCol == -1 {
-		return nil, fmt.Errorf("KeyColumn not found $s", key)
+		return nil, fmt.Errorf("KeyColumn not found %s", key)
 	}
 	if valCol == -1 {
-		return nil, fmt.Errorf("ValueColumn not found $s", value)
+		return nil, fmt.Errorf("ValueColumn not found %s", value)
 	}
 
 	propertyMap := make(map[string]interface{}, 0)
