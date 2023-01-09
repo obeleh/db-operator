@@ -36,8 +36,6 @@ But also:
 
 ### Running tests
 
-Unfortunately the credentials for S3 are not included in this git repo.
-
 Quick way:
 
 ```
@@ -65,6 +63,12 @@ make docker-buildx
 make generate-deploys
 # git add new tgz file
 # git commit and push
+```
+
+### Creating new controllers
+
+```
+operator-sdk create api --group db-operator --version v1alpha1 --kind <KIND> --resource --controller
 ```
 
 ### Running the operator on your machine with the resources in Kind cluster

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/dbservers/query_utils"
 	"github.com/obeleh/db-operator/shared"
 )
 
@@ -151,4 +152,53 @@ func (p *PostgresConnection) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	return shared.SelectToArrayMap(conn, "WITH x as (SHOW JOBS) SELECT * FROM x WHERE job_type = 'BACKUP' ORDER BY created DESC LIMIT 100;")
+}
+
+func (p *PostgresConnection) GetBackupJobById(jobId string) (map[string]interface{}, bool, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return nil, false, err
+	}
+
+	maps, err := shared.SelectToArrayMap(conn, "WITH x as (SHOW JOBS) SELECT * FROM x WHERE job_type = 'BACKUP' AND job_id=$1;", jobId)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if len(maps) == 0 {
+		return nil, false, nil
+	}
+
+	return maps[0], true, nil
+}
+
+func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (string, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return "", err
+	}
+
+	/*
+		BACKUP INTO {'subdirectory'} IN 's3://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}' \
+		AS OF SYSTEM TIME '-10s';
+	*/
+
+	qry := "BACKUP INTO"
+	if len(bucketStorageInfo.Prefix) > 0 {
+		qry += fmt.Sprintf(" {'%s'}", bucketStorageInfo.Prefix)
+	}
+
+	qry += " IN '%s://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}'"
+	qry += " WITH DETACHED;"
+
+	return query_utils.SelectFirstValueString(conn, qry)
 }
