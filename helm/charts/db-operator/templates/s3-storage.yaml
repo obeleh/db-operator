@@ -9,8 +9,15 @@ spec:
 {{- if .endpoint }}
   endpoint: {{ quote .endpoint }}
 {{ end -}}
+{{- if .secret_access_key_k8s_secret }}
   secret_access_key_k8s_secret: {{ quote .secret_access_key_k8s_secret }}
+{{ end -}}
+{{- if .access_key_id }}
   access_key_id: {{ quote .access_key_id }}
+{{ end -}}
   prefix: {{ quote .prefix }}
+{{- if .assume_role_arn }}
+  assume_role_arn: {{ quote .assume_role_arn }}
+{{ end -}}
 ---
 {{ end -}}

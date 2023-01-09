@@ -6,5 +6,6 @@ metadata:
 spec:
   from_db_name: {{ quote .from_db_name }}
   to_db_name: {{ quote .to_db_name }}
+  service_account: {{ quote .service_account}}
 ---
 {{ end -}}

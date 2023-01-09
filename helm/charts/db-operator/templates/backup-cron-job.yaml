@@ -7,5 +7,6 @@ spec:
   backup_target: {{ quote .backup_target }}
   interval: {{ quote .interval }}
   suspend: {{ .suspend }}
+  service_account: {{ quote .service_account}}
 ---
 {{ end -}}
