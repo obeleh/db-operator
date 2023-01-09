@@ -189,7 +189,8 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string,
 
 	/*
 		BACKUP INTO {'subdirectory'} IN 's3://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}' \
-		AS OF SYSTEM TIME '-10s';
+		AS OF SYSTEM TIME '-10s'
+		WITH DETACHED;
 	*/
 
 	qry := "BACKUP INTO"
@@ -197,8 +198,15 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string,
 		qry += fmt.Sprintf(" {'%s'}", bucketStorageInfo.Prefix)
 	}
 
-	qry += " IN '%s://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}'"
-	qry += " WITH DETACHED;"
+	qry += fmt.Sprintf(" IN '%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName)
 
+	if len(bucketStorageInfo.KeyName) > 0 {
+		qry += fmt.Sprintf("?AWS_ACCESS_KEY_ID=%s", bucketStorageInfo.KeyName)
+		if len(bucketSecret) > 0 {
+			qry += fmt.Sprintf("&AWS_SECRET_ACCESS_KEY=%s", bucketSecret)
+		}
+	}
+
+	qry += " WITH DETACHED;"
 	return query_utils.SelectFirstValueString(conn, qry)
 }
