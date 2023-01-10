@@ -69,6 +69,27 @@ func SelectFirstValueInt(conn *sql.DB, query string, args ...interface{}) (int, 
 	}
 }
 
+func SelectFirstValueInt64(conn *sql.DB, query string, args ...interface{}) (int64, error) {
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return -1, err
+	}
+
+	if rows.Next() {
+		value := sql.NullInt64{}
+		err := rows.Scan(&value)
+		if err != nil {
+			return -1, fmt.Errorf("unable to load int")
+		}
+		if !value.Valid {
+			return -1, fmt.Errorf("got null, expected int")
+		}
+		return int64(value.Int64), nil
+	} else {
+		return -1, fmt.Errorf("no rows returned")
+	}
+}
+
 func SelectFirstValueStringSlice(conn *sql.DB, query string, args ...interface{}) ([]string, error) {
 	rows, err := conn.Query(query, args...)
 	if err != nil {

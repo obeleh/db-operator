@@ -27,13 +27,13 @@ type CockroachDBBackupJobSpec struct {
 
 // CockroachDBBackupJobStatus defines the observed state of CockroachDBBackupJob
 type CockroachDBBackupJobStatus struct {
-	JobId            string `json:"job_id"`
-	Status           string `json:"status"`
-	FractionComplete int    `json:"fraction_complete"`
-	Rows             int    `json:"rows"`
-	IndexEntries     int    `json:"index_entries"`
-	Bytes            int    `json:"bytes"`
-	Description      string `json:"description"`
+	JobId       string      `json:"job_id"`
+	Status      string      `json:"status"`
+	Description string      `json:"description"`
+	Created     metav1.Time `json:"created"`
+	Started     metav1.Time `json:"started"`
+	Finished    metav1.Time `json:"finished"`
+	Error       string      `json:"error"`
 }
 
 //+kubebuilder:object:root=true

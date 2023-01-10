@@ -163,7 +163,7 @@ func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
 	return shared.SelectToArrayMap(conn, "WITH x as (SHOW JOBS) SELECT * FROM x WHERE job_type = 'BACKUP' ORDER BY created DESC LIMIT 100;")
 }
 
-func (p *PostgresConnection) GetBackupJobById(jobId string) (map[string]interface{}, bool, error) {
+func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface{}, bool, error) {
 	conn, err := p.GetDbConnection()
 	if err != nil {
 		return nil, false, err
@@ -181,32 +181,34 @@ func (p *PostgresConnection) GetBackupJobById(jobId string) (map[string]interfac
 	return maps[0], true, nil
 }
 
-func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (string, error) {
+func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
 	conn, err := p.GetDbConnection()
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	/*
-		BACKUP INTO {'subdirectory'} IN 's3://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}' \
-		AS OF SYSTEM TIME '-10s'
-		WITH DETACHED;
+		BACKUP DATABASE bank \
+		INTO 's3://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}' \
+		AS OF SYSTEM TIME '-10s';
 	*/
 
-	qry := "BACKUP INTO"
+	qry := fmt.Sprintf("BACKUP DATABASE \"%s\" INTO", dbName)
 	if len(bucketStorageInfo.Prefix) > 0 {
-		qry += fmt.Sprintf(" {'%s'}", bucketStorageInfo.Prefix)
+		qry += fmt.Sprintf(" '%s' IN", bucketStorageInfo.Prefix)
 	}
 
-	qry += fmt.Sprintf(" IN '%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName)
+	qry += fmt.Sprintf(" '%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName)
 
 	if len(bucketStorageInfo.KeyName) > 0 {
 		qry += fmt.Sprintf("?AWS_ACCESS_KEY_ID=%s", bucketStorageInfo.KeyName)
 		if len(bucketSecret) > 0 {
 			qry += fmt.Sprintf("&AWS_SECRET_ACCESS_KEY=%s", bucketSecret)
 		}
+	} else {
+		qry += "?AUTH=implicit"
 	}
 
-	qry += " WITH DETACHED;"
-	return query_utils.SelectFirstValueString(conn, qry)
+	qry += "' WITH DETACHED;"
+	return query_utils.SelectFirstValueInt64(conn, qry)
 }

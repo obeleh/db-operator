@@ -130,6 +130,32 @@ rules:
 - apiGroups:
   - db-operator.kubemaster.com
   resources:
+  - cockroachdbbackupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
   - dbcopycronjobs
   verbs:
   - create

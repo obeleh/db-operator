@@ -23,6 +23,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,11 +53,6 @@ type CrdbBackubJobReco struct {
 	conn         *postgres.PostgresConnection
 }
 
-// https://stackoverflow.com/questions/40823315/x-does-not-implement-y-method-has-a-pointer-receiver
-type ConcretePostgresConnection struct {
-	*postgres.PostgresConnection
-}
-
 func (r *CrdbBackubJobReco) MarkedToBeDeleted() bool {
 	return r.backupJob.GetDeletionTimestamp() != nil
 }
@@ -64,7 +60,7 @@ func (r *CrdbBackubJobReco) MarkedToBeDeleted() bool {
 func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading Cockroachdb backupJob %s", r.backupJob.Name))
 	var err error
-	if len(r.backupJob.Status.JobId) == 0 {
+	if r.backupJob.Status.JobId == 0 {
 		r.Log.Info(fmt.Sprintf("backupJob %s does not have a job_id, ignoring as this job mayb have been executed without the operator recording an id", r.backupJob.Name))
 		return false, nil
 	}
@@ -92,14 +88,18 @@ func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 
 func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.CockroachDBBackupJobStatus, error) {
 	return dboperatorv1alpha1.CockroachDBBackupJobStatus{
-		JobId:       jobMap["job_id"].(string),
+		JobId:       jobMap["job_id"].(int64),
 		Status:      jobMap["status"].(string),
 		Description: jobMap["description"].(string),
+		Created:     jobMap["created"].(metav1.Time),
+		Started:     jobMap["started"].(metav1.Time),
+		Finished:    jobMap["finished"].(metav1.Time),
+		Error:       jobMap["error"].(string),
 	}, nil
 }
 
-func (r *CrdbBackubJobReco) GetJobMap() (map[string]dboperatorv1alpha1.CockroachDBBackupJobStatus, error) {
-	jobsMap := make(map[string]dboperatorv1alpha1.CockroachDBBackupJobStatus)
+func (r *CrdbBackubJobReco) GetJobMap() (map[int64]dboperatorv1alpha1.CockroachDBBackupJobStatus, error) {
+	jobsMap := make(map[int64]dboperatorv1alpha1.CockroachDBBackupJobStatus)
 
 	pgConn, err := r.getPostgresConnectionFromBackupTarget()
 	if err != nil {
@@ -135,13 +135,13 @@ func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget() (*postgres.P
 }
 
 func (r *CrdbBackubJobReco) getPostgresConnectionFromDbInfo(dbInfo shared.DbActions) (*postgres.PostgresConnection, error) {
-	if r.conn.Conn == nil {
+	if r.conn == nil || r.conn.Conn == nil {
 		conn, err := dbInfo.GetDbConnection()
 		if err != nil {
 			return nil, err
 		}
-		concreteConn := conn.(ConcretePostgresConnection)
-		r.conn = concreteConn.PostgresConnection
+		concreteConn := conn.(*postgres.PostgresConnection)
+		r.conn = concreteConn
 	}
 	return r.conn, nil
 }
@@ -194,7 +194,7 @@ func (r *CrdbBackubJobReco) buildRetryResult() ctrl.Result {
 }
 
 func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
-	if len(r.backupJob.Status.JobId) != 0 {
+	if r.backupJob.Status.JobId != 0 {
 		// Skip, job already exists. We we're only reloading the status
 		return ctrl.Result{}, nil
 	}
@@ -253,7 +253,10 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	r.SetStatus(&r.backupJob, r.ctx, dboperatorv1alpha1.CockroachDBBackupJobStatus{
-		JobId: job_id,
+		JobId:    job_id,
+		Created:  metav1.Now(),
+		Started:  metav1.Unix(0, 0),
+		Finished: metav1.Unix(0, 0),
 	})
 
 	// Return retry to that we can load the rest of the job status
