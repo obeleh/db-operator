@@ -27,9 +27,15 @@ func (p *PostgresConnection) GetConnectionString() string {
 	if len(p.Database) == 0 {
 		panic("No database configured")
 	}
-	// sslmode=disable
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s",
-		p.Host, p.Port, p.UserName, p.Password, p.Database)
+
+	// https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION
+	sslMode, found := p.Options["sslmode"]
+	if !found {
+		sslMode = "require"
+	}
+
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		p.Host, p.Port, p.UserName, p.Password, p.Database, sslMode)
 }
 
 func (p *PostgresConnection) CreateUser(userName string, password string) error {

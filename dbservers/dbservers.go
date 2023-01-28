@@ -11,7 +11,7 @@ import (
 	"github.com/obeleh/db-operator/shared"
 )
 
-func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, password string) (shared.DbActions, error) {
+func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, password string, options map[string]string) (shared.DbActions, error) {
 	var actions shared.DbActions
 
 	if strings.ToLower(serverType) == "postgres" {
@@ -20,6 +20,7 @@ func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, 
 				DbServer: dbServer,
 				Db:       db,
 				Password: password,
+				Options:  options,
 			},
 		}
 		actions = pgActions
@@ -29,6 +30,7 @@ func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, 
 				DbServer: dbServer,
 				Db:       db,
 				Password: password,
+				Options:  options,
 			},
 		}
 		actions = myActions

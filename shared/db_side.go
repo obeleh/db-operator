@@ -22,6 +22,7 @@ type DbServerConnectInfo struct {
 	UserName string
 	Password string
 	Database string
+	Options  map[string]string
 }
 
 type DbServerConnection struct {

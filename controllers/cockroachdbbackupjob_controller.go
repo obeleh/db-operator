@@ -61,7 +61,7 @@ func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading Cockroachdb backupJob %s", r.backupJob.Name))
 	var err error
 	if r.backupJob.Status.JobId == 0 {
-		r.Log.Info(fmt.Sprintf("backupJob %s does not have a job_id, ignoring as this job mayb have been executed without the operator recording an id", r.backupJob.Name))
+		r.Log.Info(fmt.Sprintf("backupJob %s does not have a job_id, ignoring as this job maybe have been executed without the operator recording an id", r.backupJob.Name))
 		return false, nil
 	}
 
@@ -77,12 +77,16 @@ func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 	if !found {
 		return false, nil
 	}
-	r.backupJob.Status, err = jobMapToJobStatus(jobMap)
+	jobStatus, err := jobMapToJobStatus(jobMap)
+	if err != nil {
+		return false, err
+	}
+	r.SetStatus(jobStatus)
 	if err != nil {
 		return false, err
 	}
 
-	r.Log.Info(fmt.Sprintf("backupJob %s exists with ID: %s", r.backupJob.Name, r.backupJob.Status.JobId))
+	r.Log.Info(fmt.Sprintf("backupJob %s exists with ID: %d", r.backupJob.Name, r.backupJob.Status.JobId))
 	return true, nil
 }
 
@@ -91,9 +95,9 @@ func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.Cockro
 		JobId:       jobMap["job_id"].(int64),
 		Status:      jobMap["status"].(string),
 		Description: jobMap["description"].(string),
-		Created:     jobMap["created"].(metav1.Time),
-		Started:     jobMap["started"].(metav1.Time),
-		Finished:    jobMap["finished"].(metav1.Time),
+		Created:     metav1.NewTime(jobMap["created"].(time.Time)),
+		Started:     metav1.NewTime(jobMap["started"].(time.Time)),
+		Finished:    metav1.NewTime(jobMap["finished"].(time.Time)),
 		Error:       jobMap["error"].(string),
 	}, nil
 }
@@ -116,7 +120,7 @@ func (r *CrdbBackubJobReco) GetJobMap() (map[int64]dboperatorv1alpha1.CockroachD
 		if err != nil {
 			return jobsMap, fmt.Errorf("Failed to load jobmap %v", err)
 		}
-		r.Log.Info(fmt.Sprintf("Found job %s", jobStatus.JobId))
+		r.Log.Info(fmt.Sprintf("Found job %d", jobStatus.JobId))
 		jobsMap[jobStatus.JobId] = jobStatus
 	}
 	return jobsMap, nil
@@ -146,10 +150,10 @@ func (r *CrdbBackubJobReco) getPostgresConnectionFromDbInfo(dbInfo shared.DbActi
 	return r.conn, nil
 }
 
-func (r *CrdbBackubJobReco) SetStatus(backupJob *dboperatorv1alpha1.CockroachDBBackupJob, ctx context.Context, newStatus dboperatorv1alpha1.CockroachDBBackupJobStatus) error {
+func (r *CrdbBackubJobReco) SetStatus(newStatus dboperatorv1alpha1.CockroachDBBackupJobStatus) error {
 	if !reflect.DeepEqual(r.backupJob.Status, newStatus) {
-		backupJob.Status = newStatus
-		err := r.StatusClient.Status().Update(ctx, backupJob)
+		r.backupJob.Status = newStatus
+		err := r.StatusClient.Status().Update(r.ctx, &r.backupJob)
 		if err != nil {
 			message := fmt.Sprintf("failed patching status %s", err)
 			r.Log.Info(message)
@@ -252,7 +256,7 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 		return r.buildRetryResult(), nil
 	}
 
-	r.SetStatus(&r.backupJob, r.ctx, dboperatorv1alpha1.CockroachDBBackupJobStatus{
+	r.SetStatus(dboperatorv1alpha1.CockroachDBBackupJobStatus{
 		JobId:    job_id,
 		Created:  metav1.Now(),
 		Started:  metav1.Unix(0, 0),

@@ -29,6 +29,7 @@ func (i *MySqlDbInfo) GetDbConnection() (shared.DbServerConnectionInterface, err
 				Host:     dbServer.Spec.Address,
 				Port:     dbServer.Spec.Port,
 				UserName: dbServer.Spec.UserName,
+				Options:  dbServer.Spec.Options,
 				Password: i.Password,
 				Database: dbName,
 			},

@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
-	batchv1beta "k8s.io/api/batch/v1beta1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +45,7 @@ type BackupCronJobReconciler struct {
 type BackupCronJobReco struct {
 	Reco
 	backupCronJob  dboperatorv1alpha1.BackupCronJob
-	backupCronJobs map[string]batchv1beta.CronJob
+	backupCronJobs map[string]batchv1.CronJob
 	StatusWriter   client.StatusWriter
 }
 
@@ -112,7 +112,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 
 func (r *BackupCronJobReco) RemoveObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("Removing BackupCronJob %s", r.backupCronJob.Name))
-	cronJob := &batchv1beta.CronJob{
+	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.backupCronJob.Name,
 			Namespace: r.nsNm.Namespace,

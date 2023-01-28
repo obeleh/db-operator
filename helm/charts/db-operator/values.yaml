@@ -42,6 +42,8 @@ DbServers: []
 #  secret_name: mydbserver-secret
 #  server_type: postgres
 #  address: localhost
+#  options:
+#    sslmode: require
 
 Dbs: []
 #- name: example-db

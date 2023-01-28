@@ -5,7 +5,7 @@ metadata:
 spec:
   bucket_name: testbucket
   region: eu-west-1
-  # endpoint: http://minio:9000
+  # endpoint: http://minio.default.svc.cluster.local:9000
   secret_access_key_k8s_secret: s3-secret
   access_key_id: MYKEY
   # prefix: prefix/

@@ -52,7 +52,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get dbServer: %s got err: %s", req.Name, err))
+		r.Log.Error(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
 		return ctrl.Result{}, nil
 	}
 

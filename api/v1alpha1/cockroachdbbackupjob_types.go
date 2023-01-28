@@ -27,7 +27,7 @@ type CockroachDBBackupJobSpec struct {
 
 // CockroachDBBackupJobStatus defines the observed state of CockroachDBBackupJob
 type CockroachDBBackupJobStatus struct {
-	JobId       string      `json:"job_id"`
+	JobId       int64       `json:"job_id"`
 	Status      string      `json:"status"`
 	Description string      `json:"description"`
 	Created     metav1.Time `json:"created"`

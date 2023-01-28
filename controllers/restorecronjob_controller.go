@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	batchv1beta "k8s.io/api/batch/v1beta1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +45,7 @@ type RestoreCronJobReconciler struct {
 type RestoreCronJobReco struct {
 	Reco
 	restoreCronJob  dboperatorv1alpha1.RestoreCronJob
-	restoreCronJobs map[string]batchv1beta.CronJob
+	restoreCronJobs map[string]batchv1.CronJob
 }
 
 func (r *RestoreCronJobReco) MarkedToBeDeleted() bool {
@@ -98,7 +98,7 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 
 func (r *RestoreCronJobReco) RemoveObj() (ctrl.Result, error) {
 	r.Log.Info(fmt.Sprintf("Removing restoreCronJob %s", r.restoreCronJob.Name))
-	cronJob := &batchv1beta.CronJob{
+	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.restoreCronJob.Name,
 			Namespace: r.nsNm.Namespace,

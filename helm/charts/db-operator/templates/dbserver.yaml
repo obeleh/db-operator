@@ -9,5 +9,9 @@ spec:
   secret_name: {{ quote .secret_name }}
   server_type: {{ quote .server_type }}
   address: {{ quote .address }}
+  {{- if .options }}
+  options: 
+{{ .options | toYaml | nindent 4 }}
+  {{- end }}
 ---
 {{ end -}}

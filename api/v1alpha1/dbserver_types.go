@@ -29,10 +29,11 @@ type DbServerSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	UserName string `json:"user_name"`
 	// +kubebuilder:validation:MinLength=1
-	SecretName string `json:"secret_name"`
-	SecretKey  string `json:"secret_key,omitempty"`
-	Version    string `json:"version,omitempty"`
-	ServerType string `json:"server_type"`
+	SecretName string            `json:"secret_name"`
+	SecretKey  string            `json:"secret_key,omitempty"`
+	Version    string            `json:"version,omitempty"`
+	ServerType string            `json:"server_type"`
+	Options    map[string]string `json:"options,omitempty"`
 }
 
 // DbServerStatus defines the observed state of DbServer

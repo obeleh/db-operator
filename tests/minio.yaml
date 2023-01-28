@@ -83,16 +83,17 @@ spec:
         command: 
         - /bin/sh
         - "-c"
-        - >
+        - |
           set -xe
-          /usr/bin/mc config host add testminio http://minio:9000 ROOTUSER DO_NOT_USE_IN_PROD;
-          /usr/bin/mc rm -r --force testminio/testbucket || true;
-          /usr/bin/mc mb testminio/testbucket;
-          /usr/bin/mc policy download testminio/testbucket;
-          mc admin user add testminio MYKEY MYSECRET
-          mc admin policy set testminio readwrite user=MYKEY
-          /usr/bin/mc config host add testminio1 http://minio:9000 MYKEY MYSECRET
-          mc ls testminio1/testbucket # should fail if we didn't configure access correctly
+          export PATH="$PATH:/usr/bin/";
+          mc config host add testminio http://minio:9000 ROOTUSER DO_NOT_USE_IN_PROD;
+          mc rm -r --force testminio/testbucket || true;
+          mc mb testminio/testbucket;
+          # mc policy download testminio/testbucket;
+          mc admin user add testminio MYKEY MYSECRET;
+          mc admin policy set testminio readwrite user=MYKEY;
+          mc config host add testminio1 http://minio:9000 MYKEY MYSECRET;
+          mc ls testminio1/testbucket; # should fail if we didn't configure access correctly
           exit 0;
       restartPolicy: Never
   backoffLimit: 4

@@ -11,7 +11,6 @@ import (
 	"github.com/obeleh/db-operator/dbservers"
 	"github.com/obeleh/db-operator/shared"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -234,7 +233,7 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 	}
 }
 
-func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string, suspend bool, serviceAccount string) batchv1beta.CronJob {
+func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Container, jobName string, schedule string, suspend bool, serviceAccount string) batchv1.CronJob {
 	podSpec := v1.PodSpec{
 		InitContainers: initContainers,
 		Containers: []v1.Container{
@@ -248,7 +247,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 		podSpec.ServiceAccountName = serviceAccount
 	}
 
-	return batchv1beta.CronJob{
+	return batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.nsNm.Namespace,
@@ -256,8 +255,8 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 				"controlledBy": "DbOperator",
 			},
 		},
-		Spec: batchv1beta.CronJobSpec{
-			JobTemplate: batchv1beta.JobTemplateSpec{
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: v1.PodTemplateSpec{
 						Spec: podSpec,
@@ -320,7 +319,7 @@ func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv
 		return nil, fmt.Errorf("failed getting password %s", err)
 	}
 
-	return dbservers.GetServerActions(dbServer.Spec.ServerType, dbServer, db, *password)
+	return dbservers.GetServerActions(dbServer.Spec.ServerType, dbServer, db, *password, dbServer.Spec.Options)
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
@@ -343,9 +342,9 @@ func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
 	return jobsMap, nil
 }
 
-func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
+func (r *Reco) GetCronJobMap() (map[string]batchv1.CronJob, error) {
 	var err error
-	cronJobs := &batchv1beta.CronJobList{}
+	cronJobs := &batchv1.CronJobList{}
 	opts := []client.ListOption{
 		client.InNamespace(r.nsNm.Namespace),
 		client.MatchingLabels{"controlledBy": "DbOperator"},
@@ -355,7 +354,7 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1beta.CronJob, error) {
 		r.LogError(err, "failed listing CronJobs")
 		return nil, err
 	}
-	cronJobsMap := make(map[string]batchv1beta.CronJob)
+	cronJobsMap := make(map[string]batchv1.CronJob)
 	for _, cronJob := range cronJobs.Items {
 		r.Log.Info(fmt.Sprintf("Found cronJob %s", cronJob.Name))
 		cronJobsMap[cronJob.Name] = cronJob

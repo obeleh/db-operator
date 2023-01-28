@@ -5,20 +5,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: dbservers.db-operator.kubemaster.com
+  name: cockroachdbbackupjobs.db-operator.kubemaster.com
 spec:
   group: db-operator.kubemaster.com
   names:
-    kind: DbServer
-    listKind: DbServerList
-    plural: dbservers
-    singular: dbserver
+    kind: CockroachDBBackupJob
+    listKind: CockroachDBBackupJobList
+    plural: cockroachdbbackupjobs
+    singular: cockroachdbbackupjob
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: DbServer is the Schema for the dbservers API
+        description: CockroachDBBackupJob is the Schema for the cockroachdbbackupjobs
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,57 +34,43 @@ spec:
           metadata:
             type: object
           spec:
+            description: CockroachDBBackupJobSpec defines the desired state of CockroachDBBackupJob
             properties:
-              address:
-                description: Server address
-                type: string
-              options:
-                additionalProperties:
-                  type: string
-                type: object
-              port:
-                description: Server port
-                minimum: 1
-                type: integer
-              secret_key:
-                type: string
-              secret_name:
-                minLength: 1
-                type: string
-              server_type:
-                type: string
-              user_name:
-                minLength: 1
-                type: string
-              version:
+              backup_target:
                 type: string
             required:
-            - address
-            - port
-            - secret_name
-            - server_type
-            - user_name
+            - backup_target
             type: object
           status:
-            description: DbServerStatus defines the observed state of DbServer
+            description: CockroachDBBackupJobStatus defines the observed state of
+              CockroachDBBackupJob
             properties:
-              connection_available:
-                type: boolean
-              databases:
-                items:
-                  type: string
-                type: array
-              message:
+              created:
+                format: date-time
                 type: string
-              users:
-                items:
-                  type: string
-                type: array
+              description:
+                type: string
+              error:
+                type: string
+              finished:
+                format: date-time
+                type: string
+              job_id:
+                format: int64
+                type: integer
+              started:
+                format: date-time
+                type: string
+              status:
+                type: string
             required:
-            - connection_available
-            - databases
-            - message
-            - users
+            - created
+            - description
+            - error
+            - finished
+            - job_id
+            - started
+            - status
             type: object
         type: object
     served: true

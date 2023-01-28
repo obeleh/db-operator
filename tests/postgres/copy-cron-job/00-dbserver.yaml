@@ -8,6 +8,8 @@ spec:
   user_name: postgres
   secret_name: postgres
   server_type: postgres
+  options:
+    sslmode: disable
 
 ---
 

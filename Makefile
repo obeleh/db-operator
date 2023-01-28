@@ -110,26 +110,29 @@ test: manifests generate fmt vet envtest ## Run tests.
 kind-cluster:
 	kind create cluster --config ./tests/kind-config.yaml
 
-kind-cluster-with-dbs: kind-cluster install
+kind-cluster-with-dbs: kind-cluster install deploy-test-infra
+
+deploy-test-infra:
 	kubectl apply -f ./tests/minio.yaml
 	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
 	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
-	kubectl apply -f ./tests/mysql/copy-job/00-dbserver.yaml
-	kubectl apply -f ./tests/postgres/copy-job/00-dbserver.yaml
 	# kubectl -n postgres port-forward svc/postgres 5432 &
 	# kubectl -n mysql port-forward svc/mysql 3306 &
 
-start-test-cluster: kind-cluster-with-db docker-build
-	make deploy-kind
-	kubectl apply -f ./tests/postgres/dbserver/00-dbserver.yaml
-	kubectl apply -f ./tests/mysql/copy-job/00-dbserver.yaml
-	# kubectl apply -f ./tests/mysql/restore-job/00-dbserver.yaml
+start-test-cluster: kind-cluster-with-dbs docker-build deploy-kind
 
 start-test-mysql: docker-build kind-cluster install
 	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
 	kubectl apply -f ./tests/mysql/copy-job/00-dbserver.yaml
 	kubectl apply -f ./tests/mysql/copy-job/01-create-user.yaml
 	kubectl apply -f ./tests/mysql/copy-job/02-create-db.yaml
+
+
+start-test-postgres: docker-build kind-cluster install
+	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
+	kubectl apply -f ./tests/postgres/copy-job/00-dbserver.yaml
+	kubectl apply -f ./tests/postgres/copy-job/01-create-user.yaml
+	kubectl apply -f ./tests/postgres/copy-job/02-create-db.yaml
 
 ##@ Build
 
@@ -297,8 +300,12 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-kuttl-test:
-	make docker-build
-	mkdir -p tests/outputs
+kuttl-test-postgres:
+	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-postgres.yaml
-	# kubectl kuttl test --config kuttl-test-mysql.yaml
+
+kuttl-test-mysql:
+	mkdir -p tests/outputs 
+	kubectl kuttl test --config kuttl-test-mysql.yaml
+
+kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql
