@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers"
 	"github.com/obeleh/db-operator/shared"
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +35,7 @@ type Reconcilable interface {
 type Reco struct {
 	client client.Client
 	ctx    context.Context
-	Log    logr.Logger
+	Log    *zap.Logger
 	nsNm   types.NamespacedName
 }
 
@@ -55,8 +55,8 @@ func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	res, err := rcl.LoadCR()
 	if err != nil {
-		if !shared.CannotFindError(err, rc.Log, rc.nsNm.Namespace, rc.nsNm.Name) {
-			rc.Log.Error(err, "Failed loading %s.%s", rc.nsNm.Namespace, rc.nsNm.Name)
+		if !shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
+			rc.LogError(err, fmt.Sprintf("Failed loading %s.%s", rc.nsNm.Namespace, rc.nsNm.Name))
 		}
 		// Not found
 		return res, nil
@@ -69,7 +69,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 
 	exists, err := rcl.LoadObj()
 	if err != nil {
-		if shared.CannotFindError(err, rc.Log, rc.nsNm.Namespace, rc.nsNm.Name) {
+		if shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
 			exists = false
 		} else {
 			return res, nil
@@ -109,11 +109,11 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			}
 		}
 	}
-	if err != nil {
-		rc.Log.Error(err, "Unhandled error")
+	if err != nil && !shared.IsHandledErr(err) {
+		rc.LogError(err, fmt.Sprintf("Unhandled error in %s", shared.GetTypeName(rcl)))
 	}
 	rcl.CleanupConn()
-	return res, err
+	return res, nil
 }
 
 func (r *Reco) GetBackupTarget(backupTarget string) (*dboperatorv1alpha1.BackupTarget, error) {
@@ -195,9 +195,8 @@ func (r *Reco) EnsureScripts() error {
 
 	r.Log.Info("Creating scripts cm")
 	err = r.client.Create(r.ctx, cm)
-	if err != nil {
-		r.LogError(err, "failed creating cm")
-		return fmt.Errorf("failed creating configmap with scripts")
+	if err != nil && !shared.AlreadyExistsError(err, r.Log, cm.Kind, cm.Namespace, cm.Name) {
+		r.LogError(err, "failed creating configmap with scripts")
 	}
 	return nil
 }
@@ -373,7 +372,7 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1.CronJob, error) {
 }
 
 func (r *Reco) LogError(err error, message string) {
-	r.Log.Error(err, fmt.Sprintf("%s Error: %s", message, err))
+	r.Log.Error(message, zap.Error(err))
 }
 
 func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, error) {

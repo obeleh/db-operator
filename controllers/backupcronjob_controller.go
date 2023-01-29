@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +35,7 @@ import (
 // BackupCronJobReconciler reconciles a BackupCronJob object
 type BackupCronJobReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -58,6 +59,10 @@ func (r *BackupCronJobReco) LoadObj() (bool, error) {
 	var err error
 	r.backupCronJobs, err = r.GetCronJobMap()
 	if err != nil {
+		if !shared.CannotFindError(err, r.Log, "BackupCronJob", r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "failed getting BackupCronJob")
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -103,7 +108,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	)
 
 	err = r.client.Create(r.ctx, &cronJob)
-	if err != nil {
+	if err != nil && !shared.AlreadyExistsError(err, r.Log, cronJob.Kind, cronJob.Namespace, cronJob.Name) {
 		r.LogError(err, "Failed to create backup cronjob")
 	}
 	r.UpdateStatus(true)
@@ -147,10 +152,10 @@ func (r *BackupCronJobReco) NotifyChanges() {
 }
 
 func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("backupCronJob", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	br := BackupCronJobReco{
-		Reco:         Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
 		StatusWriter: r.Status(),
 	}
 	return br.Reco.Reconcile((&br))

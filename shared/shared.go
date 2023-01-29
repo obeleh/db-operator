@@ -5,26 +5,61 @@ import (
 	"fmt"
 	"log"
 	path "path/filepath"
+	"reflect"
 	"regexp"
-	"strings"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func CannotFindError(err error, log logr.Logger, namespace, name string) bool {
+type AlreadyHandledError struct {
+	LoggedError error
+}
+
+func (ale AlreadyHandledError) Error() string {
+	return ale.LoggedError.Error()
+}
+
+func NewAlreadyHandledError(err error) AlreadyHandledError {
+	return AlreadyHandledError{
+		LoggedError: err,
+	}
+}
+
+func CannotFindError(err error, log *zap.Logger, kind, namespace, name string) bool {
 	statusErr, wasStatusErr := err.(*errors.StatusError)
 	if statusErr != nil && wasStatusErr && statusErr.ErrStatus.Reason == "NotFound" {
-		log.Info(fmt.Sprintf("dbServer: %s.%s not found", namespace, name))
+		if kind != "" {
+			log.Info(fmt.Sprintf("Object: %s.%s.%s not found", kind, namespace, name))
+		} else {
+			log.Info(fmt.Sprintf("Object: %s.%s not found", namespace, name))
+		}
+		return true
+	}
+	return false
+}
+
+func AlreadyExistsError(err error, log *zap.Logger, kind, namespace, name string) bool {
+	statusErr, wasStatusErr := err.(*errors.StatusError)
+	if statusErr != nil && wasStatusErr && statusErr.ErrStatus.Reason == "AlreadyExists" {
+		log.Info(fmt.Sprintf("Object: %s.%s.%s not found", kind, namespace, name))
 		return true
 	}
 	return false
 }
 
 func IsHandledErr(err error) bool {
-	errStr := err.Error()
-	return strings.Contains(errStr, "failed getting password failed to get secret")
+	_, wasHandledErr := err.(AlreadyHandledError)
+	return wasHandledErr
+}
+
+func GetTypeName(myvar interface{}) string {
+	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
+		return "*" + t.Elem().Name()
+	} else {
+		return t.Name()
+	}
 }
 
 const SCRIPTS_CONFIGMAP string = "db-operator-scripts"

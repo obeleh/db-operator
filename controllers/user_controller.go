@@ -22,8 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/obeleh/db-operator/shared"
+	"github.com/thoas/go-funk"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,7 +38,7 @@ import (
 // UserReconciler reconciles a User object
 type UserReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -60,18 +61,20 @@ func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
+			return false, err
 		}
-		return false, err
+		return false, nil
 	}
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
 			r.LogError(err, "failed getting dbInfo")
+			return false, err
 		}
-		return false, err
+		return false, nil
 	}
 
 	r.users, err = r.conn.GetUsers()
@@ -159,17 +162,25 @@ func (r *UserReco) EnsureCorrect() (bool, error) {
 				Privs:  dbPriv.Privs,
 			})
 		} else {
+			if shared.CannotFindError(err, r.Log, "DB", r.user.Namespace, dbPriv.DbName) {
+				err = shared.NewAlreadyHandledError(err)
+			} else {
+				r.LogError(err, "Failed loading DB")
+			}
 			errors = append(errors, err)
 		}
 	}
 	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, resolvedDbNamePrivs)
 	if err != nil {
 		r.LogError(err, "Failed updating user privs")
-		errors = append(errors, err)
+		errors = append(errors, shared.NewAlreadyHandledError(err))
 	}
 	var errsErr error
 	if len(errors) > 0 {
-		errsErr = fmt.Errorf("Got errors makeing sure user has correct privileges %s", errors)
+		errsErr = fmt.Errorf("Got errors making sure user has correct privileges %s", errors)
+		if funk.All(funk.Map(errors, shared.IsHandledErr)) {
+			errsErr = shared.NewAlreadyHandledError(errsErr)
+		}
 	} else {
 		errsErr = nil
 	}
@@ -201,10 +212,10 @@ func (r *UserReco) NotifyChanges() {
 }
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("user", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	ur := UserReco{
 		Reco: Reco{
-			r.Client, ctx, r.Log, req.NamespacedName,
+			r.Client, ctx, log, req.NamespacedName,
 		},
 	}
 	return ur.Reco.Reconcile(&ur)

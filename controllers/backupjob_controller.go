@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,12 +29,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 // BackupJobReconciler reconciles a BackupJob object
 type BackupJobReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -53,19 +54,23 @@ func (r *BackupJobReco) MarkedToBeDeleted() bool {
 }
 
 func (r *BackupJobReco) LoadObj() (bool, error) {
-	r.Log.Info(fmt.Sprintf("loading backupJob %s", r.backupJob.Name))
+	r.Log.Info(fmt.Sprintf("Loading backupJob %s", r.backupJob.Name))
 	var err error
 	r.backupJobs, err = r.GetJobMap()
 	if err != nil {
+		if !shared.CannotFindError(err, r.Log, "BackupJob", r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "Failed getting BackupJob")
+			return false, shared.NewAlreadyHandledError(err)
+		}
 		return false, nil
 	}
 	_, exists := r.backupJobs[r.backupJob.Name]
-	r.Log.Info(fmt.Sprintf("backupJob %s exists: %t", r.backupJob.Name, exists))
+	r.Log.Info(fmt.Sprintf("BackupJob %s exists: %t", r.backupJob.Name, exists))
 	return exists, nil
 }
 
 func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
-	r.Log.Info(fmt.Sprintf("creating backupJob %s", r.backupJob.Name))
+	r.Log.Info(fmt.Sprintf("Creating backupJob %s", r.backupJob.Name))
 
 	err := r.EnsureScripts()
 	if err != nil {
@@ -82,7 +87,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name, r.backupJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)
-	if err != nil {
+	if err != nil && !shared.AlreadyExistsError(err, r.Log, job.Kind, job.Namespace, job.Name) {
 		r.LogError(err, "Failed to create backup job")
 	}
 	return ctrl.Result{}, nil
@@ -124,10 +129,10 @@ func (r *BackupJobReco) NotifyChanges() {
 }
 
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("backupJob", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	br := BackupJobReco{
-		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco: Reco{r.Client, ctx, log, req.NamespacedName},
 	}
 	return br.Reco.Reconcile((&br))
 }

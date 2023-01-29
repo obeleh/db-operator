@@ -23,10 +23,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/go-logr/logr"
 	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/shared"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,7 +35,7 @@ import (
 // DbServerReconciler reconciles a DbServer object
 type DbServerReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -47,14 +47,18 @@ type DbServerReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
+func (r *DbServerReconciler) LogError(err error, message string) {
+	r.Log.Error(fmt.Sprintf("%s Error: %s", message, err))
+}
+
 func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("dbserver", req.NamespacedName)
+	r.Log = r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, req.Namespace, req.Name) {
-			r.Log.Error(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
+		if !shared.CannotFindError(err, r.Log, "DbServer", req.Namespace, req.Name) {
+			r.LogError(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
 		}
 		return ctrl.Result{}, nil
 	}
@@ -70,7 +74,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if !shared.IsHandledErr(err) {
 			message = fmt.Sprintf("failed building dbConnection %s", err)
-			r.Log.Error(err, message)
+			r.LogError(err, message)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -79,7 +83,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	databases, err := conn.GetDbs()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
-		r.Log.Error(err, message)
+		r.LogError(err, message)
 		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if err != nil {
 			return ctrl.Result{Requeue: true, RequeueAfter: time.Second}, nil
@@ -94,7 +98,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	users, err := conn.GetUsers()
 	if err != nil {
 		message = fmt.Sprintf("Failed reading users: %s", err)
-		r.Log.Error(err, message)
+		r.LogError(err, message)
 		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if err != nil {
 			return ctrl.Result{Requeue: true}, nil

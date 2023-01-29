@@ -19,7 +19,7 @@ package controllers
 import (
 	"context"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +30,7 @@ import (
 // BackupTargetReconciler reconciles a BackupTarget object
 type BackupTargetReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -39,7 +39,7 @@ type BackupTargetReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=backuptargets/finalizers,verbs=update
 
 func (r *BackupTargetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("backuptarget", req.NamespacedName)
+	_ = r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	// your logic here
 

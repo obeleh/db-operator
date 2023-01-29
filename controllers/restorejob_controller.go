@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,12 +29,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 // RestoreJobReconciler reconciles a RestoreJob object
 type RestoreJobReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -58,6 +59,10 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 	var err error
 	r.restoreJobs, err = r.GetJobMap()
 	if err != nil {
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "failed getting DbServer")
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -85,7 +90,7 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name, r.restoreJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)
-	if err != nil {
+	if err != nil && !shared.AlreadyExistsError(err, r.Log, job.Kind, job.Namespace, job.Name) {
 		r.LogError(err, "Failed to create restore job")
 	}
 	return ctrl.Result{}, nil
@@ -127,10 +132,10 @@ func (r *RestoreJobReco) NotifyChanges() {
 }
 
 func (r *RestoreJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("restoreJob", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	rr := RestoreJobReco{
-		Reco: Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco: Reco{r.Client, ctx, log, req.NamespacedName},
 	}
 	return rr.Reco.Reconcile((&rr))
 }

@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/go-logr/logr"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/postgres"
 	"github.com/obeleh/db-operator/shared"
@@ -38,7 +38,7 @@ import (
 // CockroachDBBackupJobReconciler reconciles a CockroachDBBackupJob object
 type CockroachDBBackupJobReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -274,10 +274,10 @@ func (r *CrdbBackubJobReco) RemoveObj() (ctrl.Result, error) {
 }
 
 func (r *CockroachDBBackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("cockroachDBBackupJob", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	rr := CrdbBackubJobReco{
-		Reco:         Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
 		StatusClient: r,
 	}
 	return rr.Reco.Reconcile((&rr))

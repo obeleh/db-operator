@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,12 +30,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 )
 
 // DbCopyCronJobReconciler reconciles a DbCopyCronJob object
 type DbCopyCronJobReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -61,6 +62,10 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 	var err error
 	r.copyCronJobs, err = r.GetCronJobMap()
 	if err != nil {
+		if !shared.CannotFindError(err, r.Log, "CopyCronJob", r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "failed getting CopyCronJob")
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -110,7 +115,7 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 	)
 
 	err = r.client.Create(r.ctx, &cronJob)
-	if err != nil {
+	if err != nil && !shared.AlreadyExistsError(err, r.Log, cronJob.Kind, cronJob.Namespace, cronJob.Name) {
 		r.LogError(err, "Failed to create copy cronJob")
 	}
 	r.UpdateStatus(true)
@@ -154,10 +159,10 @@ func (r *DbCopyCronJobReco) NotifyChanges() {
 }
 
 func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("dbcopycronjob", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	cr := DbCopyCronJobReco{
-		Reco:         Reco{r.Client, ctx, r.Log, req.NamespacedName},
+		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
 		StatusWriter: r.Status(),
 	}
 	return cr.Reco.Reconcile((&cr))

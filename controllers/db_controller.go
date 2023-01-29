@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,7 +36,7 @@ import (
 // DbReconciler reconciles a Db object
 type DbReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -69,8 +69,11 @@ func (r *DbReco) LoadObj() (bool, error) {
 	// First create conninfo without db name because we don't know whether it exists
 	dbServer, err := r.GetDbServer(r.db.Spec.Server)
 	if err != nil {
-		r.LogError(err, "failed getting DbServer")
-		return false, err
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "failed getting DbServer")
+			return false, err
+		}
+		return false, nil
 	}
 
 	// Do not point to DB in this controller
@@ -99,7 +102,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 	if r.conn == nil {
 		message := "no database connection possible"
 		err = fmt.Errorf(message)
-		r.Log.Error(err, message)
+		r.LogError(err, message)
 		return ctrl.Result{}, err
 	}
 	err = r.conn.CreateDb(r.db.Spec.DbName)
@@ -109,7 +112,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 			// Gradual backoff
 			Requeue:      true,
 			RequeueAfter: time.Duration(time.Since(r.db.GetCreationTimestamp().Time).Seconds()),
-		}, err
+		}, nil
 	}
 	return ctrl.Result{}, nil
 }
@@ -166,9 +169,9 @@ func (r *DbReco) CleanupConn() {
 }
 
 func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("db", req.NamespacedName)
+	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	dr := DbReco{}
-	dr.Reco = Reco{r.Client, ctx, r.Log, req.NamespacedName}
+	dr.Reco = Reco{r.Client, ctx, log, req.NamespacedName}
 	return dr.Reco.Reconcile(&dr)
 }
 

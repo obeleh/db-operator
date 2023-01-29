@@ -19,7 +19,7 @@ package controllers
 import (
 	"context"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +30,7 @@ import (
 // S3StorageReconciler reconciles a S3Storage object
 type S3StorageReconciler struct {
 	client.Client
-	Log    logr.Logger
+	Log    *zap.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -39,7 +39,7 @@ type S3StorageReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=s3storages/finalizers,verbs=update
 
 func (r *S3StorageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("s3storage", req.NamespacedName)
+	_ = r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	// your logic here
 

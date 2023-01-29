@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -27,14 +28,14 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	ctrlZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/controllers"
@@ -62,15 +63,18 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
+
 	flag.Parse()
+	// Disabling stacktraces because they're not informative for the user
+	stackTraceLevel, _ := zapcore.ParseLevel("dpanic")
+	logger, err := zap.NewDevelopment(zap.AddStacktrace(stackTraceLevel))
+	if err != nil {
+		panic(fmt.Sprintf("Unable to construct logger %v", err))
+	}
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(ctrlZap.New())
 
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatalf("%v", err)
 	}
@@ -101,7 +105,7 @@ func main() {
 
 	if err = (&controllers.DbCopyJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("DbCopyJobReconciler"),
+		Log:    logger.With(zap.Namespace("DbCopyJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbCopyJob")
@@ -109,7 +113,7 @@ func main() {
 	}
 	if err = (&controllers.BackupCronJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("BackupCronJobReconciler"),
+		Log:    logger.With(zap.Namespace("BackupCronJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupCronJob")
@@ -117,7 +121,7 @@ func main() {
 	}
 	if err = (&controllers.BackupJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("BackupJobReconciler"),
+		Log:    logger.With(zap.Namespace("BackupJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupJob")
@@ -125,7 +129,7 @@ func main() {
 	}
 	if err = (&controllers.BackupTargetReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("BackupTargetReconciler"),
+		Log:    logger.With(zap.Namespace("BackupTargetReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupTarget")
@@ -133,7 +137,7 @@ func main() {
 	}
 	if err = (&controllers.DbReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("DbReconciler"),
+		Log:    logger.With(zap.Namespace("DbReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Db")
@@ -141,7 +145,7 @@ func main() {
 	}
 	if err = (&controllers.DbCopyCronJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("DbCopyCronJobReconciler"),
+		Log:    logger.With(zap.Namespace("DbCopyCronJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbCopyCronJob")
@@ -149,7 +153,7 @@ func main() {
 	}
 	if err = (&controllers.DbServerReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("DbServerReconciler"),
+		Log:    logger.With(zap.Namespace("DbServerReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DbServer")
@@ -157,7 +161,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreCronJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("RestoreCronJobReconciler"),
+		Log:    logger.With(zap.Namespace("RestoreCronJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreCronJob")
@@ -165,7 +169,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("RestoreJobReconciler"),
+		Log:    logger.With(zap.Namespace("RestoreJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreJob")
@@ -173,7 +177,7 @@ func main() {
 	}
 	if err = (&controllers.RestoreTargetReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("RestoreTargetReconciler"),
+		Log:    logger.With(zap.Namespace("RestoreTargetReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RestoreTarget")
@@ -181,7 +185,7 @@ func main() {
 	}
 	if err = (&controllers.S3StorageReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("S3StorageReconciler"),
+		Log:    logger.With(zap.Namespace("S3StorageReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "S3Storage")
@@ -189,7 +193,7 @@ func main() {
 	}
 	if err = (&controllers.UserReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("UserReconciler"),
+		Log:    logger.With(zap.Namespace("UserReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "User")
@@ -197,7 +201,7 @@ func main() {
 	}
 	if err = (&controllers.CockroachDBBackupJobReconciler{
 		Client: mgr.GetClient(),
-		Log:    logf.Log.WithName("CockroachDBBackupJobReconciler"),
+		Log:    logger.With(zap.Namespace("CockroachDBBackupJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CockroachDBBackupJob")
