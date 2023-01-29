@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/shared"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,7 +53,9 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
+		if !shared.CannotFindError(err, r.Log, req.Namespace, req.Name) {
+			r.Log.Error(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
+		}
 		return ctrl.Result{}, nil
 	}
 
@@ -64,10 +67,12 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	conn, err := reco.GetDbConnection(dbServer, nil)
 	if err != nil {
-		message = fmt.Sprintf("failed building dbConnection %s", err)
-		r.Log.Error(err, message)
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
-		return ctrl.Result{}, err
+		if !shared.IsHandledErr(err) {
+			message = fmt.Sprintf("failed building dbConnection %s", err)
+			r.Log.Error(err, message)
+		}
+		return ctrl.Result{}, nil
 	}
 
 	defer conn.Close()

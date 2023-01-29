@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -59,12 +60,17 @@ func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
-		r.LogError(err, "failed getting DbServer")
+		if !shared.CannotFindError(err, r.Log, r.nsNm.Namespace, r.nsNm.Name) {
+			r.LogError(err, "failed getting DbServer")
+		}
 		return false, err
 	}
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.LogError(err, "failed building dbConnection")
+		errStr := err.Error()
+		if !strings.Contains(errStr, "failed getting password failed to get secret") {
+			r.LogError(err, "failed getting dbInfo")
+		}
 		return false, err
 	}
 

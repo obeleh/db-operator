@@ -6,9 +6,26 @@ import (
 	"log"
 	path "path/filepath"
 	"regexp"
+	"strings"
 
+	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
+
+func CannotFindError(err error, log logr.Logger, namespace, name string) bool {
+	statusErr, wasStatusErr := err.(*errors.StatusError)
+	if statusErr != nil && wasStatusErr && statusErr.ErrStatus.Reason == "NotFound" {
+		log.Info(fmt.Sprintf("dbServer: %s.%s not found", namespace, name))
+		return true
+	}
+	return false
+}
+
+func IsHandledErr(err error) bool {
+	errStr := err.Error()
+	return strings.Contains(errStr, "failed getting password failed to get secret")
+}
 
 const SCRIPTS_CONFIGMAP string = "db-operator-scripts"
 

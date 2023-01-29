@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -76,7 +77,10 @@ func (r *DbReco) LoadObj() (bool, error) {
 	// Otherwise we would be connected to a database we potentially want to drop
 	r.conn, err = r.GetDbConnection(dbServer, nil)
 	if err != nil {
-		r.LogError(err, "failed building dbConnection")
+		errStr := err.Error()
+		if !strings.Contains(errStr, "failed getting password failed to get secret") {
+			r.LogError(err, "failed building dbConnection")
+		}
 		return false, err
 	}
 

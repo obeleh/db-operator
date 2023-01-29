@@ -55,6 +55,9 @@ func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	res, err := rcl.LoadCR()
 	if err != nil {
+		if !shared.CannotFindError(err, rc.Log, rc.nsNm.Namespace, rc.nsNm.Name) {
+			rc.Log.Error(err, "Failed loading %s.%s", rc.nsNm.Namespace, rc.nsNm.Name)
+		}
 		// Not found
 		return res, nil
 	}
@@ -66,7 +69,11 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 
 	exists, err := rcl.LoadObj()
 	if err != nil {
-		return res, nil
+		if shared.CannotFindError(err, rc.Log, rc.nsNm.Namespace, rc.nsNm.Name) {
+			exists = false
+		} else {
+			return res, nil
+		}
 	}
 	if exists {
 		if markedToBeDeleted {
@@ -101,6 +108,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 				rcl.NotifyChanges()
 			}
 		}
+	}
+	if err != nil {
+		rc.Log.Error(err, "Unhandled error")
 	}
 	rcl.CleanupConn()
 	return res, err
@@ -385,7 +395,10 @@ func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, erro
 func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbServerConnectionInterface, error) {
 	dbInfo, err := r.GetDbInfo2(dbServer, db)
 	if err != nil {
-		r.LogError(err, "failed getting dbInfo")
+		errStr := err.Error()
+		if !strings.Contains(errStr, "failed getting password failed to get secret") {
+			r.LogError(err, "failed getting dbInfo")
+		}
 		return nil, err
 	}
 
