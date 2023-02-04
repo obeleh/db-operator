@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,6 +10,12 @@ import (
 	"github.com/thoas/go-funk"
 )
 
+func expectSQLQuery(mock sqlmock.Sqlmock, qry, column, row string) {
+	mockOutput := sqlmock.NewRows([]string{column})
+	mockOutput.AddRow(row)
+	mock.ExpectQuery(qry).WillReturnRows(mockOutput)
+}
+
 func TestGetTlsRequiresNone(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
@@ -16,15 +23,12 @@ func TestGetTlsRequiresNone(t *testing.T) {
 	}
 	defer db.Close()
 
-	expected := sqlmock.NewRows([]string{
+	expectSQLQuery(
+		mock,
+		"SHOW CREATE USER 'user'@'%'",
 		"CREATE USER for user@%",
-	})
-	expected.AddRow(
 		"CREATE USER 'user'@'%' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT",
 	)
-	mock.ExpectQuery(
-		"SHOW CREATE USER 'user'@'%'",
-	).WillReturnRows(expected)
 
 	serverInfo, _ := NewServerInfo("8.0.25", "ANSI")
 	tlsRequires, err := getTlsRequires(db, *serverInfo, "user", "%")
@@ -45,15 +49,12 @@ func TestGetTlsRequiresTLS(t *testing.T) {
 	}
 	defer db.Close()
 
-	expected := sqlmock.NewRows([]string{
+	expectSQLQuery(
+		mock,
+		"SHOW CREATE USER 'user'@'%'",
 		"CREATE USER for user@%",
-	})
-	expected.AddRow(
 		"CREATE USER 'user'@'%' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT",
 	)
-	mock.ExpectQuery(
-		"SHOW CREATE USER 'user'@'%'",
-	).WillReturnRows(expected)
 
 	serverInfo, _ := NewServerInfo("8.0.25", "ANSI")
 	tlsRequires, err := getTlsRequires(db, *serverInfo, "user", "%")
@@ -175,9 +176,7 @@ func TestGetModeAnsi(t *testing.T) {
 	}
 	defer db.Close()
 
-	mockOutput := sqlmock.NewRows([]string{"@@GLOBAL.sql_mode"})
-	mockOutput.AddRow("ANSI")
-	mock.ExpectQuery("SELECT @@GLOBAL.sql_mode;").WillReturnRows(mockOutput)
+	expectSQLModeQuery(mock)
 
 	mode, err := getMode(db)
 	if mode != "ANSI" {
@@ -193,6 +192,14 @@ func TestGetModeAnsi(t *testing.T) {
 	}
 }
 
+func expectSQLModeQuery(mock sqlmock.Sqlmock) {
+	expectSQLQuery(mock, "SELECT @@GLOBAL.sql_mode;", "@@GLOBAL.sql_mode", "ANSI")
+}
+
+func expectVersionQuery(mock sqlmock.Sqlmock) {
+	expectSQLQuery(mock, "SELECT VERSION();", "VERSION()", "8.0.32")
+}
+
 func TestGetModeNotAnsi(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
@@ -200,9 +207,12 @@ func TestGetModeNotAnsi(t *testing.T) {
 	}
 	defer db.Close()
 
-	mockOutput := sqlmock.NewRows([]string{"@@GLOBAL.sql_mode"})
-	mockOutput.AddRow("NO_ENGINE_SUBSTITUTION, NO_AUTO_CREATE_USER")
-	mock.ExpectQuery("SELECT @@GLOBAL.sql_mode;").WillReturnRows(mockOutput)
+	expectSQLQuery(
+		mock,
+		"SELECT @@GLOBAL.sql_mode;",
+		"@@GLOBAL.sql_mode",
+		"NO_ENGINE_SUBSTITUTION, NO_AUTO_CREATE_USER",
+	)
 
 	mode, err := getMode(db)
 	if mode != "NOTANSI" {
@@ -400,4 +410,35 @@ func TestPropertiesMapToMySQLVersionMariaDb(t *testing.T) {
 	if !reflect.DeepEqual(found, expected) {
 		t.Error("Version parsing for MySQL failed")
 	}
+}
+
+func TestCreateUser(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+	tlsRequires := &TlsRequires{}
+
+	expectVersionQuery(mock)
+	expectSQLModeQuery(mock)
+
+	shaPassword := "*920A368754836100C4FC7C6559FEE1D6B9C0005F"
+
+	mockOutput := sqlmock.NewRows([]string{"DUMMY COL"})
+	mockOutput.AddRow(shaPassword)
+	mock.ExpectQuery("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(?)))))").WithArgs("paswoord").WillReturnRows(mockOutput)
+
+	mock.ExpectExec(fmt.Sprintf("CREATE USER jantje@tafel IDENTIFIED WITH mysql_native_password AS %s;", shaPassword)).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err = CreateUser(db, "jantje", "tafel", "paswoord", tlsRequires)
+
+	if err != nil {
+		t.Errorf("TestCreateUser failed: %s", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("TestCreateUser: there were unfulfilled expectations: %s", err)
+	}
+
 }

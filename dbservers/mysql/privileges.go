@@ -233,7 +233,7 @@ func (si ServerInfo) SupportsIdentifiedByPassword() bool {
 }
 
 func getServerInfo(conn *sql.DB) (*ServerInfo, error) {
-	versionStr, err := query_utils.SelectFirstValueString(conn, "SELECT VERSION()")
+	versionStr, err := query_utils.SelectFirstValueString(conn, "SELECT VERSION();")
 	if err != nil {
 		return nil, fmt.Errorf("failed getting server info %s", err)
 	}
@@ -330,7 +330,7 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, serve
 	if oldUserMgmt {
 		query = "CREATE USER %s@%s IDENTIFIED BY %s"
 	} else {
-		password, err = query_utils.SelectFirstValueString(conn, fmt.Sprintf("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(%s)))))", password))
+		password, err = query_utils.SelectFirstValueString(conn, "SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(?)))))", password)
 		if err != nil {
 			return fmt.Errorf("unable to create password for user %s %s", user, err)
 		}
@@ -341,7 +341,7 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, serve
 	if oldUserMgmt {
 		query, params = tlsRequires.Mogrify(query, params)
 	}
-	query = fmt.Sprintf(query, stringArrayToInterfaceArray(params)...)
+	query = fmt.Sprintf(query+";", stringArrayToInterfaceArray(params)...)
 	_, err = conn.Exec(query)
 	return err
 }
