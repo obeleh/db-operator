@@ -1,0 +1,16 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+name: PostgresDebugMode
+testDirs:
+- ./tests/postgres
+manifestDirs:
+- ./tests/postgres-manifests/
+# kindConfig: tests/kind-config.yaml
+# startKIND: true
+# startControlPlane: true
+kindContainers:
+- library/postgres:latest
+# we're sharing the database, in order to have predictable state we don't do parallel tests
+parallel: 1
+artifactsDir: ./tests/outputs
+kindNodeCache: true
