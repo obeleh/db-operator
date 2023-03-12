@@ -38,13 +38,13 @@ spec:
               db_privs:
                 items:
                   properties:
-                    db_name:
-                      type: string
                     privs:
                       type: string
+                    scope:
+                      type: string
                   required:
-                  - db_name
                   - privs
+                  - scope
                   type: object
                 type: array
               db_server_name:

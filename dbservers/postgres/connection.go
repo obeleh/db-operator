@@ -218,3 +218,10 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string,
 	qry += "' WITH DETACHED;"
 	return query_utils.SelectFirstValueInt64(conn, qry)
 }
+
+func (i *PostgresConnection) ScopeToDbName(scope string) (string, error) {
+	if scope == "" {
+		return "", fmt.Errorf("Empty scope not supported, expected a DB name")
+	}
+	return scope, nil
+}

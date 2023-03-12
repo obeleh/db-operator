@@ -21,8 +21,8 @@ import (
 )
 
 type DbPriv struct {
-	DbName string `json:"db_name"`
-	Privs  string `json:"privs"`
+	Scope string `json:"scope"`
+	Privs string `json:"privs"`
 }
 
 // UserSpec defines the desired state of User

@@ -328,21 +328,21 @@ func CreateUserSi(conn *sql.DB, user string, host string, password string, serve
 	}
 
 	if oldUserMgmt {
-		query = "CREATE USER %s@%s IDENTIFIED BY %s"
+		query = "CREATE USER ?@? IDENTIFIED BY ?;"
 	} else {
 		password, err = query_utils.SelectFirstValueString(conn, "SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(?)))))", password)
 		if err != nil {
 			return fmt.Errorf("unable to create password for user %s %s", user, err)
 		}
-		query = "CREATE USER %s@%s IDENTIFIED WITH mysql_native_password AS %s"
+		query = "CREATE USER ?@? IDENTIFIED WITH mysql_native_password AS ?;"
 	}
 
 	params := []string{user, host, password}
 	if oldUserMgmt {
 		query, params = tlsRequires.Mogrify(query, params)
 	}
-	query = fmt.Sprintf(query+";", stringArrayToInterfaceArray(params)...)
-	_, err = conn.Exec(query)
+	//query = fmt.Sprintf(query+";", stringArrayToInterfaceArray(params)...)
+	_, err = conn.Exec(query, stringArrayToInterfaceArray(params)...)
 	return err
 }
 
@@ -548,7 +548,7 @@ func privilegesUnpack(dbPrivs []dboperatorv1alpha1.DbPriv, mode string) (map[str
 	output := map[string][]string{}
 
 	for _, item := range dbPrivs {
-		dbPriv := strings.Split(item.DbName, ".")
+		dbPriv := strings.Split(item.Scope, ".")
 
 		// Check for FUNCTION or PROCEDURE object types
 		parts := strings.SplitN(item.Privs, " ", 2)
@@ -565,9 +565,9 @@ func privilegesUnpack(dbPrivs []dboperatorv1alpha1.DbPriv, mode string) (map[str
 				dbPriv[i] = fmt.Sprintf("%s%s%s", quote, strings.TrimSpace(side), quote)
 			}
 		}
-		item.DbName = objectType + strings.Join(dbPriv, ".")
+		item.Scope = objectType + strings.Join(dbPriv, ".")
 		privs, privsStripped := parsePrivPiece(strings.ToUpper(item.Privs))
-		output[item.DbName] = privs
+		output[item.Scope] = privs
 
 		invalidPrivs := funk.Subtract(privsStripped, VALID_PRIVS).([]string)
 		if len(invalidPrivs) > 0 {
@@ -575,7 +575,7 @@ func privilegesUnpack(dbPrivs []dboperatorv1alpha1.DbPriv, mode string) (map[str
 		}
 
 		// Handle cases when there's privs like GRANT SELECT (colA, ...) in privs.
-		output[item.DbName] = normalizeColGrants(output[item.DbName])
+		output[item.Scope] = normalizeColGrants(output[item.Scope])
 	}
 
 	_, exists := output["*.*"]
@@ -730,7 +730,7 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	if len(serverPrivs) == 0 {
 		allPrivs = dbPrivs
 	} else {
-		allPrivs = append(dbPrivs, dboperatorv1alpha1.DbPriv{DbName: "*.*", Privs: serverPrivs})
+		allPrivs = append(dbPrivs, dboperatorv1alpha1.DbPriv{Scope: "*.*", Privs: serverPrivs})
 	}
 
 	desiredPrivs, err := privilegesUnpack(allPrivs, si.Mode)

@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -96,16 +95,16 @@ func TestRsplit1(t *testing.T) {
 func TestPrivilegesUnpack(t *testing.T) {
 	privs := []dboperatorv1alpha1.DbPriv{
 		{
-			DbName: "mydb.*",
-			Privs:  "INSERT,UPDATE",
+			Scope: "mydb.*",
+			Privs: "INSERT,UPDATE",
 		},
 		{
-			DbName: "anotherdb.*",
-			Privs:  "SELECT(col1,col2),UPDATE",
+			Scope: "anotherdb.*",
+			Privs: "SELECT(col1,col2),UPDATE",
 		},
 		{
-			DbName: "yetanother.*",
-			Privs:  "ALL",
+			Scope: "yetanother.*",
+			Privs: "ALL",
 		},
 	}
 	privMap, err := privilegesUnpack(privs, "ANSI")
@@ -128,16 +127,16 @@ func TestPrivilegesUnpack(t *testing.T) {
 func TestPrivilegesUnpackNonAnsi(t *testing.T) {
 	privs := []dboperatorv1alpha1.DbPriv{
 		{
-			DbName: "mydb.*",
-			Privs:  "INSERT,UPDATE",
+			Scope: "mydb.*",
+			Privs: "INSERT,UPDATE",
 		},
 		{
-			DbName: "anotherdb.*",
-			Privs:  "SELECT(col1,col2),UPDATE",
+			Scope: "anotherdb.*",
+			Privs: "SELECT(col1,col2),UPDATE",
 		},
 		{
-			DbName: "yetanother.*",
-			Privs:  "ALL",
+			Scope: "yetanother.*",
+			Privs: "ALL",
 		},
 	}
 	privMap, err := privilegesUnpack(privs, "NOTANSI")
@@ -429,7 +428,7 @@ func TestCreateUser(t *testing.T) {
 	mockOutput.AddRow(shaPassword)
 	mock.ExpectQuery("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(?)))))").WithArgs("paswoord").WillReturnRows(mockOutput)
 
-	mock.ExpectExec(fmt.Sprintf("CREATE USER jantje@tafel IDENTIFIED WITH mysql_native_password AS %s;", shaPassword)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("CREATE USER ?@? IDENTIFIED WITH mysql_native_password AS ?;").WithArgs("jantje", "tafel", shaPassword).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = CreateUser(db, "jantje", "tafel", "paswoord", tlsRequires)
 
@@ -440,5 +439,4 @@ func TestCreateUser(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("TestCreateUser: there were unfulfilled expectations: %s", err)
 	}
-
 }

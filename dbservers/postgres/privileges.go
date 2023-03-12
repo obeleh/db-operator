@@ -222,7 +222,7 @@ func getServerVersion(conn *sql.DB) (*PostgresVersion, error) {
 
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
 	// Server Privs
-	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname=$1", userName)
+	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname = $1", userName)
 	if err != nil {
 		return false, err
 	}
@@ -263,7 +263,7 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	for _, dbPriv := range dbPrivs {
-		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.DbName, serverVersion)
+		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.Scope, serverVersion)
 		if err != nil {
 			return changed, err
 		}

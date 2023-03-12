@@ -304,8 +304,16 @@ kuttl-test-postgres:
 	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-postgres.yaml
 
+kuttl-test-postgres-debugmode:
+	mkdir -p tests/outputs 
+	kubectl kuttl test --config kuttl-test-postgres-debugmode.yaml
+
 kuttl-test-mysql:
 	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-mysql.yaml
+
+kuttl-test-mysql-debugmode:
+	mkdir -p tests/outputs 
+	kubectl kuttl test --config kuttl-test-mysql-debugmode.yaml
 
 kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql

@@ -62,6 +62,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		return res, nil
 	}
 
+	rc.Log.Info(fmt.Sprintf("Reconciling %s.%s ", rc.nsNm.Namespace, rc.nsNm.Name))
 	res = ctrl.Result{}
 	err = nil
 	cr := rcl.GetCR()

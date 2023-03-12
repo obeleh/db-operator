@@ -133,3 +133,11 @@ func (p *MySqlConnection) UpdateUserPrivs(userName string, serverPrivs string, d
 
 	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs)
 }
+
+func (p *MySqlConnection) ScopeToDbName(scope string) (string, error) {
+	parts := strings.Split(scope, ".")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("Unexpected scope found expected form db.something, db.* or *.*, got %s", scope)
+	}
+	return parts[0], nil
+}

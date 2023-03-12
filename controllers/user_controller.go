@@ -148,29 +148,36 @@ func (r *UserReco) GetCR() client.Object {
 
 func (r *UserReco) EnsureCorrect() (bool, error) {
 	errors := []error{}
-	resolvedDbNamePrivs := []dboperatorv1alpha1.DbPriv{}
-	for _, dbPriv := range r.user.Spec.DbPrivs {
-		db := dboperatorv1alpha1.Db{}
-		nsm := types.NamespacedName{
-			Name:      dbPriv.DbName,
-			Namespace: r.user.Namespace,
-		}
-		err := r.client.Get(r.ctx, nsm, &db)
-		if err == nil {
-			resolvedDbNamePrivs = append(resolvedDbNamePrivs, dboperatorv1alpha1.DbPriv{
-				DbName: db.Spec.DbName,
-				Privs:  dbPriv.Privs,
-			})
-		} else {
-			if shared.CannotFindError(err, r.Log, "DB", r.user.Namespace, dbPriv.DbName) {
-				err = shared.NewAlreadyHandledError(err)
-			} else {
-				r.LogError(err, "Failed loading DB")
+	/*
+		// A BIT UNSURE IF WE SHOULD USE THE RESOLVED DB NAME OR DB NAME IN PG CLUSTER as parameter to UpdateUserPrivs, it should already be determined by where this user lives
+		resolvedDbNamePrivs := []dboperatorv1alpha1.DbPriv{}
+		for _, dbPriv := range r.user.Spec.DbPrivs {
+			db := dboperatorv1alpha1.Db{}
+			dbName, err := r.conn.ScopeToDbName(dbPriv.Scope)
+			if err != nil {
+				return false, err
 			}
-			errors = append(errors, err)
+			nsm := types.NamespacedName{
+				Name:      dbName,
+				Namespace: r.user.Namespace,
+			}
+			err = r.client.Get(r.ctx, nsm, &db)
+			if err == nil {
+				resolvedDbNamePrivs = append(resolvedDbNamePrivs, dboperatorv1alpha1.DbPriv{
+					Scope: dbPriv.Scope,
+					Privs: dbPriv.Privs,
+				})
+			} else {
+				if shared.CannotFindError(err, r.Log, "DB", r.user.Namespace, dbName) {
+					err = shared.NewAlreadyHandledError(err)
+				} else {
+					r.LogError(err, "Failed loading DB")
+				}
+				errors = append(errors, err)
+			}
 		}
-	}
-	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, resolvedDbNamePrivs)
+	*/
+	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, r.user.Spec.DbPrivs)
 	if err != nil {
 		r.LogError(err, "Failed updating user privs")
 		errors = append(errors, shared.NewAlreadyHandledError(err))

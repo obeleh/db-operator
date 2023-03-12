@@ -95,7 +95,7 @@ func TestUpdateUserPrivs(t *testing.T) {
 	})
 	expected.AddRow("testuser", false, true, false, false, false, false, nil, -1, "********", nil, false, 1638)
 	mock.ExpectQuery(
-		"SELECT * FROM pg_roles WHERE rolname=$1",
+		"SELECT * FROM pg_roles WHERE rolname = $1",
 	).WithArgs(
 		"testuser",
 	).WillReturnRows(expected)
@@ -108,8 +108,8 @@ func TestUpdateUserPrivs(t *testing.T) {
 
 	dbPrivs := []dboperatorv1alpha1.DbPriv{
 		{
-			DbName: "testdb",
-			Privs:  "ALL",
+			Scope: "testdb",
+			Privs: "ALL",
 		},
 	}
 	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
