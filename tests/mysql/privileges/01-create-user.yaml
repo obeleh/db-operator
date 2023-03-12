@@ -3,7 +3,7 @@ kind: Secret
 metadata:
   name: example-user-secret
 data:
-  password: YmxhCg==
+  password: Ymxh
 
 ---
 

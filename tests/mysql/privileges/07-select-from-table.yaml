@@ -1,0 +1,26 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: execute-select
+spec:
+  template:
+    spec:
+      containers:
+      - name: execute-qry
+        env:
+        - name: MYSQL_HOST
+          value: mysql.mysql.svc.cluster.local
+        - name: MYSQL_USER
+          value: sjuul
+        - name: MYSQL_PWD
+          value: bla
+        - name: MYSQL_DATABASE
+          value: example-db
+        image: mysql:latest
+        command: [
+          "bash" , "-c", 
+          "mysql -u $MYSQL_USER -h $MYSQL_HOST -D $MYSQL_DATABASE -e \"SELECT COUNT(*) FROM SomeTable;\""
+        ]
+      restartPolicy: Never
+  backoffLimit: 1

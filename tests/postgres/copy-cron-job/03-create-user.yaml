@@ -17,7 +17,7 @@ spec:
   secret_name: example-user-secret
   server_privs: LOGIN
   db_privs:
-    - db_name: source-db
+    - scope: source-db
       privs: ALL
-    - db_name: destination-db
+    - scope: destination-db
       privs: ALL
