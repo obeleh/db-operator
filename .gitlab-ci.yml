@@ -1,0 +1,47 @@
+include:
+  - project: 'kevineu/devex/ci-cd-pipelines'
+    file: '/gitlab-utils/.gitlab-ci-globals.yml'
+  - project: 'kevineu/appsec/sast-configs'
+    file: '/Semgrep.gitlab-ci.yml'
+  - project: 'kevineu/devex/ci-cd-pipelines'
+    file: '/gitlab-utils/.gitlab-ci-build-push.yml'
+    ref: 'no-create-workspace-dir'
+
+.rules:
+  - &on-merge-request
+    if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  - &on-push-to-main
+    if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+
+.deploy_trigger:
+  trigger:
+    include:
+      - local: .gitlab-ci-deploy.yml
+
+.dev_trigger:
+  extends: .deploy_trigger
+  stage: deploy_dev
+
+variables:
+  APP_NAME: db-operator
+  KUBERNETES_CPU_REQUEST: "1"
+  KUBERNETES_CPU_LIMIT: "4"
+  KUBERNETES_MEMORY_REQUEST: "2Gi"
+  KUBERNETES_MEMORY_LIMIT: "4Gi"
+
+test image:
+  stage: test
+  tags: [ "k8s-runner" ]
+  image:
+    name: golang:1.20-buster
+    pull_policy: if-not-present
+  before_script:
+  # these would trigger the test to try with AWS credentials
+    - unset AWS_ROLE_ARN
+    - unset AWS_REGION
+  script:
+    - make kuttl test
+    - go test ./... -v -short
+  rules:
+    - *on-merge-request
+    - *on-push-to-main
