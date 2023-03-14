@@ -30,6 +30,8 @@ variables:
   KUBERNETES_MEMORY_LIMIT: "4Gi"
 
 test image:
+  services:
+  - docker:20.10.16-dind
   stage: test
   tags: [ "k8s-runner" ]
   image:
@@ -40,6 +42,7 @@ test image:
     - unset AWS_ROLE_ARN
     - unset AWS_REGION
   script:
+    - apt update && apt install -y docker
     - make kuttl-test
     - go test ./... -v -short
   rules:
