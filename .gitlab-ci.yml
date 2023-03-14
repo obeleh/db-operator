@@ -24,13 +24,13 @@ include:
 
 variables:
   APP_NAME: db-operator
-  KUBERNETES_CPU_REQUEST: "2"
+  KUBERNETES_CPU_REQUEST: "1"
   KUBERNETES_CPU_LIMIT: "4"
-  KUBERNETES_MEMORY_REQUEST: "2Gi"
+  KUBERNETES_MEMORY_REQUEST: "1Gi"
   KUBERNETES_MEMORY_LIMIT: "4Gi"
-  KUBERNETES_SERVICE_CPU_REQUEST: "2"
+  KUBERNETES_SERVICE_CPU_REQUEST: "1"
   KUBERNETES_SERVICE_CPU_LIMIT: "4"
-  KUBERNETES_SERVICE_MEMORY_REQUEST: "2Gi"
+  KUBERNETES_SERVICE_MEMORY_REQUEST: "1Gi"
   KUBERNETES_SERVICE_MEMORY_LIMIT: "6Gi"
    
 test image:
@@ -54,7 +54,10 @@ test image:
     - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release
     - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    - apt-get update && apt-get install -y docker-ce-cli kind
+    - apt-get update && apt-get install -y docker-ce-cli
+    - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
+    - chmod +x ./kind
+    - mv ./kind /usr/local/bin/kind
     - make kuttl-test
     - go test ./... -v -short
   rules:
