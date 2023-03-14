@@ -48,7 +48,7 @@ test image:
   stage: test
   tags: [ "k8s-runner" ]
   image:
-    name: golang:1.20-buster
+    name: $CI_REGISTRY_IMAGE:latest
     pull_policy: if-not-present
   variables:
     DOCKER_HOST: tcp://localhost:2375
@@ -89,6 +89,3 @@ build:
   only:
     changes:
       - Dockerfile.ci
-  rules:
-    - *on-merge-request
-    - *on-push-to-main
