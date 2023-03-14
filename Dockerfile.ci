@@ -19,4 +19,5 @@ RUN ( \
         tar zxvf "${KREW}.tar.gz" && \
         ./"${KREW}" install krew  \
     )
-RUN PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" kubectl krew install kuttl
+ENV PATH="/root/.krew/bin:$PATH"
+RUN kubectl krew install kuttl

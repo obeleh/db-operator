@@ -79,6 +79,7 @@ test image:
     - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
     - kubectl krew install kuttl
     - make kind-cluster
+    - kubectl config current-context
     - make kuttl-test
     - go test ./... -v -short
   after_script:
