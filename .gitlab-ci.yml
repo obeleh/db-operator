@@ -37,6 +37,10 @@ variables:
   KUBERNETES_HELPER_MEMORY_REQUEST: "1Gi"
   KUBERNETES_HELPER_MEMORY_LIMIT: "4Gi"
    
+stages:
+  # - build-ci-image
+  - test
+
 test image:
   services:
   - name: docker:dind
@@ -61,6 +65,9 @@ test image:
     - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
+    - curl -Lo ./kuttl https://github.com/kudobuilder/kuttl/releases/download/v0.15.0/kubectl-kuttl_0.15.0_darwin_x86_64
+    - chmod +x ./kuttl
+    - mv ./kuttl /usr/local/bin/kuttl
     - make kind-cluster
     - make kuttl-test
     - go test ./... -v -short
@@ -69,3 +76,19 @@ test image:
   rules:
     - *on-merge-request
     - *on-push-to-main
+
+# build:
+#   image: docker:20.10.16
+#   stage: build-ci-image
+#   services:
+#     - docker:20.10.16-dind
+#   script:
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker build -t $CI_REGISTRY_IMAGE:latest .
+#     - docker push $CI_REGISTRY_IMAGE:latest
+#   only:
+#     changes:
+#       - Dockerfile.ci
+#   rules:
+#     - *on-merge-request
+#     - *on-push-to-main
