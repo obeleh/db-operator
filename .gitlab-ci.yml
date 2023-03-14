@@ -31,7 +31,8 @@ variables:
 
 test image:
   services:
-  - docker:20.10.16-dind
+  - name: docker:dind
+    command: [ "--tls=false" ]
   stage: test
   tags: [ "k8s-runner" ]
   image:
