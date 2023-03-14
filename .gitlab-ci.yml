@@ -76,7 +76,8 @@ test image:
         tar zxvf "${KREW}.tar.gz" &&
         ./"${KREW}" install krew
       )
-    - PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" kubectl krew install kuttl
+    - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
+    - kubectl krew install kuttl
     - make kind-cluster
     - make kuttl-test
     - go test ./... -v -short
