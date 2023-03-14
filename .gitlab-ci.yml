@@ -46,10 +46,6 @@ test image:
     DOCKER_HOST: tcp://localhost:2375
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-  before_script:
-  # these would trigger the test to try with AWS credentials
-    - unset AWS_ROLE_ARN
-    - unset AWS_REGION
   script:
     - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release
     - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -60,6 +56,8 @@ test image:
     - mv ./kind /usr/local/bin/kind
     - make kuttl-test
     - go test ./... -v -short
+  after_script:
+    - kind delete cluster
   rules:
     - *on-merge-request
     - *on-push-to-main
