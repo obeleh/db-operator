@@ -40,7 +40,7 @@ test image:
     - unset AWS_ROLE_ARN
     - unset AWS_REGION
   script:
-    - make kuttl test
+    - make kuttl-test
     - go test ./... -v -short
   rules:
     - *on-merge-request
