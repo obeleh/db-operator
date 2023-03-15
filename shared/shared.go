@@ -7,10 +7,12 @@ import (
 	path "path/filepath"
 	"reflect"
 	"regexp"
+	"time"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type AlreadyHandledError struct {
@@ -198,4 +200,24 @@ func SelectToPropertyMap(conn *sql.DB, query string, key string, value string, a
 	}
 
 	return propertyMap, nil
+}
+
+func Min(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func GradualBackoffRetry(creationTime time.Time) ctrl.Result {
+	retrySecs := Min(time.Since(creationTime).Seconds(), 300)
+	return RetryAfter(retrySecs)
+}
+
+func RetryAfter(secs float64) ctrl.Result {
+	return ctrl.Result{
+		// Gradual backoff
+		Requeue:      true,
+		RequeueAfter: time.Duration(secs),
+	}
 }

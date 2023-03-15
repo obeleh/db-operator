@@ -89,21 +89,13 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 	password, err := GetUserPassword(&r.user, r.client, r.ctx)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return ctrl.Result{
-			// Gradual backoff
-			Requeue:      true,
-			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
-		}, nil
+		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
-		return ctrl.Result{
-			// Gradual backoff
-			Requeue:      true,
-			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
-		}, err
+		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
 	}
 
 	_, err = r.EnsureCorrect()
@@ -123,11 +115,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	err := r.conn.DropUser(r.user.Spec.UserName)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
-		return ctrl.Result{
-			// Gradual backoff
-			Requeue:      true,
-			RequeueAfter: time.Duration(time.Since(r.user.GetDeletionTimestamp().Time).Seconds()),
-		}, err
+		return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), err
 	}
 	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	return ctrl.Result{}, nil

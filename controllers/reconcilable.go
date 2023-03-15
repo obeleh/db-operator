@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers"
@@ -41,13 +40,6 @@ type Reco struct {
 }
 
 const DB_OPERATOR_FINALIZER = "db-operator.kubemaster.com/finalizer"
-
-func min(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
-}
 
 func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(cr, DB_OPERATOR_FINALIZER) {
@@ -101,6 +93,8 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			changes, err = rcl.EnsureCorrect()
 			if err == nil {
 				res, err = rc.EnsureFinalizer(cr)
+			} else if cr != nil {
+				res = shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time)
 			}
 			if changes {
 				rcl.NotifyChanges()
@@ -121,11 +115,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	if err != nil && !shared.IsHandledErr(err) {
 		rc.LogError(err, fmt.Sprintf("Unhandled error in %s", shared.GetTypeName(rcl)))
 		if cr != nil {
-			res = ctrl.Result{
-				// Gradual backoff
-				Requeue:      true,
-				RequeueAfter: time.Duration(min(time.Since(cr.GetCreationTimestamp().Time).Seconds(), 500.0)),
-			}
+			res = shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time)
+		} else {
+			res = shared.RetryAfter(30)
 		}
 	}
 	rcl.CleanupConn()
