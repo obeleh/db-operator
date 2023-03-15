@@ -81,6 +81,7 @@ test image:
     - unset KUBERNETES_SERVICE_HOST # kubectl would pick up these and connect to eks in stead
     - unset KUBERNETES_SERVICE_PORT
     - make kind-cluster
+    - make deploy-test-infra
     - make kuttl-test
     - go test ./... -v -short
   after_script:
