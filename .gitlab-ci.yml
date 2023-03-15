@@ -38,7 +38,7 @@ variables:
   KUBERNETES_HELPER_MEMORY_LIMIT: "4Gi"
    
 stages:
-  # - build-ci-image
+  - build-ci-image
   - test
 
 test image:
@@ -78,10 +78,9 @@ test image:
       )
     - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
     - kubectl krew install kuttl
-    - unset KUBERNETES_SERVICE_HOST
+    - unset KUBERNETES_SERVICE_HOST # kubectl would pick up these and connect to eks in stead
     - unset KUBERNETES_SERVICE_PORT
     - make kind-cluster
-    - printenv
     - make kuttl-test
     - go test ./... -v -short
   after_script:
@@ -90,15 +89,15 @@ test image:
     - *on-merge-request
     - *on-push-to-main
 
-# build:
-#   image: docker:20.10.16
-#   stage: build-ci-image
-#   services:
-#     - docker:20.10.16-dind
-#   script:
-#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-#     - docker build -t $CI_REGISTRY_IMAGE:cilatest .
-#     - docker push $CI_REGISTRY_IMAGE:cilatest
-#   only:
-#     changes:
-#       - Dockerfile.ci
+build:
+  image: docker:20.10.16
+  stage: build-ci-image
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:cilatest .
+    - docker push $CI_REGISTRY_IMAGE:cilatest
+  only:
+    changes:
+      - Dockerfile.ci
