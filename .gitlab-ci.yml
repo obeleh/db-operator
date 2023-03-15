@@ -48,7 +48,7 @@ test image:
   stage: test
   tags: [ "k8s-runner" ]
   image:
-    name: $CI_REGISTRY_IMAGE:cilatest
+    name: $CI_REGISTRY_IMAGE:1.0.0
     # name: golang:1.20-buster
     pull_policy: if-not-present
   variables:
@@ -97,8 +97,8 @@ build:
     - docker:20.10.16-dind
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE:cilatest .
-    - docker push $CI_REGISTRY_IMAGE:cilatest
+    - docker build -t $CI_REGISTRY_IMAGE:1.0.0 .
+    - docker push $CI_REGISTRY_IMAGE:1.0.0
   only:
     changes:
       - Dockerfile.ci
