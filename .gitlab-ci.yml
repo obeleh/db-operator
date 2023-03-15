@@ -48,8 +48,8 @@ test image:
   stage: test
   tags: [ "k8s-runner" ]
   image:
-    name: $CI_REGISTRY_IMAGE:1.0.0
-    # name: golang:1.20-buster
+    # name: $CI_REGISTRY_IMAGE:1.0.0
+    name: golang:1.20-buster
     pull_policy: if-not-present
   variables:
     DOCKER_HOST: tcp://localhost:2375
