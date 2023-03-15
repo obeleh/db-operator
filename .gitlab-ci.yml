@@ -78,6 +78,8 @@ test image:
       )
     - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
     - kubectl krew install kuttl
+    - unset KUBERNETES_SERVICE_HOST
+    - unset KUBERNETES_SERVICE_PORT
     - make kind-cluster
     - printenv
     - make kuttl-test
