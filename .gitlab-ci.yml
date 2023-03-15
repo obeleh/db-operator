@@ -7,6 +7,12 @@ include:
     file: '/gitlab-utils/.gitlab-ci-build-push.yml'
     ref: 'no-create-workspace-dir'
 
+.scripts:
+  setup-aws-web-identity-token:
+    - |
+      export AWS_WEB_IDENTITY_TOKEN_FILE="./web-identity-token"
+      echo $CI_JOB_JWT_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
+
 .rules:
   - &on-merge-request
     if: $CI_PIPELINE_SOURCE == 'merge_request_event'
@@ -21,6 +27,23 @@ include:
 .dev_trigger:
   extends: .deploy_trigger
   stage: deploy_dev
+  variables:
+    ENV: dev
+    AWS_ACCOUNT_ID: $DEV_AWS_ACCOUNT_ID
+
+.uat_trigger:
+  extends: .deploy_trigger
+  stage: deploy_uat
+  variables:
+    ENV: uat
+    AWS_ACCOUNT_ID: $UAT_AWS_ACCOUNT_ID
+
+.prod_trigger:
+  extends: .deploy_trigger
+  stage: deploy_prod
+  variables:
+    ENV: prod
+    AWS_ACCOUNT_ID: $PROD_AWS_ACCOUNT_ID
 
 variables:
   APP_NAME: db-operator
@@ -55,6 +78,9 @@ test image:
     DOCKER_HOST: tcp://localhost:2375
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
+    AWS_ROLE_ARN: arn:aws:iam::$MGMT_AWS_ACCOUNT_ID:role/mgmt-gitlab-role
+    ECR_URI: $MGMT_AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    TAG_COMMIT: $ECR_URI/$APP_NAME:c-$CI_COMMIT_SHA
   script:
     - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release
     - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -83,12 +109,41 @@ test image:
     - make kind-cluster
     - make deploy-test-infra
     - make kuttl-test
-    - go test ./... -v -short
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
+    - docker build -t $TAG_COMMIT .
+    - docker push $TAG_COMMIT
   after_script:
     - kind delete cluster
   rules:
     - *on-merge-request
     - *on-push-to-main
+
+deploy to dev: 
+  extends: .dev_trigger
+  trigger:
+    strategy: depend
+  when: manual
+  rules:
+    - <<: *on-push-to-main
+      allow_failure: false
+
+deploy to uat: 
+  extends: .uat_trigger
+  trigger:
+    strategy: depend
+  when: manual
+  rules:
+    - <<: *on-push-to-main
+      allow_failure: false
+
+deploy to prod: 
+  extends: .prod_trigger
+  trigger:
+    strategy: depend
+  when: manual
+  rules:
+    - <<: *on-push-to-main
+      allow_failure: false
 
 build:
   image: docker:20.10.16

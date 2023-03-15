@@ -178,6 +178,40 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
+define KUSTOMIZATION_TEMPLATE
+namespace: devops
+namePrefix: ""
+resources:
+- ../crd
+- ../rbac
+- ../manager
+patchesStrategicMerge:
+# Protect the /metrics endpoint by putting it behind auth.
+# If you want your controller-manager to expose the /metrics
+# endpoint w/o any authn/z, please comment the following line.
+- manager_auth_proxy_patch.yaml
+
+patches:
+- target:
+    version: v1 
+    kind: ServiceAccount
+    name: controller-manager
+  patch: |-
+    - op: add
+      path: /metadata/annotations
+      value: {"eks.amazonaws.com/role-arn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/opensearch-index-operator_role"}
+configMapGenerator:
+- name: open-search-index-operator
+  literals:
+  - OPEN_SEARCH_ADDRESS=${OPEN_SEARCH_ADDRESS}
+  - SKIP_AWS_ROLE_ASSUMPTION=true
+images:
+- name: controller
+  newName: ${IMAGE_TAG_BASE}
+  newTag: c-${GIT_SHA}
+endef
+export KUSTOMIZATION_TEMPLATE
+
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
