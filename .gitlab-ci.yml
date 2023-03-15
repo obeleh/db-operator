@@ -48,36 +48,36 @@ test image:
   stage: test
   tags: [ "k8s-runner" ]
   image:
-    # name: $CI_REGISTRY_IMAGE:cilatest
-    name: golang:1.20-buster
+    name: $CI_REGISTRY_IMAGE:cilatest
+    # name: golang:1.20-buster
     pull_policy: if-not-present
   variables:
     DOCKER_HOST: tcp://localhost:2375
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
   script:
-    - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release
-    - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    - apt-get update && apt-get install -y docker-ce-cli
-    - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
-    - chmod +x ./kind
-    - mv ./kind /usr/local/bin/kind
-    - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-    - chmod +x ./kubectl
-    - mv ./kubectl /usr/local/bin/kubectl
-    - |
-      (
-        set -x; cd "$(mktemp -d)" &&
-        OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
-        ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
-        KREW="krew-${OS}_${ARCH}" &&
-        curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
-        tar zxvf "${KREW}.tar.gz" &&
-        ./"${KREW}" install krew
-      )
-    - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
-    - kubectl krew install kuttl
+    # - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release
+    # - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    # - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    # - apt-get update && apt-get install -y docker-ce-cli
+    # - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
+    # - chmod +x ./kind
+    # - mv ./kind /usr/local/bin/kind
+    # - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    # - chmod +x ./kubectl
+    # - mv ./kubectl /usr/local/bin/kubectl
+    # - |
+    #   (
+    #     set -x; cd "$(mktemp -d)" &&
+    #     OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+    #     ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+    #     KREW="krew-${OS}_${ARCH}" &&
+    #     curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+    #     tar zxvf "${KREW}.tar.gz" &&
+    #     ./"${KREW}" install krew
+    #   )
+    # - export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" 
+    # - kubectl krew install kuttl
     - unset KUBERNETES_SERVICE_HOST # kubectl would pick up these and connect to eks in stead
     - unset KUBERNETES_SERVICE_PORT
     - make kind-cluster
