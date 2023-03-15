@@ -1,0 +1,42 @@
+include:
+  - project: 'kevineu/devex/ci-cd-pipelines'
+    file: '/gitlab-utils/.gitlab-ci-globals.yml'
+
+.scripts:
+  setup-git-user:
+    - |
+      git config --global user.email "<>"
+      git config --global user.name "GitLab CI"
+
+
+stages:
+  - deploy_to_eks
+
+deploy to eks:
+  tags: [ "k8s-runner" ]
+  stage: deploy_to_eks
+  needs:
+    - pipeline: $PARENT_PIPELINE_ID
+      job: build image
+  image:
+    name: bitnami/git:latest
+    entrypoint: [""]
+    pull_policy: if-not-present
+  variables: 
+    AWS_ROLE_ARN: arn:aws:iam::$AWS_ACCOUNT_ID:role/db-operator_role
+  before_script:
+    - !reference [.scripts, setup-git-user]
+  script: 
+    - echo "deploying $ENV eks"
+    - apt update && apt install -y make
+    - make update-configmap
+    - GROUP_NAME=$(echo $CI_PROJECT_NAMESPACE | awk -F/ '{print $NF}')
+    - git clone https://oauth2:$ARGO_OPS_REPO_TOKEN@$OPS_REPO_URL
+    # make a clean new copy
+    - rm -rf argocd-ops-repo/$GROUP_NAME/$CI_PROJECT_NAME/$ENV
+    - mkdir -p argocd-ops-repo/$GROUP_NAME/$CI_PROJECT_NAME/$ENV
+    - cp -R config/* argocd-ops-repo/$GROUP_NAME/$CI_PROJECT_NAME/$ENV/
+    - cd argocd-ops-repo
+    - git add .
+    - git commit -m "Deployment of $NEW_TAG with pipeline $CI_PIPELINE_ID triggered for $CI_PROJECT_URL ran by $GITLAB_USER_NAME for commit $CI_COMMIT_SHORT_SHA with author $CI_COMMIT_AUTHOR and commit message\n$CI_COMMIT_MESSAGE"
+    - git push -o ci.skip
