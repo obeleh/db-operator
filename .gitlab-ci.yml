@@ -63,6 +63,9 @@ variables:
 stages:
   - build-ci-image
   - test
+  - deploy_dev
+  - deploy_uat
+  - deploy_prod
 
 test image:
   services:
