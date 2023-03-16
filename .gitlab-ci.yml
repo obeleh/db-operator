@@ -84,11 +84,14 @@ test image:
     AWS_ROLE_ARN: arn:aws:iam::$MGMT_AWS_ACCOUNT_ID:role/mgmt-gitlab-role
     ECR_URI: $MGMT_AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     TAG_COMMIT: $ECR_URI/$APP_NAME:c-$CI_COMMIT_SHA
+    TAG_LATEST: $ECR_URI/$APP_NAME:latest
   script:
     - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release unzip
     - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     - apt-get update && apt-get install -y docker-ce-cli
+    - docker version
+    - docker pull $TAG_LATEST || true
     - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
     - chmod +x ./kind
     - mv ./kind /usr/local/bin/kind
