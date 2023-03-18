@@ -26,12 +26,11 @@ func (i *PostgresDbInfo) GetDbConnection() (shared.DbServerConnectionInterface, 
 	conn := &PostgresConnection{
 		DbServerConnection: shared.DbServerConnection{
 			DbServerConnectInfo: shared.DbServerConnectInfo{
-				Host:     dbServer.Spec.Address,
-				Port:     dbServer.Spec.Port,
-				UserName: dbServer.Spec.UserName,
-				Options:  dbServer.Spec.Options,
-				Password: i.Password,
-				Database: dbName,
+				Host:        dbServer.Spec.Address,
+				Port:        dbServer.Spec.Port,
+				Options:     dbServer.Spec.Options,
+				Credentials: i.Credentials,
+				Database:    dbName,
 			},
 			Driver: "postgres",
 		},
@@ -51,7 +50,7 @@ func (i *PostgresDbInfo) BuildContainer(scriptName string) v1.Container {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: dbServer.Spec.SecretName,
 				},
-				Key: shared.Nvl(dbServer.Spec.SecretKey, "password"),
+				Key: shared.Nvl(dbServer.Spec.PasswordKey, "password"),
 			},
 		}},
 		{Name: "DATABASE", Value: i.Db.Spec.DbName},

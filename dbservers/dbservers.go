@@ -11,26 +11,27 @@ import (
 	"github.com/obeleh/db-operator/shared"
 )
 
-func GetServerActions(serverType string, dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, password string, options map[string]string) (shared.DbActions, error) {
+func GetServerActions(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db, credentials shared.Credentials, options map[string]string) (shared.DbActions, error) {
 	var actions shared.DbActions
 
-	if strings.ToLower(serverType) == "postgres" {
+	serverType := dbServer.Spec.ServerType
+	if strings.ToLower(serverType) == "postgres" || strings.ToLower(serverType) == "cockroachdb" {
 		pgActions := &postgres.PostgresDbInfo{
 			DbInfo: shared.DbInfo{
-				DbServer: dbServer,
-				Db:       db,
-				Password: password,
-				Options:  options,
+				Credentials: credentials,
+				DbServer:    dbServer,
+				Db:          db,
+				Options:     options,
 			},
 		}
 		actions = pgActions
 	} else if strings.ToLower(serverType) == "mysql" {
 		myActions := &mysql.MySqlDbInfo{
 			DbInfo: shared.DbInfo{
-				DbServer: dbServer,
-				Db:       db,
-				Password: password,
-				Options:  options,
+				Credentials: credentials,
+				DbServer:    dbServer,
+				Db:          db,
+				Options:     options,
 			},
 		}
 		actions = myActions

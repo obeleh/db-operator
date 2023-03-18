@@ -28,5 +28,6 @@ Dockerfile.cross
 tests/outputs
 kubeconfig
 __debug_bin
+tempCertsDir
 
 *.bak

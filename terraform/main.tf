@@ -543,7 +543,7 @@ resource "kubernetes_manifest" "customresourcedefinition_dbservers_db_operator_k
                       "minimum" = 1
                       "type" = "integer"
                     }
-                    "secret_key" = {
+                    "password_key" = {
                       "type" = "string"
                     }
                     "secret_name" = {
@@ -987,7 +987,7 @@ resource "kubernetes_manifest" "customresourcedefinition_users_db_operator_kubem
                     "db_server_name" = {
                       "type" = "string"
                     }
-                    "secret_key" = {
+                    "password_key" = {
                       "type" = "string"
                     }
                     "secret_name" = {

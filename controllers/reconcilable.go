@@ -331,12 +331,12 @@ func (r *Reco) GetDbInfo(dbName string) (shared.DbActions, error) {
 }
 
 func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbActions, error) {
-	password, err := r.GetPassword(dbServer)
+	credentials, err := r.GetCredentials(dbServer)
 	if err != nil {
-		return nil, fmt.Errorf("failed getting password %s", err)
+		return nil, fmt.Errorf("failed getting credentials %s", err)
 	}
 
-	return dbservers.GetServerActions(dbServer.Spec.ServerType, dbServer, db, *password, dbServer.Spec.Options)
+	return dbservers.GetServerActions(dbServer, db, credentials, dbServer.Spec.Options)
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
@@ -383,20 +383,54 @@ func (r *Reco) LogError(err error, message string) {
 	r.Log.Error(message, zap.Error(err))
 }
 
-func (r *Reco) GetPassword(dbServer *dboperatorv1alpha1.DbServer) (*string, error) {
+func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Credentials, error) {
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
 		Namespace: dbServer.Namespace,
 	}
 	secret := &v1.Secret{}
 
-	err := r.client.Get(r.ctx, secretName, secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
+	creds := shared.Credentials{
+		UserName:     dbServer.Spec.UserName,
+		SourceSecret: &secretName,
 	}
 
-	password := string(secret.Data[shared.Nvl(dbServer.Spec.SecretKey, "password")])
-	return &password, nil
+	err := r.client.Get(r.ctx, secretName, secret)
+	if err != nil {
+		return creds, fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
+	}
+
+	passwordBytes, found := secret.Data[shared.Nvl(dbServer.Spec.PasswordKey, "password")]
+	if found {
+		password := string(passwordBytes)
+		creds.Password = &password
+	}
+
+	if dbServer.Spec.CaCertKey != "" {
+		caCertBytes, found := secret.Data[dbServer.Spec.CaCertKey]
+		if !found {
+			return creds, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbServer.Spec.CaCertKey, dbServer.Namespace, dbServer.Spec.SecretName)
+		}
+		caCert := string(caCertBytes)
+		creds.CaCert = &caCert
+	}
+	if dbServer.Spec.TlsKeyKey != "" {
+		tlsKeyBytes, found := secret.Data[dbServer.Spec.TlsKeyKey]
+		if !found {
+			return creds, fmt.Errorf("tls_key_key '%s' not found in secret %s.%s", dbServer.Spec.TlsKeyKey, dbServer.Namespace, dbServer.Spec.SecretName)
+		}
+		tlsKey := string(tlsKeyBytes)
+		creds.TlsKey = &tlsKey
+	}
+	if dbServer.Spec.TlsCrtKey != "" {
+		tlsCrtBytes, found := secret.Data[dbServer.Spec.TlsCrtKey]
+		if !found {
+			return creds, fmt.Errorf("tls_cert_key '%s' not found in secret %s.%s", dbServer.Spec.TlsCrtKey, dbServer.Namespace, dbServer.Spec.SecretName)
+		}
+		tlsCrt := string(tlsCrtBytes)
+		creds.TlsCrt = &tlsCrt
+	}
+	return creds, nil
 }
 
 func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbServerConnectionInterface, error) {

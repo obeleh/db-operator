@@ -26,12 +26,11 @@ func (i *MySqlDbInfo) GetDbConnection() (shared.DbServerConnectionInterface, err
 	conn := &MySqlConnection{
 		DbServerConnection: shared.DbServerConnection{
 			DbServerConnectInfo: shared.DbServerConnectInfo{
-				Host:     dbServer.Spec.Address,
-				Port:     dbServer.Spec.Port,
-				UserName: dbServer.Spec.UserName,
-				Options:  dbServer.Spec.Options,
-				Password: i.Password,
-				Database: dbName,
+				Host:        dbServer.Spec.Address,
+				Port:        dbServer.Spec.Port,
+				Options:     dbServer.Spec.Options,
+				Credentials: i.Credentials,
+				Database:    dbName,
 			},
 			Driver: "mysql",
 		},
@@ -50,7 +49,7 @@ func (i *MySqlDbInfo) BuildContainer(scriptName string) v1.Container {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: dbServer.Spec.SecretName,
 				},
-				Key: shared.Nvl(dbServer.Spec.SecretKey, "password"),
+				Key: shared.Nvl(dbServer.Spec.PasswordKey, "password"),
 			},
 		}},
 		{Name: "MYSQL_DATABASE", Value: i.Db.Spec.DbName},

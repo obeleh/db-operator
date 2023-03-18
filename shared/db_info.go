@@ -15,6 +15,6 @@ type DbActions interface {
 type DbInfo struct {
 	Db       *dboperatorv1alpha1.Db
 	DbServer *dboperatorv1alpha1.DbServer
-	Password string
-	Options  map[string]string
+	Credentials
+	Options map[string]string
 }

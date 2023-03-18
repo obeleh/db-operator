@@ -35,6 +35,8 @@ spec:
           spec:
             description: UserSpec defines the desired state of User
             properties:
+              ca_cert_key:
+                type: string
               db_privs:
                 items:
                   properties:
@@ -49,11 +51,15 @@ spec:
                 type: array
               db_server_name:
                 type: string
-              secret_key:
+              password_key:
                 type: string
               secret_name:
                 type: string
               server_privs:
+                type: string
+              tls_cert_key:
+                type: string
+              tls_key_key:
                 type: string
               user_name:
                 type: string

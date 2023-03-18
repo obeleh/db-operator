@@ -1,9 +1,6 @@
 package shared
 
 import (
-	"database/sql"
-	"fmt"
-
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
@@ -17,19 +14,11 @@ type DbSideDb struct {
 }
 
 type DbServerConnectInfo struct {
-	Host     string
-	Port     int
-	UserName string
-	Password string
+	Host string
+	Port int
+	Credentials
 	Database string
 	Options  map[string]string
-}
-
-type DbServerConnection struct {
-	DbServerConnectInfo
-	Conn   *sql.DB
-	Driver string
-	DbServerConnectionInterface
 }
 
 type DbServerConnectionInterface interface {
@@ -43,26 +32,4 @@ type DbServerConnectionInterface interface {
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)
 	ScopeToDbName(scope string) (string, error)
 	Close() error
-}
-
-func (s *DbServerConnection) GetDbConnection() (*sql.DB, error) {
-	if s.Conn == nil {
-		var err error
-		connStr := s.GetConnectionString()
-
-		s.Conn, err = sql.Open(s.Driver, connStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open a %s DB connection to: %s with error: %s", s.Driver, s.Host, err)
-		}
-	}
-	return s.Conn, nil
-}
-
-func (s *DbServerConnection) Close() error {
-	if s.Conn != nil {
-		err := s.Conn.Close()
-		s.Conn = nil
-		return err
-	}
-	return nil
 }

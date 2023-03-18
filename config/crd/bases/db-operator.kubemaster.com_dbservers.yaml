@@ -37,20 +37,26 @@ spec:
               address:
                 description: Server address
                 type: string
+              ca_cert_key:
+                type: string
               options:
                 additionalProperties:
                   type: string
                 type: object
+              password_key:
+                type: string
               port:
                 description: Server port
                 minimum: 1
                 type: integer
-              secret_key:
-                type: string
               secret_name:
                 minLength: 1
                 type: string
               server_type:
+                type: string
+              tls_cert_key:
+                type: string
+              tls_key_key:
                 type: string
               user_name:
                 minLength: 1

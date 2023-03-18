@@ -439,3 +439,12 @@ func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[stri
 	}
 	return changed, errsErr
 }
+
+type DefualtPrivilege struct {
+	PrivObjectType string
+	ObjName        string
+	Grantee        string
+}
+
+// SHOW DEFAULT PRIVILEGES FOR USER $1;
+// func getDefaultPrivileges()

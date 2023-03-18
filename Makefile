@@ -116,8 +116,13 @@ deploy-test-infra:
 	kubectl apply -f ./tests/minio.yaml
 	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
 	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
+	kubectl apply -f ./tests/cockroachdb-manifests/crds.yaml
+	kubectl apply -f ./tests/cockroachdb-manifests/operator.yaml
+	kubectl wait --timeout=3m --for=condition=available deployment cockroach-operator-manager -n cockroach-operator-system
+	kubectl apply -f ./tests/cockroachdb-manifests/cluster.yaml
 	# kubectl -n postgres port-forward svc/postgres 5432 &
 	# kubectl -n mysql port-forward svc/mysql 3306 &
+	# kubectl -n cockroachdb port-forward svc/cockroachdb-public 26257 &
 
 start-test-cluster: kind-cluster-with-dbs docker-build deploy-kind
 
@@ -199,7 +204,7 @@ patches:
   patch: |-
     - op: add
       path: /metadata/annotations
-      value: {"eks.amazonaws.com/role-arn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/opensearch-index-operator_role"}
+      value: {"eks.amazonaws.com/role-arn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/db-operator_role"}
 configMapGenerator:
 - name: open-search-index-operator
   literals:
@@ -349,5 +354,10 @@ kuttl-test-mysql:
 kuttl-test-mysql-debugmode:
 	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-mysql-debugmode.yaml
+
+
+kuttl-test-cockroachdb-debugmode:
+	mkdir -p tests/outputs 
+	kubectl kuttl test --config kuttl-test-cockroachdb-debugmode.yaml
 
 kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql

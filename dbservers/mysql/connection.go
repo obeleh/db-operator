@@ -15,7 +15,11 @@ type MySqlConnection struct {
 
 func (m *MySqlConnection) GetConnectionString() string {
 	// "username:password@tcp(127.0.0.1:3306)/test"
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", m.UserName, m.Password, m.Host, m.Port, m.Database)
+	if m.Password == nil {
+		panic("Not implemented nil password for mysql")
+		//TODO: https://stackoverflow.com/questions/67109556/connect-to-mysql-mariadb-with-ssl-and-certs-in-go
+	}
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", m.UserName, *m.Password, m.Host, m.Port, m.Database)
 }
 
 func (m *MySqlConnection) CreateUser(userName string, password string) error {

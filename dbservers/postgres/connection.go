@@ -2,6 +2,9 @@ package postgres
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
@@ -34,8 +37,45 @@ func (p *PostgresConnection) GetConnectionString() string {
 		sslMode = "require"
 	}
 
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		p.Host, p.Port, p.UserName, p.Password, p.Database, sslMode)
+	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s",
+		p.Host, p.Port, p.UserName, p.Database, sslMode)
+
+	if p.Password != nil {
+		connStr += fmt.Sprintf(" password=%s", *p.Password)
+	}
+
+	// For some reason it's not possible yet to load Tls Certs from memory so we write to file
+	// Open PR: https://github.com/lib/pq/pull/1066/files
+
+	if p.CaCert != nil || p.TlsCrt != nil || p.TlsKey != nil {
+		prefixStr := fmt.Sprintf("host-%s-user-%s", p.Host, p.UserName)
+		if p.Credentials.SourceSecret != nil {
+			prefixStr = fmt.Sprintf("%sns-%s-secret-%s", prefixStr, p.Credentials.SourceSecret.Namespace, p.Credentials.SourceSecret.Name)
+		}
+
+		tempCertsDir := filepath.Join(".", "tempCertsDir")
+		_ = os.MkdirAll("tempCertsDir", os.ModePerm)
+
+		if p.CaCert != nil {
+			cacertFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-cacert")
+			cacertFile.WriteString(*p.CaCert)
+			connStr += fmt.Sprintf(" sslrootcert=%s", cacertFile.Name())
+		}
+
+		if p.TlsKey != nil {
+			tlsKeyFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlskey")
+			tlsKeyFile.WriteString(*p.TlsKey)
+			connStr += fmt.Sprintf(" sslkey=%s", tlsKeyFile.Name())
+		}
+
+		if p.TlsCrt != nil {
+			tlsCrtFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlscert")
+			tlsCrtFile.WriteString(*p.TlsCrt)
+			connStr += fmt.Sprintf(" sslcert=%s", tlsCrtFile.Name())
+		}
+	}
+
+	return connStr
 }
 
 func (p *PostgresConnection) CreateUser(userName string, password string) error {
