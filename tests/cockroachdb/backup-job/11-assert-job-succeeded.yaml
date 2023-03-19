@@ -1,0 +1,6 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: CockroachDBBackupJob
+metadata:
+  name: example-backup-job
+status:
+  status: succeeded

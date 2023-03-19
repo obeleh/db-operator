@@ -1,0 +1,7 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: CockroachDBBackupJob
+metadata:
+  name: example-backup-job
+spec:
+  backup_target: example-backup-target
+

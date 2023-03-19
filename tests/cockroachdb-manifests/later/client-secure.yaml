@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cockroachdb-client
+  name: cockroachdb
+  namespace: cockroachdb
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: cockroachdb-client
+  template:
+    metadata:
+      labels:
+        app: cockroachdb-client
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - command:
+        - sleep
+        - "2147483648"
+        env:
+        - name: CONNECT
+          value: ./cockroach sql --certs-dir=/cockroach-certs --host=cockroachdb-public
+        image: cockroachdb/cockroach:latest-v22.2
+        imagePullPolicy: IfNotPresent
+        name: cockroachdb-client
+        resources: {}
+        volumeMounts:
+        - mountPath: /cockroach-certs
+          mountPropagation: None
+          name: client-certs
+      serviceAccount: cockroachdb-sa
+      serviceAccountName: cockroachdb-sa
+      volumes:
+      - name: client-certs
+        projected:
+          sources:
+            - secret:
+                name: cockroachdb-node
+                items:
+                  - key: ca.crt
+                    path: ca.crt
+            - secret:
+                name: cockroachdb-root
+                items:
+                  - key: tls.crt
+                    path: client.root.crt
+                  - key: tls.key
+                    path: client.root.key
