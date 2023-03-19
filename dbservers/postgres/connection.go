@@ -255,6 +255,10 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string,
 		qry += "?AUTH=implicit"
 	}
 
+	if bucketStorageInfo.Endpoint != "" {
+		qry += fmt.Sprintf("&AWS_ENDPOINT=%s", bucketStorageInfo.Endpoint)
+	}
+
 	qry += "' WITH DETACHED;"
 	return query_utils.SelectFirstValueInt64(conn, qry)
 }

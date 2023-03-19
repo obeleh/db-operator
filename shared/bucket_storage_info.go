@@ -9,4 +9,5 @@ type BucketStorageInfo struct {
 	K8sSecret       string
 	K8sSecretKey    string
 	AssumeRoleName  string
+	Endpoint        string
 }

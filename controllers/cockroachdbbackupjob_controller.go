@@ -91,13 +91,37 @@ func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 }
 
 func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.CockroachDBBackupJobStatus, error) {
+	createdT, found := jobMap["created"]
+	var created metav1.Time
+	if found && createdT != nil {
+		created = metav1.NewTime(createdT.(time.Time))
+	} else {
+		created = metav1.Time{}
+	}
+
+	startedT, found := jobMap["started"]
+	var started metav1.Time
+	if found && startedT != nil {
+		started = metav1.NewTime(startedT.(time.Time))
+	} else {
+		started = metav1.Time{}
+	}
+
+	finishedT, found := jobMap["finished"]
+	var finished metav1.Time
+	if found && finishedT != nil {
+		finished = metav1.NewTime(finishedT.(time.Time))
+	} else {
+		finished = metav1.Time{}
+	}
+
 	return dboperatorv1alpha1.CockroachDBBackupJobStatus{
 		JobId:       jobMap["job_id"].(int64),
 		Status:      jobMap["status"].(string),
 		Description: jobMap["description"].(string),
-		Created:     metav1.NewTime(jobMap["created"].(time.Time)),
-		Started:     metav1.NewTime(jobMap["started"].(time.Time)),
-		Finished:    metav1.NewTime(jobMap["finished"].(time.Time)),
+		Created:     created,
+		Started:     started,
+		Finished:    finished,
 		Error:       jobMap["error"].(string),
 	}, nil
 }
@@ -176,7 +200,30 @@ func (r *CrdbBackubJobReco) GetCR() client.Object {
 	return &r.backupJob
 }
 
+func (r *CrdbBackubJobReco) BackupEnded() bool {
+	return r.backupJob.Status.Status == "failed" || r.backupJob.Status.Status == "succeeded"
+}
+
+func Min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func (r *CrdbBackubJobReco) EnsureCorrect() (bool, error) {
+	if !r.BackupEnded() {
+		// keep polling
+		go func() {
+			for i := 2; i < 100; i++ {
+				if r.BackupEnded() {
+					break
+				}
+				time.Sleep(time.Duration(Min(i, 30)) * time.Second)
+				r.LoadObj()
+			}
+		}()
+	}
 	return false, nil
 }
 
