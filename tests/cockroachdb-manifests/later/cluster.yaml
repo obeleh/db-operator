@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cockroachdb
+
+---
+
+apiVersion: crdb.cockroachlabs.com/v1alpha1
+kind: CrdbCluster
+metadata:
+  name: cockroachdb
+  namespace: cockroachdb
+spec: 
+  dataStore:
+    pvc:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "5Gi"
+        volumeMode: Filesystem
+  tlsEnabled: true
+  image:
+    name: cockroachdb/cockroach:v22.2.6
+  nodes: 3

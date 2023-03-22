@@ -78,6 +78,25 @@ func TestParsePrivs(t *testing.T) {
 		"table": {
 			"test_table": []string{"SELECT", "DELETE"},
 		},
+		"schema": {},
+	}
+	if !funk.Equal(privMap, expected) {
+		t.Errorf("got %s expected %s", privMap, expected)
+	}
+}
+
+func TestParseSchemaPrivs(t *testing.T) {
+	privMap, err := ParsePrivs("USAGE", "testdb.public", &PostgresVersion{ProductName: PostgreSQL})
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+
+	expected := map[string]map[string][]string{
+		"database": {},
+		"table":    {},
+		"schema": {
+			"testdb.public": []string{"USAGE"},
+		},
 	}
 	if !funk.Equal(privMap, expected) {
 		t.Errorf("got %s expected %s", privMap, expected)
@@ -120,6 +139,24 @@ func TestUpdateUserPrivs(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestUpdateSchemaPrivs(t *testing.T) {
+	privMap, err := ParsePrivs("USAGE", "testdb.public", &PostgresVersion{ProductName: PostgreSQL})
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+
+	expected := map[string]map[string][]string{
+		"database": {},
+		"table":    {},
+		"schema": {
+			"testdb.public": []string{"USAGE"},
+		},
+	}
+	if !funk.Equal(privMap, expected) {
+		t.Errorf("got %s expected %s", privMap, expected)
 	}
 }
 
