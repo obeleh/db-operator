@@ -1,0 +1,27 @@
+# permissions for end users to view schemas.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: schema-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: db-operator
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: schema-viewer-role
+rules:
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - schemas
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - schemas/status
+  verbs:
+  - get

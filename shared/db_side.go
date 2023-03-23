@@ -13,6 +13,11 @@ type DbSideDb struct {
 	DatbaseName string
 }
 
+type DbSideSchema struct {
+	DatbaseName string
+	SchemaName  string
+}
+
 type DbServerConnectInfo struct {
 	Host string
 	Port int
@@ -27,8 +32,11 @@ type DbServerConnectionInterface interface {
 	DropUser(userName string) error
 	GetUsers() (map[string]DbSideUser, error)
 	CreateDb(dbName string) error
+	CreateSchema(dbName, schemaName string) error
 	DropDb(dbName string) error
+	DropSchema(dbName, schemaName string) error
 	GetDbs() (map[string]DbSideDb, error)
+	GetSchenasInDb(dbName string) (map[string]DbSideSchema, error)
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)
 	ScopeToDbName(scope string) (string, error)
 	Close() error
