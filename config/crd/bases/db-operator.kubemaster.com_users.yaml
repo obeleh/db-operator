@@ -49,7 +49,6 @@ spec:
                     scope:
                       type: string
                   required:
-                  - default_privs
                   - privs
                   - scope
                   type: object

@@ -23,7 +23,7 @@ import (
 type DbPriv struct {
 	Scope        string `json:"scope"`
 	Privs        string `json:"privs"`
-	DefaultPrivs string `json:"default_privs"`
+	DefaultPrivs string `json:"default_privs,omitempty"`
 	Grantor      string `json:"grantor_user_name,omitempty"`
 }
 
