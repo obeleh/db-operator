@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"go.uber.org/zap"
@@ -101,6 +102,9 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		return false, err
 	}
 	_, exists := s.schemas[s.schema.Spec.Name]
+	if exists && s.schema.Status.Created == false {
+		s.SetStatus(&s.schema, true)
+	}
 	return exists, nil
 }
 
@@ -118,7 +122,24 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 		s.LogError(err, fmt.Sprintf("failed to Create Schema: %s", s.schema.Spec.Name))
 		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
 	}
+	if s.schema.Status.Created == false {
+		s.SetStatus(&s.schema, true)
+	}
 	return ctrl.Result{}, nil
+}
+
+func (s *SchemaReco) SetStatus(schema *dboperatorv1alpha1.Schema, created bool) error {
+	newStatus := dboperatorv1alpha1.SchemaStatus{Created: created}
+	if !reflect.DeepEqual(schema.Status, newStatus) {
+		schema.Status = newStatus
+		err := s.client.Status().Update(s.ctx, schema)
+		if err != nil {
+			message := fmt.Sprintf("failed patching status %s", err)
+			s.Log.Info(message)
+			return fmt.Errorf(message)
+		}
+	}
+	return nil
 }
 
 func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {

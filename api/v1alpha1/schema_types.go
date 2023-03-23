@@ -33,6 +33,7 @@ type SchemaSpec struct {
 
 // SchemaStatus defines the observed state of Schema
 type SchemaStatus struct {
+	Created bool `json:"created,omitempty"`
 }
 
 //+kubebuilder:object:root=true
