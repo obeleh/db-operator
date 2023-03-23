@@ -163,12 +163,25 @@ func (p *PostgresConnection) CreateDb(dbName string) error {
 	return p.Execute(fmt.Sprintf("CREATE DATABASE %q;", dbName))
 }
 
+func (p *PostgresConnection) CreateSchema(schemaName string) error {
+	return p.Execute(fmt.Sprintf("CREATE SCHEMA %q;", schemaName))
+}
+
 func (p *PostgresConnection) DropDb(dbName string) error {
 	conn, err := p.GetDbConnection()
 	if err != nil {
 		return err
 	}
 	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
+	return err
+}
+
+func (p *PostgresConnection) SchemaDb(schemaName string) error {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf("DROP SCHEMA %q;", schemaName))
 	return err
 }
 
@@ -193,6 +206,29 @@ func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 		databases[database.DatbaseName] = database
 	}
 	return databases, nil
+}
+
+func (p *PostgresConnection) GetSchemas() (map[string]shared.DbSideSchema, error) {
+	conn, err := p.GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := conn.Query("SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname NOT IN ('crdb_internal', 'information_schema', 'pg_catalog', 'pg_extension');")
+	if err != nil {
+		return nil, err
+	}
+
+	schemas := make(map[string]shared.DbSideSchema)
+
+	for rows.Next() {
+		var schema shared.DbSideSchema
+		err := rows.Scan(&schema.SchemaName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load PostgresDb")
+		}
+		schemas[schema.SchemaName] = schema
+	}
+	return schemas, nil
 }
 
 func (p *PostgresConnection) Close() error {
