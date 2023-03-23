@@ -23,6 +23,7 @@ import (
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -60,9 +61,13 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = s.client.Get(s.ctx, s.nsNm, &s.db)
+	dbNsm := types.NamespacedName{
+		Namespace: s.nsNm.Namespace,
+		Name:      s.schema.Spec.DbName,
+	}
+	err = s.client.Get(s.ctx, dbNsm, &s.db)
 	if err != nil {
-		s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, s.nsNm.Name, err))
+		s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, dbNsm, err))
 		return ctrl.Result{}, err
 	}
 
@@ -150,7 +155,7 @@ func (s *SchemaReco) CleanupConn() {
 
 func (s *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := s.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
-	sr := DbReco{}
+	sr := SchemaReco{}
 	sr.Reco = Reco{s.Client, ctx, log, req.NamespacedName}
 	return sr.Reco.Reconcile(&sr)
 }
