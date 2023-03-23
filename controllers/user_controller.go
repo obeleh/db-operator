@@ -61,7 +61,7 @@ func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.user.Spec.DbServerName) {
 			r.LogError(err, "failed getting DbServer")
 			return false, err
 		}
@@ -224,6 +224,13 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*string, error) {
+	if dbUser.Spec.SecretName == "" {
+		if dbUser.Spec.PasswordKey != "" || dbUser.Spec.TlsCrtKey != "" || dbUser.Spec.TlsKeyKey != "" || dbUser.Spec.CaCertKey != "" {
+			return nil, fmt.Errorf("SecretName is not allowed to be empty if one of these is set: password_key, ca_cert_key, tls_cert_key, tls_key_key")
+		}
+		return nil, nil
+	}
+
 	secretName := types.NamespacedName{
 		Name:      dbUser.Spec.SecretName,
 		Namespace: dbUser.Namespace,
