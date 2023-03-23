@@ -124,6 +124,18 @@ func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 	return databases, nil
 }
 
+func (m *MySqlConnection) GetSchemas() (map[string]shared.DbSideSchema, error) {
+	return nil, fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
+}
+
+func (m *MySqlConnection) CreateSchema(schemaName string) error {
+	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
+}
+
+func (m *MySqlConnection) DropSchema(schemaName string) error {
+	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
+}
+
 func (m *MySqlConnection) Close() error {
 	if m.Conn != nil {
 		err := m.Conn.Close()

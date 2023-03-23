@@ -35,7 +35,7 @@ type DbServerConnectionInterface interface {
 	DropDb(dbName string) error
 	DropSchema(schemaName string) error
 	GetDbs() (map[string]DbSideDb, error)
-	GetSchenas() (map[string]DbSideSchema, error)
+	GetSchemas() (map[string]DbSideSchema, error)
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)
 	ScopeToDbName(scope string) (string, error)
 	Close() error

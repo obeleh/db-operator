@@ -90,7 +90,7 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		return false, err
 	}
 
-	s.schemas, err = s.conn.GetSchenasInDb(s.schema.Spec.DbName)
+	s.schemas, err = s.conn.GetSchemas()
 	if err != nil {
 		s.LogError(err, "failed getting DBs")
 		return false, err
@@ -108,7 +108,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 		s.LogError(err, message)
 		return ctrl.Result{}, err
 	}
-	err = s.conn.CreateSchema(s.schema.Spec.DbName, s.schema.Spec.Name)
+	err = s.conn.CreateSchema(s.schema.Spec.Name)
 	if err != nil {
 		s.LogError(err, fmt.Sprintf("failed to Create Schema: %s", s.schema.Spec.Name))
 		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
@@ -119,7 +119,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {
 	if s.schema.Spec.DropOnDeletion {
 		s.Log.Info(fmt.Sprintf("dropping schema %s.%s", s.schema.Spec.DbName, s.schema.Name))
-		err := s.conn.DropSchema(s.schema.Spec.DbName, s.schema.Name)
+		err := s.conn.DropSchema(s.schema.Name)
 		if err != nil {
 			s.LogError(err, fmt.Sprintf("failed to drop schema %s\n%s", s.schema.Spec.DbName, err))
 			return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err
