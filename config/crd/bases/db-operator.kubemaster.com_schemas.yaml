@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: users.db-operator.kubemaster.com
+  name: schemas.db-operator.kubemaster.com
 spec:
   group: db-operator.kubemaster.com
   names:
-    kind: User
-    listKind: UserList
-    plural: users
-    singular: user
+    kind: Schema
+    listKind: SchemaList
+    plural: schemas
+    singular: schema
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: User is the Schema for the users API
+        description: Schema is the Schema for the schemas API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,50 +33,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: UserSpec defines the desired state of User
+            description: SchemaSpec defines the desired state of Schema
             properties:
-              ca_cert_key:
+              db_name:
                 type: string
-              db_privs:
-                items:
-                  properties:
-                    default_privs:
-                      type: string
-                    grantor_user_name:
-                      type: string
-                    privs:
-                      type: string
-                    scope:
-                      type: string
-                  required:
-                  - default_privs
-                  - privs
-                  - scope
-                  type: object
-                type: array
               db_server_name:
                 type: string
-              password_key:
-                type: string
-              secret_name:
-                type: string
-              server_privs:
-                type: string
-              tls_cert_key:
-                type: string
-              tls_key_key:
-                type: string
-              user_name:
+              drop_on_deletion:
+                type: boolean
+              name:
                 type: string
             required:
-            - db_privs
+            - db_name
             - db_server_name
-            - secret_name
-            - server_privs
-            - user_name
+            - drop_on_deletion
+            - name
             type: object
           status:
-            description: UserStatus defines the observed state of User
+            description: SchemaStatus defines the observed state of Schema
             type: object
         type: object
     served: true
