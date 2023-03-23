@@ -150,13 +150,17 @@ func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	return users, nil
 }
 
-func (p *PostgresConnection) CreateDb(dbName string) error {
+func (p *PostgresConnection) Execute(qry string) error {
 	conn, err := p.GetDbConnection()
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE %q;", dbName))
+	_, err = conn.Exec(qry)
 	return err
+}
+
+func (p *PostgresConnection) CreateDb(dbName string) error {
+	return p.Execute(fmt.Sprintf("CREATE DATABASE %q;", dbName))
 }
 
 func (p *PostgresConnection) DropDb(dbName string) error {

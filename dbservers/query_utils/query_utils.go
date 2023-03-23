@@ -123,3 +123,24 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	}
 	return str[s : e+s]
 }
+
+func SelectFirstValueBool(conn *sql.DB, query string, args ...interface{}) (bool, error) {
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return false, err
+	}
+
+	if rows.Next() {
+		value := sql.NullBool{}
+		err := rows.Scan(&value)
+		if err != nil {
+			return false, fmt.Errorf("unable to load bool")
+		}
+		if !value.Valid {
+			return false, fmt.Errorf("got null, expected bool")
+		}
+		return value.Bool, nil
+	} else {
+		return false, fmt.Errorf("no rows returned")
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
 	"github.com/obeleh/db-operator/shared"
@@ -32,11 +33,13 @@ func (p *PostgresVersion) GetValidPrivs(privType string) []string {
 		return map[string][]string{
 			"database": {"CREATE", "CONNECT", "TEMPORARY", "TEMP", "ALL"},
 			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
+			"schema":   {"CREATE", "USAGE"}, // accepted by has_schema_privilege
 		}[privType]
 	} else if p.ProductName == CockroachDB {
 		return map[string][]string{
 			"database": {"CREATE", "CONNECT", "ALL"},
 			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
+			"schema":   {"CREATE", "USAGE"}, // accepted by has_schema_privilege
 		}[privType]
 	}
 	log.Fatalf("Unknown product name %s", p.ProductName)
@@ -84,10 +87,15 @@ var ADJUST_PRIVILEGES_MAP = map[string]map[string]func(*sql.DB, string, string, 
 		"revoke": revokeDatabasePrivileges,
 		"grant":  grantDatabasePrivileges,
 	},
+	"schema": {
+		"revoke": revokeSchemaPrivileges,
+		"grant":  grantSchemaPrivileges,
+	},
 }
 var CHECK_PRIVILEGES_MAP = map[string]func(*sql.DB, string, string, []string) ([]string, []string, []string, error){
 	"table":    hasTablePrivileges,
 	"database": hasDatabasePrivileges,
+	"schema":   hasSchemaPrivileges,
 }
 
 func getFlagsForVersion(version int) []string {
@@ -141,6 +149,7 @@ func ParsePrivs(privs string, db string, serverVersion *PostgresVersion) (map[st
 	oPrivs := map[string]map[string][]string{
 		"database": {},
 		"table":    {},
+		"schema":   {},
 	}
 
 	for _, token := range strings.Split(privs, "/") {
@@ -154,6 +163,10 @@ func ParsePrivs(privs string, db string, serverVersion *PostgresVersion) (map[st
 			name = elements[0]
 			privileges := elements[1]
 			privSet = toPrivSet(privileges)
+		} else if strings.Contains(db, ".") {
+			privType = "schema"
+			name = db
+			privSet = toPrivSet(token)
 		} else {
 			privType = "database"
 			name = db
@@ -349,6 +362,11 @@ func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string)
 	return diffPrivs(curPrivs, privs, err)
 }
 
+func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []string) ([]string, []string, []string, error) {
+	curPrivs, err := GetSchemaPrivileges(conn, user, schema)
+	return diffPrivs(curPrivs, privs, err)
+}
+
 func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, error) {
 	datacl, err := query_utils.SelectFirstValueStringNullToEmpty(conn, "SELECT datacl FROM pg_database WHERE datname = $1", db)
 	if err != nil {
@@ -372,6 +390,29 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 	return NormalizePrivileges(returnArray, "database", serverVersion), nil
 }
 
+func GetSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, error) {
+	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schema)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
+	}
+
+	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schema)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
+	}
+
+	schemaPrivs := []string{}
+	if createPriv {
+		schemaPrivs = append(schemaPrivs, "CREATE")
+	}
+
+	if usagePriv {
+		schemaPrivs = append(schemaPrivs, "USAGE")
+	}
+
+	return schemaPrivs, nil
+}
+
 func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	if user == "PUBLIC" {
@@ -385,6 +426,11 @@ func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []strin
 	}
 }
 
+func grantSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
+
+	return nil
+}
+
 func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	if user == "PUBLIC" {
@@ -396,6 +442,11 @@ func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []stri
 		_, err := conn.Exec(query)
 		return err
 	}
+}
+
+func revokeSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
+
+	return nil
 }
 
 func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[string][]string) (bool, error) {
@@ -446,5 +497,98 @@ type DefualtPrivilege struct {
 	Grantee        string
 }
 
-// SHOW DEFAULT PRIVILEGES FOR USER $1;
-// func getDefaultPrivileges()
+// TODO: default privileges for schema not yet supported
+
+func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor string) ([]string, error) {
+	//https://www.dba-ninja.com/2020/06/how-to-find-default-access-privileges-on-postgresql-with-pg_default_acl.html
+	/*
+		acl:
+		r–SELECT (read)
+		a–INSERT (append)
+		w–UPDATE (write)
+		d–DELETE
+
+		object_type:
+		r = relation (table, view),
+		S = sequence,
+		f = function,
+		T = type,
+		n = schema
+	*/
+
+	query := `SELECT d.defaclacl
+	FROM pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace
+	WHERE pg_get_userbyid(d.defaclrole) = $1
+	AND n.nspname is NULL
+	AND d.defaclobjtype = $2;
+	`
+	rows, err := conn.Query(query, grantor, object_type)
+	if err != nil {
+		return nil, err
+	}
+
+	privileges := []string{}
+	if rows.Next() {
+		var defaclacls []string
+
+		// .Scan(
+		err := rows.Scan(pq.Array(&defaclacls))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, defaclacl := range defaclacls {
+			parts := strings.Split(defaclacl, "=")
+			grantee := parts[0]
+			privs := parts[1]
+			if user == grantee {
+				if strings.Contains(privs, "a") {
+					privileges = append(privileges, "INSERT")
+				}
+				if strings.Contains(privs, "r") {
+					privileges = append(privileges, "SELECT")
+				}
+				if strings.Contains(privs, "w") {
+					privileges = append(privileges, "UPDATE")
+				}
+				if strings.Contains(privs, "d") {
+					privileges = append(privileges, "DELETE")
+				}
+			}
+		}
+
+		if rows.Next() {
+			return nil, fmt.Errorf("Unexpected amount of rows returned when running getDefaultPrivileges")
+		}
+	}
+	return privileges, nil
+}
+
+/*
+SELECT r.rolname AS role_name,
+
+	n.nspname AS schema_name,
+	p.perm AS privilege
+
+FROM pg_catalog.pg_namespace AS n
+
+	CROSS JOIN pg_catalog.pg_roles AS r
+	CROSS JOIN (VALUES ('CREATE'), ('USAGE')) AS p(perm)
+
+WHERE n.nspname NOT IN ('crdb_internal', 'information_schema', 'pg_catalog', 'pg_extension') AND has_schema_privilege(r.oid, n.oid, p.perm);
+
+WITH "names"("name") AS (
+
+	SELECT n.nspname AS "name"
+	  FROM pg_catalog.pg_namespace n
+	    WHERE n.nspname !~ '^pg_'
+	      AND n.nspname <> 'information_schema'
+
+) SELECT "name",
+
+	pg_catalog.has_schema_privilege('app1-application-user', "name", 'CREATE') AS "create",
+	pg_catalog.has_schema_privilege('app1-application-user', "name", 'USAGE') AS "usage"
+	  FROM "names";
+
+WHERE
+*/

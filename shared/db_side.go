@@ -32,4 +32,5 @@ type DbServerConnectionInterface interface {
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)
 	ScopeToDbName(scope string) (string, error)
 	Close() error
+	Execute(string) error
 }

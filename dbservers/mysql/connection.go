@@ -73,13 +73,17 @@ func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	return users, nil
 }
 
-func (m *MySqlConnection) CreateDb(dbName string) error {
+func (m *MySqlConnection) Execute(qry string) error {
 	conn, err := m.GetDbConnection()
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("CREATE DATABASE `%s`;", dbName))
+	_, err = conn.Exec(qry)
 	return err
+}
+
+func (m *MySqlConnection) CreateDb(dbName string) error {
+	return m.Execute(fmt.Sprintf("CREATE DATABASE `%s`;", dbName))
 }
 
 func (m *MySqlConnection) DropDb(dbName string) error {

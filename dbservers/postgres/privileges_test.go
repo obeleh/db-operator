@@ -1,11 +1,13 @@
 package postgres
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/thoas/go-funk"
 )
@@ -231,4 +233,59 @@ func TestVersionStrParsingCockroachDb(t *testing.T) {
 		t.Errorf("postgres version parsing returned unexpected result")
 	}
 
+}
+
+func XTestGetDefaultPrivilegesFromDb(t *testing.T) {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=%s sslkey=%s sslcert=%s",
+		"cockroachdb-public.cockroachdb.svc.cluster.local",
+		26257,
+		"app1-migration-user",
+		"app1-migration-user",
+		"app1-db",
+		"require",
+		"tempCertsDir/host-cockroachdb-public.cockroachdb.svc.cluster.local-user-rootns-kuttl-test-intimate-quagga-secret-cockroachdb-root-cacert1291312790",
+		"tempCertsDir/host-cockroachdb-public.cockroachdb.svc.cluster.local-user-rootns-kuttl-test-wondrous-hog-secret-cockroachdb-root-tlskey956724916",
+		"host-cockroachdb-public.cockroachdb.svc.cluster.local-user-rootns-kuttl-test-wondrous-hog-secret-cockroachdb-root-tlscert1998637387",
+	)
+	conn, err := sql.Open("postgres", connStr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	getDefaultPrivileges(conn, "S", "app1-application-user", "app1-migration-user")
+}
+
+func TestGetDefaultPrivileges(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	expected := sqlmock.NewRows([]string{"datacl"})
+	expected.AddRow("{app1-application-user=adrw/app1-application-user=adrw}")
+
+	mock.ExpectQuery(`SELECT d.defaclacl
+	FROM pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace
+	WHERE pg_get_userbyid(d.defaclrole) = $1
+	AND n.nspname is NULL
+	AND d.defaclobjtype = $2;
+	`).WithArgs(
+		"app1-migration-user",
+		"r",
+	).WillReturnRows(expected)
+
+	privs, err := getDefaultPrivileges(db, "r", "app1-application-user", "app1-migration-user")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expectedPrivs := []string{"INSERT", "SELECT", "UPDATE", "DELETE"}
+	if !funk.Equal(privs, expectedPrivs) {
+		t.Error("Unexpected privileges returned")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
