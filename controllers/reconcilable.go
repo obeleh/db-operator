@@ -423,17 +423,12 @@ func (r *Reco) GetCredentialsForUser(dbServer *dboperatorv1alpha1.DbServer, user
 	}
 	err = r.client.Get(r.ctx, userNsm, &user)
 
-	password, err := GetUserPassword(&r.user, r.client, r.ctx)
-	if err != nil {
-		r.LogError(err, fmt.Sprint(err))
-		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
-	}
+	password, err := GetUserPassword(&user, r.client, r.ctx)
+	return shared.Credentials{
+		UserName: userName,
+		Password: password,
+	}, err
 
-	passwordBytes, found := userSecret.Data[shared.Nvl(dbServer.Spec.PasswordKey, "password")]
-	if found {
-		password := string(passwordBytes)
-		creds.Password = &password
-	}
 }
 
 func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer) (*shared.DbServerConnectInfo, error) {

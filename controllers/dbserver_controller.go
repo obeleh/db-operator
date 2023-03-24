@@ -75,6 +75,8 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
 	}
 
+	reco.GetCredentials()
+
 	if err != nil {
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if !shared.IsHandledErr(err) {
