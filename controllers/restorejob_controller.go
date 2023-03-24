@@ -79,12 +79,20 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	storageInfo, dbInfo, err := r.GetRestoreTargetFull(r.restoreJob.Spec.RestoreTarget)
+	restoreTarget, err := r.GetRestoreTarget(r.restoreJob.Spec.RestoreTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	actions, err := r.GetServerActionsFromDbName(restoreTarget.Spec.DbName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	storageInfo, err := r.GetStorageInfo(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	restoreContainer := dbInfo.BuildRestoreContainer()
+	restoreContainer := actions.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreJob.Spec.FixedFileName)
 
 	job := r.BuildJob([]v1.Container{downloadContainer}, restoreContainer, r.restoreJob.Name, r.restoreJob.Spec.ServiceAccount)

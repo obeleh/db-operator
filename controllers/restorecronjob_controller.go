@@ -78,12 +78,20 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	storageInfo, dbInfo, err := r.GetRestoreTargetFull(r.restoreCronJob.Spec.RestoreTarget)
+	restoreTarget, err := r.GetRestoreTarget(r.restoreCronJob.Spec.RestoreTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	actions, err := r.GetServerActionsFromDbName(restoreTarget.Spec.DbName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	storageInfo, err := r.GetStorageInfo(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	restoreContainer := dbInfo.BuildRestoreContainer()
+	restoreContainer := actions.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreCronJob.Spec.FixedFileName)
 	cronJob := r.BuildCronJob(
 		[]v1.Container{downloadContainer},

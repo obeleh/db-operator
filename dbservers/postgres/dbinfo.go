@@ -11,35 +11,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type PostgresDbInfo struct {
-	shared.DbInfo
+type PostgresActions struct {
+	shared.DbActionsBase
 }
 
-func (i *PostgresDbInfo) GetDbConnection() (shared.DbServerConnectionInterface, error) {
-	var dbName string
-	if i.Db == nil {
-		dbName = "postgres"
-	} else {
-		dbName = i.Db.Spec.DbName
-	}
-	dbServer := i.DbServer
-	conn := &PostgresConnection{
-		DbServerConnection: shared.DbServerConnection{
-			DbServerConnectInfo: shared.DbServerConnectInfo{
-				Host:        dbServer.Spec.Address,
-				Port:        dbServer.Spec.Port,
-				Options:     dbServer.Spec.Options,
-				Credentials: i.Credentials,
-				Database:    dbName,
-			},
-			Driver: "postgres",
-		},
-	}
-	conn.DbServerConnectionInterface = conn
-	return conn, nil
-}
-
-func (i *PostgresDbInfo) BuildContainer(scriptName string) v1.Container {
+func (i *PostgresActions) BuildContainer(scriptName string) v1.Container {
 	dbServer := i.DbServer
 	envVars := []v1.EnvVar{
 		{Name: "PGHOST", Value: dbServer.Spec.Address},
@@ -67,10 +43,10 @@ func (i *PostgresDbInfo) BuildContainer(scriptName string) v1.Container {
 	}
 }
 
-func (i *PostgresDbInfo) BuildBackupContainer() v1.Container {
+func (i *PostgresActions) BuildBackupContainer() v1.Container {
 	return i.BuildContainer(shared.BACKUP_POSTGRES)
 }
 
-func (i *PostgresDbInfo) BuildRestoreContainer() v1.Container {
+func (i *PostgresActions) BuildRestoreContainer() v1.Container {
 	return i.BuildContainer(shared.RESTORE_POSTGRES)
 }

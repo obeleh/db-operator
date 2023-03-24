@@ -11,35 +11,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type MySqlDbInfo struct {
-	shared.DbInfo
+type MySqlActions struct {
+	shared.DbActionsBase
 }
 
-func (i *MySqlDbInfo) GetDbConnection() (shared.DbServerConnectionInterface, error) {
-	var dbName string
-	if i.Db == nil {
-		dbName = ""
-	} else {
-		dbName = i.Db.Spec.DbName
-	}
-	dbServer := i.DbServer
-	conn := &MySqlConnection{
-		DbServerConnection: shared.DbServerConnection{
-			DbServerConnectInfo: shared.DbServerConnectInfo{
-				Host:        dbServer.Spec.Address,
-				Port:        dbServer.Spec.Port,
-				Options:     dbServer.Spec.Options,
-				Credentials: i.Credentials,
-				Database:    dbName,
-			},
-			Driver: "mysql",
-		},
-	}
-	conn.DbServerConnectionInterface = conn
-	return conn, nil
-}
-
-func (i *MySqlDbInfo) BuildContainer(scriptName string) v1.Container {
+func (i *MySqlActions) BuildContainer(scriptName string) v1.Container {
 	dbServer := i.DbServer
 	envVars := []v1.EnvVar{
 		{Name: "MYSQL_HOST", Value: dbServer.Spec.Address},
@@ -66,10 +42,10 @@ func (i *MySqlDbInfo) BuildContainer(scriptName string) v1.Container {
 	}
 }
 
-func (i *MySqlDbInfo) BuildBackupContainer() v1.Container {
+func (i *MySqlActions) BuildBackupContainer() v1.Container {
 	return i.BuildContainer(shared.BACKUP_MYSQL)
 }
 
-func (i *MySqlDbInfo) BuildRestoreContainer() v1.Container {
+func (i *MySqlActions) BuildRestoreContainer() v1.Container {
 	return i.BuildContainer(shared.RESTORE_MYSQL)
 }

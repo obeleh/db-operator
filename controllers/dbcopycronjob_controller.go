@@ -94,17 +94,17 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	fromDbInfo, err := r.GetDbInfo(r.copyCronJob.Spec.FromDbName)
+	fromDbServerActions, err := r.GetServerActionsFromDbName(r.copyCronJob.Spec.FromDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	toDbInfo, err := r.GetDbInfo(r.copyCronJob.Spec.ToDbName)
+	toDbServerActions, err := r.GetServerActionsFromDbName(r.copyCronJob.Spec.ToDbName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	backupContainer := fromDbInfo.BuildBackupContainer()
-	restoreContainer := toDbInfo.BuildRestoreContainer()
+	backupContainer := fromDbServerActions.BuildBackupContainer()
+	restoreContainer := toDbServerActions.BuildRestoreContainer()
 	cronJob := r.BuildCronJob(
 		[]v1.Container{backupContainer},
 		restoreContainer,

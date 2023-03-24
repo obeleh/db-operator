@@ -286,39 +286,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetBackupTargetFull(backupTargetName string) (StorageActions, shared.DbActions, error) {
-	backupTarget, err := r.GetBackupTarget(backupTargetName)
-	if err != nil {
-		return nil, nil, err
-	}
-	dbInfo, err := r.GetDbInfo(backupTarget.Spec.DbName)
-	if err != nil {
-		return nil, nil, err
-	}
-	storageInfo, err := r.GetStorageInfo(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
-	if err != nil {
-		return nil, nil, err
-	}
-	return storageInfo, dbInfo, err
-}
-
-func (r *Reco) GetRestoreTargetFull(restoreTargetName string) (StorageActions, shared.DbActions, error) {
-	restoreTarget, err := r.GetRestoreTarget(restoreTargetName)
-	if err != nil {
-		return nil, nil, err
-	}
-	dbInfo, err := r.GetDbInfo(restoreTarget.Spec.DbName)
-	if err != nil {
-		return nil, nil, err
-	}
-	storageInfo, err := r.GetStorageInfo(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
-	if err != nil {
-		return nil, nil, err
-	}
-	return storageInfo, dbInfo, err
-}
-
-func (r *Reco) GetDbInfo(dbName string) (shared.DbActions, error) {
+func (r *Reco) GetServerActionsFromDbName(dbName string) (shared.DbActions, error) {
 	db, err := r.GetDb(dbName)
 	if err != nil {
 		return nil, err
@@ -327,16 +295,7 @@ func (r *Reco) GetDbInfo(dbName string) (shared.DbActions, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.GetDbInfo2(dbServer, db)
-}
-
-func (r *Reco) GetDbInfo2(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbActions, error) {
-	credentials, err := r.GetCredentials(dbServer)
-	if err != nil {
-		return nil, fmt.Errorf("failed getting credentials %s", err)
-	}
-
-	return dbservers.GetServerActions(dbServer, db, credentials, dbServer.Spec.Options)
+	return dbservers.GetServerActions(dbServer, db, dbServer.Spec.Options)
 }
 
 func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
@@ -383,7 +342,7 @@ func (r *Reco) LogError(err error, message string) {
 	r.Log.Error(message, zap.Error(err))
 }
 
-func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Credentials, error) {
+func (r *Reco) GetDbServerSecrets(dbServer *dboperatorv1alpha1.DbServer) (v1.Secret, shared.Credentials, error) {
 	secretName := types.NamespacedName{
 		Name:      dbServer.Spec.SecretName,
 		Namespace: dbServer.Namespace,
@@ -397,7 +356,16 @@ func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Cre
 
 	err := r.client.Get(r.ctx, secretName, secret)
 	if err != nil {
-		return creds, fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
+		err = fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
+	}
+
+	return *secret, creds, err
+}
+
+func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Credentials, error) {
+	secret, creds, err := r.GetDbServerSecrets(dbServer)
+	if err != nil {
+		return creds, err
 	}
 
 	passwordBytes, found := secret.Data[shared.Nvl(dbServer.Spec.PasswordKey, "password")]
@@ -433,17 +401,51 @@ func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Cre
 	return creds, nil
 }
 
-func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alpha1.Db) (shared.DbServerConnectionInterface, error) {
-	dbInfo, err := r.GetDbInfo2(dbServer, db)
+func (r *Reco) GetCredentialsForUser(dbServer *dboperatorv1alpha1.DbServer, userName string) (shared.Credentials, error) {
+	dbServerSecret, creds, err := r.GetDbServerSecrets(dbServer)
 	if err != nil {
-		errStr := err.Error()
-		if !strings.Contains(errStr, "failed getting password failed to get secret") {
-			r.LogError(err, "failed getting dbInfo")
-		}
-		return nil, err
+		return creds, err
 	}
 
-	return dbInfo.GetDbConnection()
+	if dbServer.Spec.CaCertKey != "" {
+		caCertBytes, found := dbServerSecret.Data[dbServer.Spec.CaCertKey]
+		if !found {
+			return creds, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbServer.Spec.CaCertKey, dbServer.Namespace, dbServer.Spec.SecretName)
+		}
+		caCert := string(caCertBytes)
+		creds.CaCert = &caCert
+	}
+
+	user := dboperatorv1alpha1.User{}
+	userNsm := types.NamespacedName{
+		Name:      userName,
+		Namespace: dbServer.Namespace,
+	}
+	err = r.client.Get(r.ctx, userNsm, &user)
+
+	password, err := GetUserPassword(&r.user, r.client, r.ctx)
+	if err != nil {
+		r.LogError(err, fmt.Sprint(err))
+		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
+	}
+
+	passwordBytes, found := userSecret.Data[shared.Nvl(dbServer.Spec.PasswordKey, "password")]
+	if found {
+		password := string(passwordBytes)
+		creds.Password = &password
+	}
+}
+
+func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer) (*shared.DbServerConnectInfo, error) {
+	credentials, err := r.GetCredentials(dbServer)
+	if err != nil {
+		return nil, err
+	}
+	return &shared.DbServerConnectInfo{
+		Host:        dbServer.Spec.Address,
+		Port:        dbServer.Spec.Port,
+		Credentials: credentials,
+	}, nil
 }
 
 func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (StorageActions, error) {

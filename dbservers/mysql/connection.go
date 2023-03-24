@@ -10,20 +10,11 @@ import (
 )
 
 type MySqlConnection struct {
-	shared.DbServerConnection
-}
-
-func (m *MySqlConnection) GetConnectionString() string {
-	// "username:password@tcp(127.0.0.1:3306)/test"
-	if m.Password == nil {
-		panic("Not implemented nil password for mysql")
-		//TODO: https://stackoverflow.com/questions/67109556/connect-to-mysql-mariadb-with-ssl-and-certs-in-go
-	}
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", m.UserName, *m.Password, m.Host, m.Port, m.Database)
+	shared.ConnectionsStore
 }
 
 func (m *MySqlConnection) CreateUser(userName string, password string) error {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -32,7 +23,7 @@ func (m *MySqlConnection) CreateUser(userName string, password string) error {
 }
 
 func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface{}, error) {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +31,7 @@ func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface
 }
 
 func (m *MySqlConnection) DropUser(userName string) error {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -49,7 +40,7 @@ func (m *MySqlConnection) DropUser(userName string) error {
 }
 
 func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +65,7 @@ func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 }
 
 func (m *MySqlConnection) Execute(qry string) error {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -87,7 +78,7 @@ func (m *MySqlConnection) CreateDb(dbName string) error {
 }
 
 func (m *MySqlConnection) DropDb(dbName string) error {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -100,7 +91,7 @@ func ToString(val interface{}) string {
 }
 
 func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
-	conn, err := m.GetDbConnection()
+	conn, err := m.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -136,17 +127,8 @@ func (m *MySqlConnection) DropSchema(schemaName string) error {
 	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 
-func (m *MySqlConnection) Close() error {
-	if m.Conn != nil {
-		err := m.Conn.Close()
-		m.Conn = nil
-		return err
-	}
-	return nil
-}
-
 func (p *MySqlConnection) UpdateUserPrivs(userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return false, err
 	}

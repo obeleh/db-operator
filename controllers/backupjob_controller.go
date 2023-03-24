@@ -77,13 +77,21 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	backupInfo, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
+	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	actions, err := r.GetServerActionsFromDbName(backupTarget.Spec.DbName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	storageInfo, err := r.GetStorageInfo(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	backupContainer := dbInfo.BuildBackupContainer()
-	uploadContainer := backupInfo.BuildUploadContainer(r.backupJob.Spec.FixedFileName)
+	backupContainer := actions.BuildBackupContainer()
+	uploadContainer := storageInfo.BuildUploadContainer(r.backupJob.Spec.FixedFileName)
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name, r.backupJob.Spec.ServiceAccount)
 
 	err = r.client.Create(r.ctx, &job)

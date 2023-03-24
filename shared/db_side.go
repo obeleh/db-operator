@@ -26,7 +26,6 @@ type DbServerConnectInfo struct {
 }
 
 type DbServerConnectionInterface interface {
-	GetConnectionString() string
 	CreateUser(userName string, password string) error
 	DropUser(userName string) error
 	GetUsers() (map[string]DbSideUser, error)

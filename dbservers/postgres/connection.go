@@ -2,9 +2,6 @@ package postgres
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
@@ -23,63 +20,19 @@ ALTER DATABASE "%s" OWNER TO "%s";
 `
 
 type PostgresConnection struct {
-	shared.DbServerConnection
+	shared.ConnectionsStore
 }
 
-func (p *PostgresConnection) GetConnectionString() string {
-	if len(p.Database) == 0 {
-		panic("No database configured")
+func NewPostgresConnection(connectInfos map[string]*shared.DbServerConnectInfo) *PostgresConnection {
+	return &PostgresConnection{
+		ConnectionsStore: shared.ConnectionsStore{
+			Connector: &PostgresConnector{},
+		},
 	}
-
-	// https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION
-	sslMode, found := p.Options["sslmode"]
-	if !found {
-		sslMode = "require"
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s",
-		p.Host, p.Port, p.UserName, p.Database, sslMode)
-
-	if p.Password != nil {
-		connStr += fmt.Sprintf(" password=%s", *p.Password)
-	}
-
-	// For some reason it's not possible yet to load Tls Certs from memory so we write to file
-	// Open PR: https://github.com/lib/pq/pull/1066/files
-
-	if p.CaCert != nil || p.TlsCrt != nil || p.TlsKey != nil {
-		prefixStr := fmt.Sprintf("host-%s-user-%s", p.Host, p.UserName)
-		if p.Credentials.SourceSecret != nil {
-			prefixStr = fmt.Sprintf("%sns-%s-secret-%s", prefixStr, p.Credentials.SourceSecret.Namespace, p.Credentials.SourceSecret.Name)
-		}
-
-		tempCertsDir := filepath.Join(".", "tempCertsDir")
-		_ = os.MkdirAll("tempCertsDir", os.ModePerm)
-
-		if p.CaCert != nil {
-			cacertFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-cacert")
-			cacertFile.WriteString(*p.CaCert)
-			connStr += fmt.Sprintf(" sslrootcert=%s", cacertFile.Name())
-		}
-
-		if p.TlsKey != nil {
-			tlsKeyFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlskey")
-			tlsKeyFile.WriteString(*p.TlsKey)
-			connStr += fmt.Sprintf(" sslkey=%s", tlsKeyFile.Name())
-		}
-
-		if p.TlsCrt != nil {
-			tlsCrtFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlscert")
-			tlsCrtFile.WriteString(*p.TlsCrt)
-			connStr += fmt.Sprintf(" sslcert=%s", tlsCrtFile.Name())
-		}
-	}
-
-	return connStr
 }
 
 func (p *PostgresConnection) CreateUser(userName string, password string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -88,7 +41,7 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 }
 
 func (p *PostgresConnection) DropUser(userName string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -97,7 +50,7 @@ func (p *PostgresConnection) DropUser(userName string) error {
 }
 
 func (p *PostgresConnection) MakeUserDbOwner(userName string, dbName string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -106,7 +59,7 @@ func (p *PostgresConnection) MakeUserDbOwner(userName string, dbName string) err
 }
 
 func (p *PostgresConnection) UpdateUserPrivs(userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return false, err
 	}
@@ -114,7 +67,7 @@ func (p *PostgresConnection) UpdateUserPrivs(userName string, serverPrivs string
 }
 
 func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +104,7 @@ func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 }
 
 func (p *PostgresConnection) Execute(qry string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -168,7 +121,7 @@ func (p *PostgresConnection) CreateSchema(schemaName string) error {
 }
 
 func (p *PostgresConnection) DropDb(dbName string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -177,7 +130,7 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 }
 
 func (p *PostgresConnection) SchemaDb(schemaName string) error {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err
 	}
@@ -186,7 +139,7 @@ func (p *PostgresConnection) SchemaDb(schemaName string) error {
 }
 
 func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +162,7 @@ func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 }
 
 func (p *PostgresConnection) GetSchemas() (map[string]shared.DbSideSchema, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -231,17 +184,8 @@ func (p *PostgresConnection) GetSchemas() (map[string]shared.DbSideSchema, error
 	return schemas, nil
 }
 
-func (p *PostgresConnection) Close() error {
-	if p.Conn != nil {
-		err := p.Conn.Close()
-		p.Conn = nil
-		return err
-	}
-	return nil
-}
-
 func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +194,7 @@ func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
 }
 
 func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface{}, bool, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return nil, false, err
 	}
@@ -268,7 +212,7 @@ func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface
 }
 
 func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
-	conn, err := p.GetDbConnection()
+	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return 0, err
 	}

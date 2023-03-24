@@ -163,7 +163,10 @@ func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget() (*postgres.P
 }
 
 func (r *CrdbBackubJobReco) getPostgresConnectionFromDbInfo(dbInfo shared.DbActions) (*postgres.PostgresConnection, error) {
-	if r.conn == nil || r.conn.Conn == nil {
+	if r.conn == nil {
+		connectInfo, err := r.Reco.GetConnectInfo(dbServer)
+		connector := postgres.PostgresConnector{}
+		r.conn, err = connector.Connect(connectInfo)
 		conn, err := dbInfo.GetDbConnection()
 		if err != nil {
 			return nil, err

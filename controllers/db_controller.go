@@ -77,7 +77,9 @@ func (r *DbReco) LoadObj() (bool, error) {
 
 	// Do not point to DB in this controller
 	// Otherwise we would be connected to a database we potentially want to drop
-	r.conn, err = r.GetDbConnection(dbServer, nil)
+
+	XXX
+
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
