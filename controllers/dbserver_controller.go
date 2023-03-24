@@ -75,11 +75,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if !shared.IsHandledErr(err) {
 			message = fmt.Sprintf("failed building dbConnection %s", err)
 			r.LogError(err, message)
-			return ctrl.Result{
-				// Gradual backoff
-				Requeue:      true,
-				RequeueAfter: time.Duration(time.Since(dbServer.GetCreationTimestamp().Time).Seconds()),
-			}, nil
+			return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
 		}
 		return ctrl.Result{}, nil
 	}

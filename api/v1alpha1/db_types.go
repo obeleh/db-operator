@@ -25,6 +25,7 @@ type DbSpec struct {
 	Server         string `json:"server"`
 	DbName         string `json:"db_name"`
 	DropOnDeletion bool   `json:"drop_on_deletion"`
+	AfterCreateSQL string `json:"after_create_sql,omitempty"`
 }
 
 // DbStatus defines the observed state of Db

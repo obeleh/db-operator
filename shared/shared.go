@@ -218,6 +218,6 @@ func RetryAfter(secs float64) ctrl.Result {
 	return ctrl.Result{
 		// Gradual backoff
 		Requeue:      true,
-		RequeueAfter: time.Duration(secs),
+		RequeueAfter: time.Duration(secs) * time.Second,
 	}
 }

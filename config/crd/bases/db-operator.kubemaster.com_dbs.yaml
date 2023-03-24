@@ -35,6 +35,8 @@ spec:
           spec:
             description: DbSpec defines the desired state of Db
             properties:
+              after_create_sql:
+                type: string
               db_name:
                 type: string
               drop_on_deletion:

@@ -109,6 +109,18 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprintf("failed to Create DB: %s", r.db.Spec.DbName))
 		return shared.GradualBackoffRetry(r.db.GetCreationTimestamp().Time), nil
 	}
+	if r.db.Spec.AfterCreateSQL != "" {
+		err = r.conn.Execute(r.db.Spec.AfterCreateSQL)
+		if err != nil {
+			r.LogError(err, fmt.Sprintf(
+				"failed to run following statement on db: %s (db: %s), this request won't be run again and needs to be handled manually",
+				r.db.Spec.AfterCreateSQL,
+				r.db.Spec.DbName,
+			))
+			return ctrl.Result{}, nil
+		}
+	}
+
 	return ctrl.Result{}, nil
 }
 
