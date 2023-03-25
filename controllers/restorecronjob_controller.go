@@ -86,7 +86,7 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	storageInfo, err := r.GetStorageInfo(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
+	storageInfo, err := r.GetStorageActions(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

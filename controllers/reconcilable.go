@@ -286,12 +286,17 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	}
 }
 
-func (r *Reco) GetServerActionsFromDbName(dbName string) (shared.DbActions, error) {
+func (r *Reco) GetDbServerFromDbName(dbName string) (*dboperatorv1alpha1.Db, *dboperatorv1alpha1.DbServer, error) {
 	db, err := r.GetDb(dbName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	dbServer, err := r.GetDbServer(db.Spec.Server)
+	return db, dbServer, err
+}
+
+func (r *Reco) GetServerActionsFromDbName(dbName string) (shared.DbActions, error) {
+	db, dbServer, err := r.GetDbServerFromDbName(dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +432,7 @@ func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer) (*shared.Db
 	}, nil
 }
 
-func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (StorageActions, error) {
+func (r *Reco) GetStorageActions(storageType string, storageLocation string) (StorageActions, error) {
 	if strings.ToLower(storageType) == "s3" {
 		s3, err := r.GetS3Storage(storageLocation)
 		if err != nil {

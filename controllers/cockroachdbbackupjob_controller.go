@@ -65,7 +65,11 @@ func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 		return false, nil
 	}
 
-	pgConn, err := r.getPostgresConnectionFromBackupTarget()
+	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
+	if err != nil {
+		return false, err
+	}
+	pgConn, err := r.getPostgresConnectionFromBackupTarget(backupTarget)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +133,12 @@ func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.Cockro
 func (r *CrdbBackubJobReco) GetJobMap() (map[int64]dboperatorv1alpha1.CockroachDBBackupJobStatus, error) {
 	jobsMap := make(map[int64]dboperatorv1alpha1.CockroachDBBackupJobStatus)
 
-	pgConn, err := r.getPostgresConnectionFromBackupTarget()
+	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
+	if err != nil {
+		return jobsMap, err
+	}
+
+	pgConn, err := r.getPostgresConnectionFromBackupTarget(backupTarget)
 	if err != nil {
 		return jobsMap, err
 	}
@@ -150,31 +159,17 @@ func (r *CrdbBackubJobReco) GetJobMap() (map[int64]dboperatorv1alpha1.CockroachD
 	return jobsMap, nil
 }
 
-func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget() (*postgres.PostgresConnection, error) {
+func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget(backupTarget *dboperatorv1alpha1.BackupTarget) (*postgres.PostgresConnection, error) {
 	if len(r.backupJob.Spec.BackupTarget) == 0 {
 		return nil, fmt.Errorf("Empty backup_target for CockroachDBBackupJob %s", r.backupJob.Name)
 	}
-	_, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
+	_, dbServer, err := r.GetDbServerFromDbName(backupTarget.Spec.DbName)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.getPostgresConnectionFromDbInfo(dbInfo)
-}
-
-func (r *CrdbBackubJobReco) getPostgresConnectionFromDbInfo(dbInfo shared.DbActions) (*postgres.PostgresConnection, error) {
-	if r.conn == nil {
-		connectInfo, err := r.Reco.GetConnectInfo(dbServer)
-		connector := postgres.PostgresConnector{}
-		r.conn, err = connector.Connect(connectInfo)
-		conn, err := dbInfo.GetDbConnection()
-		if err != nil {
-			return nil, err
-		}
-		concreteConn := conn.(*postgres.PostgresConnection)
-		r.conn = concreteConn
-	}
-	return r.conn, nil
+	conn, err := r.GetDbConnection(dbServer, nil)
+	return conn.(*postgres.PostgresConnection), nil
 }
 
 func (r *CrdbBackubJobReco) SetStatus(newStatus dboperatorv1alpha1.CockroachDBBackupJobStatus) error {
@@ -239,39 +234,30 @@ func (r *CrdbBackubJobReco) CleanupConn() {
 func (r *CrdbBackubJobReco) NotifyChanges() {
 }
 
-func (r *CrdbBackubJobReco) buildRetryResult() ctrl.Result {
-	return ctrl.Result{
-		// Gradual backoff
-		Requeue:      true,
-		RequeueAfter: time.Duration(time.Since(r.backupJob.GetCreationTimestamp().Time).Seconds()),
-	}
-}
-
 func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 	if r.backupJob.Status.JobId != 0 {
 		// Skip, job already exists. We we're only reloading the status
 		return ctrl.Result{}, nil
 	}
 
-	storageInfo, dbInfo, err := r.GetBackupTargetFull(r.backupJob.Spec.BackupTarget)
-	if err != nil {
-		return r.buildRetryResult(), nil
-	}
 	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
 	if err != nil {
-		return r.buildRetryResult(), nil
+		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
-
-	pgConn, err := r.getPostgresConnectionFromDbInfo(dbInfo)
+	actions, err := r.GetStorageActions(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	pgConn, err := r.getPostgresConnectionFromBackupTarget(backupTarget)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return r.buildRetryResult(), nil
+		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
 
-	bucketInfo, err := storageInfo.GetBucketStorageInfo()
+	bucketInfo, err := actions.GetBucketStorageInfo()
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return r.buildRetryResult(), nil
+		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
 
 	bucketSecret := ""
@@ -284,14 +270,14 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 		err := r.client.Get(r.ctx, nsName, secret)
 		if err != nil {
 			r.LogError(err, fmt.Sprint(err))
-			return r.buildRetryResult(), nil
+			return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 		}
 
 		byts, found := secret.Data[bucketInfo.K8sSecretKey]
 		if !found {
 			err = fmt.Errorf("Unabled to find key %s in secret %s", bucketInfo.K8sSecretKey, bucketInfo.K8sSecret)
 			r.LogError(err, fmt.Sprint(err))
-			return r.buildRetryResult(), nil
+			return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 		}
 		bucketSecret = string(byts)
 	}
@@ -303,7 +289,7 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 	)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return r.buildRetryResult(), nil
+		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
 
 	r.SetStatus(dboperatorv1alpha1.CockroachDBBackupJobStatus{
@@ -315,7 +301,7 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 
 	// Return retry to that we can load the rest of the job status
 	// we started it async so we don't expect any result just yet
-	return r.buildRetryResult(), nil
+	return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 }
 
 func (r *CrdbBackubJobReco) RemoveObj() (ctrl.Result, error) {
