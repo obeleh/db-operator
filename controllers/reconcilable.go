@@ -442,4 +442,22 @@ func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (Stora
 	}
 }
 
-func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer) (shared.D, error)
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, userNames []string) (shared.DbServerConnectionInterface, error) {
+	connectInfo, err := r.GetConnectInfo(dbServer)
+	if err != nil {
+		return nil, err
+	}
+
+	userCredentials := map[string]*shared.Credentials{}
+	if len(userNames) > 0 {
+		for _, userName := range userNames {
+			credentials, err := r.GetCredentialsForUser(r.nsNm.Namespace, userName)
+			if err != nil {
+				return nil, err
+			}
+			userCredentials[userName] = credentials
+		}
+	}
+
+	return dbservers.GetServerConnection(dbServer.Spec.ServerType, connectInfo, userCredentials)
+}

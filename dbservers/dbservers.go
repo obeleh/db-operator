@@ -32,3 +32,13 @@ func GetServerActions(dbServer *dboperatorv1alpha1.DbServer, db *dboperatorv1alp
 		return nil, fmt.Errorf("expected either mysql or postgres server")
 	}
 }
+
+func GetServerConnection(serverType string, connectInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials) (shared.DbServerConnectionInterface, error) {
+	if strings.ToLower(serverType) == "postgres" || strings.ToLower(serverType) == "cockroachdb" {
+		return postgres.NewPostgresConnection(connectInfo, userCredentials), nil
+	} else if strings.ToLower(serverType) == "mysql" {
+		return mysql.NewMySqlConnection(connectInfo, userCredentials), nil
+	} else {
+		return nil, fmt.Errorf("expected either mysql or postgres server")
+	}
+}

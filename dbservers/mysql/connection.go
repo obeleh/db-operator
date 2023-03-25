@@ -13,6 +13,16 @@ type MySqlConnection struct {
 	shared.ConnectionsStore
 }
 
+func NewMySqlConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials) *MySqlConnection {
+	return &MySqlConnection{
+		ConnectionsStore: shared.ConnectionsStore{
+			ServerConnInfo:  connectionInfo,
+			UserCredentials: userCredentials,
+			Connector:       &MySqlConnector{},
+		},
+	}
+}
+
 func (m *MySqlConnection) CreateUser(userName string, password string) error {
 	conn, err := m.GetDbConnection("")
 	if err != nil {

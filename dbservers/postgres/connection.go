@@ -23,10 +23,12 @@ type PostgresConnection struct {
 	shared.ConnectionsStore
 }
 
-func NewPostgresConnection(connectInfos map[string]*shared.DbServerConnectInfo) *PostgresConnection {
+func NewPostgresConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials) *PostgresConnection {
 	return &PostgresConnection{
 		ConnectionsStore: shared.ConnectionsStore{
-			Connector: &PostgresConnector{},
+			ServerConnInfo:  connectionInfo,
+			UserCredentials: userCredentials,
+			Connector:       &PostgresConnector{},
 		},
 	}
 }
@@ -129,7 +131,7 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 	return err
 }
 
-func (p *PostgresConnection) SchemaDb(schemaName string) error {
+func (p *PostgresConnection) DropSchema(schemaName string) error {
 	conn, err := p.GetDbConnection("")
 	if err != nil {
 		return err

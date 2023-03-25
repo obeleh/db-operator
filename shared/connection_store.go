@@ -10,8 +10,8 @@ type Connector interface {
 }
 
 type ConnectionsStore struct {
-	serverConnInfo  *DbServerConnectInfo
-	userCredentials map[string]*Credentials
+	ServerConnInfo  *DbServerConnectInfo
+	UserCredentials map[string]*Credentials
 	connections     map[string]*sql.DB
 	Connector
 }
@@ -21,12 +21,12 @@ func (c *ConnectionsStore) GetDbConnection(connectionName string) (*sql.DB, erro
 	if !found {
 		var creds *Credentials
 		if connectionName != "" {
-			creds, found = c.userCredentials[connectionName]
+			creds, found = c.UserCredentials[connectionName]
 			if !found {
 				return nil, fmt.Errorf("Connection with name '%s' not found", connectionName)
 			}
 		}
-		conn, err := c.Connect(c.serverConnInfo, creds)
+		conn, err := c.Connect(c.ServerConnInfo, creds)
 		if err != nil {
 			return nil, err
 		}
