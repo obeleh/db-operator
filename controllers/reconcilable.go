@@ -401,34 +401,18 @@ func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Cre
 	return creds, nil
 }
 
-func (r *Reco) GetCredentialsForUser(dbServer *dboperatorv1alpha1.DbServer, userName string) (shared.Credentials, error) {
-	dbServerSecret, creds, err := r.GetDbServerSecrets(dbServer)
-	if err != nil {
-		return creds, err
-	}
-
-	if dbServer.Spec.CaCertKey != "" {
-		caCertBytes, found := dbServerSecret.Data[dbServer.Spec.CaCertKey]
-		if !found {
-			return creds, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbServer.Spec.CaCertKey, dbServer.Namespace, dbServer.Spec.SecretName)
-		}
-		caCert := string(caCertBytes)
-		creds.CaCert = &caCert
-	}
-
+func (r *Reco) GetCredentialsForUser(namespace, userName string) (*shared.Credentials, error) {
 	user := dboperatorv1alpha1.User{}
 	userNsm := types.NamespacedName{
 		Name:      userName,
-		Namespace: dbServer.Namespace,
+		Namespace: namespace,
 	}
-	err = r.client.Get(r.ctx, userNsm, &user)
+	err := r.client.Get(r.ctx, userNsm, &user)
+	if err != nil {
+		return nil, err
+	}
 
-	password, err := GetUserPassword(&user, r.client, r.ctx)
-	return shared.Credentials{
-		UserName: userName,
-		Password: password,
-	}, err
-
+	return GetUserCredentials(&user, r.client, r.ctx)
 }
 
 func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer) (*shared.DbServerConnectInfo, error) {
@@ -457,3 +441,5 @@ func (r *Reco) GetStorageInfo(storageType string, storageLocation string) (Stora
 		return nil, fmt.Errorf("unknown storage type %s", storageType)
 	}
 }
+
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer) (shared.D, error)

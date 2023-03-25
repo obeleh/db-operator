@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"crypto/md5"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -13,7 +14,7 @@ import (
 type PostgresConnector struct {
 }
 
-func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo) (*sql.DB, error) {
+func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, credentials *shared.Credentials) (*sql.DB, error) {
 	dbName := connectInfo.Database
 	if dbName == "" {
 		dbName = "postgres"
@@ -25,43 +26,91 @@ func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo) (*s
 		sslMode = "require"
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s",
-		connectInfo.Host, connectInfo.Port, connectInfo.UserName, dbName, sslMode)
+	var connStr string
+	var err error
+	if credentials == nil {
+		connStr, err = getConnectionString(
+			connectInfo.Host,
+			connectInfo.UserName,
+			connectInfo.Database,
+			sslMode,
+			connectInfo.Port,
+			connectInfo.Password,
+			connectInfo.CaCert,
+			connectInfo.TlsCrt,
+			connectInfo.TlsKey,
+		)
+	} else {
+		connStr, err = getConnectionString(
+			connectInfo.Host,
+			connectInfo.UserName,
+			connectInfo.Database,
+			sslMode,
+			connectInfo.Port,
+			credentials.Password,
+			credentials.CaCert,
+			credentials.TlsCrt,
+			credentials.TlsKey,
+		)
+	}
 
-	if connectInfo.Password != nil {
-		connStr += fmt.Sprintf(" password=%s", *connectInfo.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	return sql.Open("postgres", connStr)
+}
+
+func getConnectionString(host, userName, dbName, sslMode string, port int, password, caCert, tlsCrt, tlsKey *string) (string, error) {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s",
+		host, port, userName, dbName, sslMode)
+
+	if password != nil {
+		connStr += fmt.Sprintf(" password=%s", *password)
 	}
 
 	// For some reason it's not possible yet to load Tls Certs from memory so we write to file
 	// Open PR: https://github.com/lib/pq/pull/1066/files
-
-	if connectInfo.CaCert != nil || connectInfo.TlsCrt != nil || connectInfo.TlsKey != nil {
-		prefixStr := fmt.Sprintf("host-%s-user-%s", connectInfo.Host, connectInfo.UserName)
-		if connectInfo.Credentials.SourceSecret != nil {
-			prefixStr = fmt.Sprintf("%sns-%s-secret-%s", prefixStr, connectInfo.Credentials.SourceSecret.Namespace, connectInfo.Credentials.SourceSecret.Name)
-		}
-
+	if caCert != nil || tlsCrt != nil || tlsKey != nil {
 		tempCertsDir := filepath.Join(".", "tempCertsDir")
-		_ = os.MkdirAll("tempCertsDir", os.ModePerm)
+		_ = os.MkdirAll(tempCertsDir, os.ModePerm)
 
-		if connectInfo.CaCert != nil {
-			cacertFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-cacert")
-			cacertFile.WriteString(*connectInfo.CaCert)
-			connStr += fmt.Sprintf(" sslrootcert=%s", cacertFile.Name())
+		if caCert != nil {
+			filePath, err := writeToTempFile(*caCert)
+			if err != nil {
+				return "", err
+			}
+			connStr += fmt.Sprintf(" sslrootcert=%s", filePath)
 		}
 
-		if connectInfo.TlsKey != nil {
-			tlsKeyFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlskey")
-			tlsKeyFile.WriteString(*connectInfo.TlsKey)
-			connStr += fmt.Sprintf(" sslkey=%s", tlsKeyFile.Name())
+		if tlsKey != nil {
+			filePath, err := writeToTempFile(*tlsKey)
+			if err != nil {
+				return "", err
+			}
+			connStr += fmt.Sprintf(" sslkey=%s", filePath)
 		}
 
-		if connectInfo.TlsCrt != nil {
-			tlsCrtFile, _ := ioutil.TempFile(tempCertsDir, prefixStr+"-tlscert")
-			tlsCrtFile.WriteString(*connectInfo.TlsCrt)
-			connStr += fmt.Sprintf(" sslcert=%s", tlsCrtFile.Name())
+		if tlsCrt != nil {
+			filePath, err := writeToTempFile(*tlsCrt)
+			if err != nil {
+				return "", err
+			}
+			connStr += fmt.Sprintf(" sslcert=%s", filePath)
 		}
 	}
+	return connStr, nil
+}
 
-	return sql.Open("postgres", connStr)
+func writeToTempFile(contents string) (string, error) {
+	byteContent := []byte(contents)
+	md5Sum := md5.Sum(byteContent)
+	fileName := fmt.Sprintf("%x", md5Sum)
+
+	filePath := filepath.Join(".", "tempCertsDir", fileName)
+	_, err := os.Stat(filePath)
+	if err == nil {
+		return filePath, nil // file existed
+	}
+	return filePath, ioutil.WriteFile(filePath, byteContent, os.ModePerm)
 }

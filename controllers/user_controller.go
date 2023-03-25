@@ -86,13 +86,13 @@ func (r *UserReco) LoadObj() (bool, error) {
 }
 
 func (r *UserReco) CreateObj() (ctrl.Result, error) {
-	password, err := GetUserPassword(&r.user, r.client, r.ctx)
+	creds, err := GetUserCredentials(&r.user, r.client, r.ctx)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
-	err = r.conn.CreateUser(r.user.Spec.UserName, *password)
+	err = r.conn.CreateUser(r.user.Spec.UserName, *creds.Password)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
@@ -223,7 +223,7 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*string, error) {
+func GetUserCredentials(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*shared.Credentials, error) {
 	if dbUser.Spec.SecretName == "" {
 		if dbUser.Spec.PasswordKey != "" || dbUser.Spec.TlsCrtKey != "" || dbUser.Spec.TlsKeyKey != "" || dbUser.Spec.CaCertKey != "" {
 			return nil, fmt.Errorf("SecretName is not allowed to be empty if one of these is set: password_key, ca_cert_key, tls_cert_key, tls_key_key")
@@ -241,12 +241,40 @@ func GetUserPassword(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, c
 		return nil, fmt.Errorf("failed to get secret: %s", dbUser.Spec.SecretName)
 	}
 
-	passBytes, ok := secret.Data[shared.Nvl(dbUser.Spec.PasswordKey, "password")]
-	if !ok {
-		return nil, fmt.Errorf("password key (%s) not found in secret", shared.Nvl(dbUser.Spec.PasswordKey, "password"))
+	creds := shared.Credentials{
+		UserName: dbUser.Spec.UserName,
 	}
 
-	password := string(passBytes)
+	passBytes, found := secret.Data[shared.Nvl(dbUser.Spec.PasswordKey, "password")]
+	if found {
+		password := string(passBytes)
+		creds.Password = &password
+	}
 
-	return &password, nil
+	if dbUser.Spec.CaCertKey != "" {
+		caCertBytes, found := secret.Data[dbUser.Spec.CaCertKey]
+		if !found {
+			return nil, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbUser.Spec.CaCertKey, dbUser.Namespace, dbUser.Spec.SecretName)
+		}
+		caCert := string(caCertBytes)
+		creds.CaCert = &caCert
+	}
+	if dbUser.Spec.TlsKeyKey != "" {
+		tlsKeyBytes, found := secret.Data[dbUser.Spec.TlsKeyKey]
+		if !found {
+			return nil, fmt.Errorf("tls_key_key '%s' not found in secret %s.%s", dbUser.Spec.TlsKeyKey, dbUser.Namespace, dbUser.Spec.SecretName)
+		}
+		tlsKey := string(tlsKeyBytes)
+		creds.TlsKey = &tlsKey
+	}
+	if dbUser.Spec.TlsCrtKey != "" {
+		tlsCrtBytes, found := secret.Data[dbUser.Spec.TlsCrtKey]
+		if !found {
+			return nil, fmt.Errorf("tls_cert_key '%s' not found in secret %s.%s", dbUser.Spec.TlsCrtKey, dbUser.Namespace, dbUser.Spec.SecretName)
+		}
+		tlsCrt := string(tlsCrtBytes)
+		creds.TlsCrt = &tlsCrt
+	}
+
+	return &creds, nil
 }
