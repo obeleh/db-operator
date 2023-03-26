@@ -105,8 +105,8 @@ func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	return users, nil
 }
 
-func (p *PostgresConnection) Execute(qry string) error {
-	conn, err := p.GetDbConnection("")
+func (p *PostgresConnection) Execute(qry string, user string) error {
+	conn, err := p.GetDbConnection(user)
 	if err != nil {
 		return err
 	}
@@ -115,11 +115,11 @@ func (p *PostgresConnection) Execute(qry string) error {
 }
 
 func (p *PostgresConnection) CreateDb(dbName string) error {
-	return p.Execute(fmt.Sprintf("CREATE DATABASE %q;", dbName))
+	return p.Execute(fmt.Sprintf("CREATE DATABASE %q;", dbName), "")
 }
 
-func (p *PostgresConnection) CreateSchema(schemaName string) error {
-	return p.Execute(fmt.Sprintf("CREATE SCHEMA %q;", schemaName))
+func (p *PostgresConnection) CreateSchema(schemaName, creator string) error {
+	return p.Execute(fmt.Sprintf("CREATE SCHEMA %q;", schemaName), creator)
 }
 
 func (p *PostgresConnection) DropDb(dbName string) error {
@@ -131,8 +131,8 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 	return err
 }
 
-func (p *PostgresConnection) DropSchema(schemaName string) error {
-	conn, err := p.GetDbConnection("")
+func (p *PostgresConnection) DropSchema(schemaName, userName string) error {
+	conn, err := p.GetDbConnection(userName)
 	if err != nil {
 		return err
 	}
@@ -163,8 +163,8 @@ func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 	return databases, nil
 }
 
-func (p *PostgresConnection) GetSchemas() (map[string]shared.DbSideSchema, error) {
-	conn, err := p.GetDbConnection("")
+func (p *PostgresConnection) GetSchemas(userName string) (map[string]shared.DbSideSchema, error) {
+	conn, err := p.GetDbConnection(userName)
 	if err != nil {
 		return nil, err
 	}

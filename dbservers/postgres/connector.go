@@ -32,7 +32,7 @@ func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, cre
 		connStr, err = getConnectionString(
 			connectInfo.Host,
 			connectInfo.UserName,
-			connectInfo.Database,
+			dbName,
 			sslMode,
 			connectInfo.Port,
 			connectInfo.Password,
@@ -44,7 +44,7 @@ func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, cre
 		connStr, err = getConnectionString(
 			connectInfo.Host,
 			connectInfo.UserName,
-			connectInfo.Database,
+			dbName,
 			sslMode,
 			connectInfo.Port,
 			credentials.Password,

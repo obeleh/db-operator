@@ -35,6 +35,8 @@ spec:
           spec:
             description: SchemaSpec defines the desired state of Schema
             properties:
+              creator:
+                type: string
               db_name:
                 type: string
               db_server_name:
@@ -44,6 +46,7 @@ spec:
               name:
                 type: string
             required:
+            - creator
             - db_name
             - db_server_name
             - drop_on_deletion

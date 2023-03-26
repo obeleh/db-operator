@@ -68,14 +68,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var message string
 
 	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
-
-	connInfo, err := reco.GetConnectInfo(dbServer)
-	if err != nil {
-		r.LogError(err, "Failed Getting Connection Info")
-		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
-	}
-
-	reco.GetCredentials()
+	conn, err := reco.GetDbConnection(dbServer, nil, nil)
 
 	if err != nil {
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)

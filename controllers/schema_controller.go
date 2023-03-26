@@ -87,7 +87,12 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		return false, nil
 	}
 
-	s.conn, err = s.GetDbConnection(dbServer, &s.db)
+	creators := []string{}
+	if s.schema.Spec.Creator != "" {
+		creators = append(creators, s.schema.Spec.Creator)
+	}
+
+	s.conn, err = s.GetDbConnection(dbServer, creators, &s.schema.Spec.DbName)
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
@@ -96,7 +101,7 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		return false, err
 	}
 
-	s.schemas, err = s.conn.GetSchemas()
+	s.schemas, err = s.conn.GetSchemas(s.schema.Spec.Creator)
 	if err != nil {
 		s.LogError(err, "failed getting DBs")
 		return false, err
@@ -117,7 +122,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 		s.LogError(err, message)
 		return ctrl.Result{}, err
 	}
-	err = s.conn.CreateSchema(s.schema.Spec.Name)
+	err = s.conn.CreateSchema(s.schema.Spec.Name, s.schema.Spec.Creator)
 	if err != nil {
 		s.LogError(err, fmt.Sprintf("failed to Create Schema: %s", s.schema.Spec.Name))
 		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
@@ -145,7 +150,7 @@ func (s *SchemaReco) SetStatus(schema *dboperatorv1alpha1.Schema, created bool) 
 func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {
 	if s.schema.Spec.DropOnDeletion {
 		s.Log.Info(fmt.Sprintf("dropping schema %s.%s", s.schema.Spec.DbName, s.schema.Name))
-		err := s.conn.DropSchema(s.schema.Name)
+		err := s.conn.DropSchema(s.schema.Name, s.schema.Spec.Creator)
 		if err != nil {
 			s.LogError(err, fmt.Sprintf("failed to drop schema %s\n%s", s.schema.Spec.DbName, err))
 			return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err

@@ -30,13 +30,13 @@ type DbServerConnectionInterface interface {
 	DropUser(userName string) error
 	GetUsers() (map[string]DbSideUser, error)
 	CreateDb(dbName string) error
-	CreateSchema(schemaName string) error
+	CreateSchema(schemaName, creator string) error
 	DropDb(dbName string) error
-	DropSchema(schemaName string) error
+	DropSchema(schemaName, userName string) error
 	GetDbs() (map[string]DbSideDb, error)
-	GetSchemas() (map[string]DbSideSchema, error)
+	GetSchemas(userName string) (map[string]DbSideSchema, error)
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)
 	ScopeToDbName(scope string) (string, error)
 	Close() error
-	Execute(string) error
+	Execute(query, userName string) error
 }

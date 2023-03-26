@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,14 +76,8 @@ func (r *DbReco) LoadObj() (bool, error) {
 
 	// Do not point to DB in this controller
 	// Otherwise we would be connected to a database we potentially want to drop
-
-	XXX
-
+	r.conn, err = r.GetDbConnection(dbServer, nil, nil)
 	if err != nil {
-		errStr := err.Error()
-		if !strings.Contains(errStr, "failed getting password failed to get secret") {
-			r.LogError(err, "failed building dbConnection")
-		}
 		return false, err
 	}
 
@@ -112,7 +105,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 		return shared.GradualBackoffRetry(r.db.GetCreationTimestamp().Time), nil
 	}
 	if r.db.Spec.AfterCreateSQL != "" {
-		err = r.conn.Execute(r.db.Spec.AfterCreateSQL)
+		err = r.conn.Execute(r.db.Spec.AfterCreateSQL, "")
 		if err != nil {
 			r.LogError(err, fmt.Sprintf(
 				"failed to run following statement on db: %s (db: %s), this request won't be run again and needs to be handled manually",

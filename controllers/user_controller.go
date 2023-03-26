@@ -67,7 +67,9 @@ func (r *UserReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
-	r.conn, err = r.GetDbConnection(dbServer, nil)
+
+	grantorUserNames := GetGrantorNamesFromDbPrivs(r.user.Spec.DbPrivs)
+	r.conn, err = r.GetDbConnection(dbServer, grantorUserNames, nil)
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
@@ -221,6 +223,16 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.User{}).
 		Complete(r)
+}
+
+func GetGrantorNamesFromDbPrivs(privs []dboperatorv1alpha1.DbPriv) []string {
+	userNames := []string{}
+	for _, priv := range privs {
+		if priv.Grantor != "" {
+			userNames = append(userNames, priv.Grantor)
+		}
+	}
+	return userNames
 }
 
 func GetUserCredentials(dbUser *dboperatorv1alpha1.User, k8sClient client.Client, ctx context.Context) (*shared.Credentials, error) {

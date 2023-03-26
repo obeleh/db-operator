@@ -29,6 +29,7 @@ type SchemaSpec struct {
 	DbName         string `json:"db_name"`
 	Name           string `json:"name"`
 	DropOnDeletion bool   `json:"drop_on_deletion"`
+	Creator        string `json:"creator"`
 }
 
 // SchemaStatus defines the observed state of Schema

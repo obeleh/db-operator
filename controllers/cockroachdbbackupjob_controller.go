@@ -168,7 +168,7 @@ func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget(backupTarget *
 		return nil, err
 	}
 
-	conn, err := r.GetDbConnection(dbServer, nil)
+	conn, err := r.GetDbConnection(dbServer, nil, &backupTarget.Spec.DbName)
 	return conn.(*postgres.PostgresConnection), nil
 }
 

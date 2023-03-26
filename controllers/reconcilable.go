@@ -420,16 +420,22 @@ func (r *Reco) GetCredentialsForUser(namespace, userName string) (*shared.Creden
 	return GetUserCredentials(&user, r.client, r.ctx)
 }
 
-func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer) (*shared.DbServerConnectInfo, error) {
+func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer, databaseName *string) (*shared.DbServerConnectInfo, error) {
 	credentials, err := r.GetCredentials(dbServer)
 	if err != nil {
 		return nil, err
 	}
-	return &shared.DbServerConnectInfo{
+	connectInfo := &shared.DbServerConnectInfo{
 		Host:        dbServer.Spec.Address,
 		Port:        dbServer.Spec.Port,
 		Credentials: credentials,
-	}, nil
+	}
+
+	if databaseName != nil {
+		connectInfo.Database = *databaseName
+	}
+
+	return connectInfo, nil
 }
 
 func (r *Reco) GetStorageActions(storageType string, storageLocation string) (StorageActions, error) {
@@ -447,15 +453,15 @@ func (r *Reco) GetStorageActions(storageType string, storageLocation string) (St
 	}
 }
 
-func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, userNames []string) (shared.DbServerConnectionInterface, error) {
-	connectInfo, err := r.GetConnectInfo(dbServer)
+func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, grantorNames []string, databaseName *string) (shared.DbServerConnectionInterface, error) {
+	connectInfo, err := r.GetConnectInfo(dbServer, databaseName)
 	if err != nil {
 		return nil, err
 	}
 
 	userCredentials := map[string]*shared.Credentials{}
-	if len(userNames) > 0 {
-		for _, userName := range userNames {
+	if len(grantorNames) > 0 {
+		for _, userName := range grantorNames {
 			credentials, err := r.GetCredentialsForUser(r.nsNm.Namespace, userName)
 			if err != nil {
 				return nil, err
