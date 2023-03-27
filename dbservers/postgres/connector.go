@@ -41,14 +41,20 @@ func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, cre
 			connectInfo.TlsKey,
 		)
 	} else {
+		var caCert *string
+		if credentials.CaCert != nil {
+			caCert = credentials.CaCert
+		} else if connectInfo.CaCert != nil {
+			caCert = connectInfo.CaCert
+		}
 		connStr, err = getConnectionString(
 			connectInfo.Host,
-			connectInfo.UserName,
+			credentials.UserName,
 			dbName,
 			sslMode,
 			connectInfo.Port,
 			credentials.Password,
-			credentials.CaCert,
+			caCert,
 			credentials.TlsCrt,
 			credentials.TlsKey,
 		)
@@ -112,5 +118,5 @@ func writeToTempFile(contents string) (string, error) {
 	if err == nil {
 		return filePath, nil // file existed
 	}
-	return filePath, ioutil.WriteFile(filePath, byteContent, os.ModePerm)
+	return filePath, ioutil.WriteFile(filePath, byteContent, 0600)
 }

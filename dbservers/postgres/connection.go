@@ -65,7 +65,7 @@ func (p *PostgresConnection) UpdateUserPrivs(userName string, serverPrivs string
 	if err != nil {
 		return false, err
 	}
-	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs)
+	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs, p.GetDbConnection)
 }
 
 func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {

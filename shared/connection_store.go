@@ -18,20 +18,25 @@ type ConnectionsStore struct {
 
 func (c *ConnectionsStore) GetDbConnection(connectionName string) (*sql.DB, error) {
 	conn, found := c.connections[connectionName]
-	if !found {
-		var creds *Credentials
-		if connectionName != "" {
-			creds, found = c.UserCredentials[connectionName]
-			if !found {
-				return nil, fmt.Errorf("Connection with name '%s' not found", connectionName)
-			}
-		}
-		conn, err := c.Connect(c.ServerConnInfo, creds)
-		if err != nil {
-			return nil, err
-		}
-		c.connections[connectionName] = conn
+	if found {
+		return conn, nil
 	}
+	var creds *Credentials
+	if connectionName != "" {
+		creds, found = c.UserCredentials[connectionName]
+		if !found {
+			return nil, fmt.Errorf("Connection with name '%s' not found", connectionName)
+		}
+	}
+	conn, err := c.Connect(c.ServerConnInfo, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.connections == nil {
+		c.connections = make(map[string]*sql.DB)
+	}
+	c.connections[connectionName] = conn
 	return conn, nil
 }
 

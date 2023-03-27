@@ -103,7 +103,7 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 
 	s.schemas, err = s.conn.GetSchemas(s.schema.Spec.Creator)
 	if err != nil {
-		s.LogError(err, "failed getting DBs")
+		s.LogError(err, "failed getting Schemas")
 		return false, err
 	}
 	_, exists := s.schemas[s.schema.Spec.Name]

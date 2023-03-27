@@ -133,7 +133,12 @@ func TestUpdateUserPrivs(t *testing.T) {
 			Privs: "ALL",
 		},
 	}
-	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs)
+
+	connGetter := func(name string) (*sql.DB, error) {
+		return db, nil
+	}
+
+	_, err = UpdateUserPrivs(db, "testuser", "CREATEDB", dbPrivs, connGetter)
 
 	if err != nil {
 		t.Errorf("unexpected error updating userprivs %s", err)

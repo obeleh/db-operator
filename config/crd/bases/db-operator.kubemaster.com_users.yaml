@@ -49,7 +49,6 @@ spec:
                     scope:
                       type: string
                   required:
-                  - privs
                   - scope
                   type: object
                 type: array
