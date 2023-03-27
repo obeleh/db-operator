@@ -313,15 +313,18 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 }
 
 func updateDefaultPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion) (bool, error) {
-	privMap, err := ParseDefaultPrivs(dbPriv.DefaultPrivs, dbPriv.Scope, serverVersion)
+	if dbPriv.Grantor == nil {
+		return false, fmt.Errorf("grantor needs to be filled in for default privileges")
+	}
+	privMap, err := ParseDefaultPrivs(dbPriv.DefaultPrivs, dbPriv.Scope, *dbPriv.Grantor, serverVersion)
 	if err != nil {
 		return false, err
 	}
 	return adjustPrivileges(conn, userName, privMap)
 }
 
-func ParseDefaultPrivs(defaultPrivs string, scope string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
-	db := GetDbNameFromScopeName(scope)
+func ParseDefaultPrivs(defaultPrivs, scope, grantor string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
+	//db := GetDbNameFromScopeName(scope)
 	scopeAfterDb, err := GetScopeAfterDb(scope)
 	if err != nil {
 		return nil, err
@@ -339,7 +342,8 @@ func ParseDefaultPrivs(defaultPrivs string, scope string, serverVersion *Postgre
 	var currentPrivSet []string
 
 	if scopeAfterDb == "TABLES" {
-		oPrivs["defaultTable"][db] = toPrivSet(defaultPrivs)
+		name := grantor
+		oPrivs["defaultTable"][name] = toPrivSet(defaultPrivs)
 	} else {
 		return nil, fmt.Errorf(fmt.Sprintf("Not implemented to update default privileges on %s", scope))
 	}
@@ -527,15 +531,21 @@ func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []stri
 	}
 }
 
-func revokeDefaultTablePrivileges(conn *sql.DB, user string, db string, privs []string) error {
-	return nil
+func revokeDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
+	privsStr := strings.Join(privs, ", ")
+	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %q REVOKE %s ON TABLES FROM %q;", role, privsStr, user)
+	_, err := conn.Exec(query)
+	return err
 }
 
-func grantDefaultTablePrivileges(conn *sql.DB, user string, db string, privs []string) error {
-	return nil
+func grantDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
+	privsStr := strings.Join(privs, ", ")
+	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %q GRANT %s ON TABLES TO %q;", role, privsStr, user)
+	_, err := conn.Exec(query)
+	return err
 }
 
-func revokeSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
+func revokeSchemaPrivileges(conn *sql.DB, user string, role string, privs []string) error {
 	return nil
 }
 
