@@ -52,7 +52,7 @@ func (c *ConnectionsStore) GetDbConnection(userName, databaseName *string) (*sql
 	} else {
 		creds, found = c.UserCredentials[*userName]
 		if !found {
-			return nil, fmt.Errorf("Credentials for '%s' not found while constructing database connection", userName)
+			return nil, fmt.Errorf("Credentials for '%s' not found while constructing database connection", *userName)
 		}
 	}
 	conn, err := c.Connect(c.ServerConnInfo, creds, databaseName)

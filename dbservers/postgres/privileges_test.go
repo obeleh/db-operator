@@ -258,7 +258,7 @@ func XTestGetDefaultPrivilegesFromDb(t *testing.T) {
 		return
 	}
 
-	getDefaultPrivileges(conn, "S", "app1-application-user", "app1-migration-user")
+	getDefaultPrivilegesGivenByCurrentUser(conn, "S", "app1-application-user")
 }
 
 func TestGetDefaultPrivileges(t *testing.T) {
@@ -279,7 +279,7 @@ func TestGetDefaultPrivileges(t *testing.T) {
 		"r",
 	).WillReturnRows(expected)
 
-	privs, err := getDefaultPrivileges(db, "r", "app1-application-user", "app1-migration-user")
+	privs, err := getDefaultPrivilegesGivenByCurrentUser(db, "r", "app1-application-user")
 	if err != nil {
 		t.Error(err)
 		return

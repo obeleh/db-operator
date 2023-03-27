@@ -25,6 +25,8 @@ type PostgresVersion struct {
 	Patch       int
 }
 
+type ConnectionGetter func(*string, *string) (*sql.DB, error)
+
 const PostgreSQL = "PostgreSQL"
 const CockroachDB = "CockroachDB"
 
@@ -83,6 +85,10 @@ var ADJUST_PRIVILEGES_MAP = map[string]map[string]func(*sql.DB, string, string, 
 		"revoke": revokeTablePrivileges,
 		"grant":  grantTablePrivileges,
 	},
+	"defaultTable": {
+		"revoke": revokeDefaultTablePrivileges,
+		"grant":  grantDefaultTablePrivileges,
+	},
 	"database": {
 		"revoke": revokeDatabasePrivileges,
 		"grant":  grantDatabasePrivileges,
@@ -93,9 +99,10 @@ var ADJUST_PRIVILEGES_MAP = map[string]map[string]func(*sql.DB, string, string, 
 	},
 }
 var CHECK_PRIVILEGES_MAP = map[string]func(*sql.DB, string, string, []string) ([]string, []string, []string, error){
-	"table":    hasTablePrivileges,
-	"database": hasDatabasePrivileges,
-	"schema":   hasSchemaPrivileges,
+	"table":        hasTablePrivileges,
+	"database":     hasDatabasePrivileges,
+	"schema":       hasSchemaPrivileges,
+	"defaultTable": hasDefaultTablePrivileges,
 }
 
 func getFlagsForVersion(version int) []string {
@@ -233,8 +240,6 @@ func getServerVersion(conn *sql.DB) (*PostgresVersion, error) {
 	return parseVersionString(versionResult)
 }
 
-type ConnectionGetter func(*string, *string) (*sql.DB, error)
-
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv, connectionGetter ConnectionGetter) (bool, error) {
 	// Server Privs
 	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname = $1", userName)
@@ -308,7 +313,42 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 }
 
 func updateDefaultPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion) (bool, error) {
-	return false, nil
+	privMap, err := ParseDefaultPrivs(dbPriv.DefaultPrivs, dbPriv.Scope, serverVersion)
+	if err != nil {
+		return false, err
+	}
+	return adjustPrivileges(conn, userName, privMap)
+}
+
+func ParseDefaultPrivs(defaultPrivs string, scope string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
+	db := GetDbNameFromScopeName(scope)
+	scopeAfterDb, err := GetScopeAfterDb(scope)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(defaultPrivs) == 0 {
+		return nil, nil
+	}
+
+	oPrivs := map[string]map[string][]string{
+		"defaultTable": {},
+	}
+
+	var desiredPrivSet []string
+	var currentPrivSet []string
+
+	if scopeAfterDb == "TABLES" {
+		oPrivs["defaultTable"][db] = toPrivSet(defaultPrivs)
+	} else {
+		return nil, fmt.Errorf(fmt.Sprintf("Not implemented to update default privileges on %s", scope))
+	}
+
+	if !funk.Subset(currentPrivSet, serverVersion.GetValidPrivs("table")) {
+		invalidPrivs := strings.Join(funk.Subtract(desiredPrivSet, serverVersion.GetValidPrivs("table")).([]string), " ")
+		return nil, fmt.Errorf("invalid privs specified for %s: %s", "table", invalidPrivs)
+	}
+	return oPrivs, nil
 }
 
 func updateDbPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion) (bool, error) {
@@ -487,8 +527,15 @@ func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []stri
 	}
 }
 
-func revokeSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
+func revokeDefaultTablePrivileges(conn *sql.DB, user string, db string, privs []string) error {
+	return nil
+}
 
+func grantDefaultTablePrivileges(conn *sql.DB, user string, db string, privs []string) error {
+	return nil
+}
+
+func revokeSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	return nil
 }
 
@@ -540,9 +587,14 @@ type DefualtPrivilege struct {
 	Grantee        string
 }
 
-// TODO: default privileges for schema not yet supported
+func hasDefaultTablePrivileges(conn *sql.DB, user string, database string, privs []string) ([]string, []string, []string, error) {
+	objectType := "r" // r = relation (table, view),
+	curPrivs, err := getDefaultPrivilegesGivenByCurrentUser(conn, objectType, user)
+	return diffPrivs(curPrivs, privs, err)
+}
 
-func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor string) ([]string, error) {
+// TODO: default privileges for schema not yet supported
+func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, user string) ([]string, error) {
 	//https://www.dba-ninja.com/2020/06/how-to-find-default-access-privileges-on-postgresql-with-pg_default_acl.html
 	/*
 		acl:
@@ -551,7 +603,7 @@ func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor
 		w–UPDATE (write)
 		d–DELETE
 
-		object_type:
+		objectType:
 		r = relation (table, view),
 		S = sequence,
 		f = function,
@@ -561,11 +613,11 @@ func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor
 
 	query := `SELECT d.defaclacl
 	FROM pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace
-	WHERE pg_get_userbyid(d.defaclrole) = $1
+	WHERE pg_get_userbyid(d.defaclrole) = current_user
 	AND n.nspname is NULL
-	AND d.defaclobjtype = $2;
+	AND d.defaclobjtype = $1;
 	`
-	rows, err := conn.Query(query, grantor, object_type)
+	rows, err := conn.Query(query, objectType)
 	if err != nil {
 		return nil, err
 	}
@@ -584,19 +636,23 @@ func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor
 			parts := strings.Split(defaclacl, "=")
 			grantee := parts[0]
 			privs := parts[1]
-			if user == grantee {
-				if strings.Contains(privs, "a") {
-					privileges = append(privileges, "INSERT")
+			if objectType == "r" { // r = relation (table, view),
+				if user == grantee {
+					if strings.Contains(privs, "a") {
+						privileges = append(privileges, "INSERT")
+					}
+					if strings.Contains(privs, "r") {
+						privileges = append(privileges, "SELECT")
+					}
+					if strings.Contains(privs, "w") {
+						privileges = append(privileges, "UPDATE")
+					}
+					if strings.Contains(privs, "d") {
+						privileges = append(privileges, "DELETE")
+					}
 				}
-				if strings.Contains(privs, "r") {
-					privileges = append(privileges, "SELECT")
-				}
-				if strings.Contains(privs, "w") {
-					privileges = append(privileges, "UPDATE")
-				}
-				if strings.Contains(privs, "d") {
-					privileges = append(privileges, "DELETE")
-				}
+			} else {
+				return nil, fmt.Errorf("currently only default privileges for r(elation) is supported")
 			}
 		}
 

@@ -27,7 +27,7 @@ func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, creden
 			*connectInfo.Password,
 			connectInfo.Host,
 			connectInfo.Port,
-			databaseName,
+			*databaseName,
 		)
 	} else {
 		if credentials.Password == nil {
@@ -39,7 +39,7 @@ func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, creden
 			*credentials.Password,
 			connectInfo.Host,
 			connectInfo.Port,
-			databaseName,
+			*databaseName,
 		)
 	}
 
