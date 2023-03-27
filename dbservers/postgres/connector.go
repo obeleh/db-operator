@@ -14,10 +14,13 @@ import (
 type PostgresConnector struct {
 }
 
-func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, credentials *shared.Credentials) (*sql.DB, error) {
+func (c *PostgresConnector) Connect(connectInfo *shared.DbServerConnectInfo, credentials *shared.Credentials, databaseName *string) (*sql.DB, error) {
 	dbName := connectInfo.Database
 	if dbName == "" {
 		dbName = "postgres"
+	}
+	if databaseName != nil {
+		dbName = *databaseName
 	}
 
 	// https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION

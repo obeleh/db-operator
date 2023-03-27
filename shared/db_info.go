@@ -8,7 +8,7 @@ import (
 )
 
 type DbConnector interface {
-	Connect(connectInfo DbServerConnectInfo) (*sql.DB, error)
+	Connect(connectInfo DbServerConnectInfo, databaseName *string) (*sql.DB, error)
 }
 
 type DbActions interface {

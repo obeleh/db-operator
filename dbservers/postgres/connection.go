@@ -34,7 +34,7 @@ func NewPostgresConnection(connectionInfo *shared.DbServerConnectInfo, userCrede
 }
 
 func (p *PostgresConnection) CreateUser(userName string, password string) error {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 }
 
 func (p *PostgresConnection) DropUser(userName string) error {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (p *PostgresConnection) DropUser(userName string) error {
 }
 
 func (p *PostgresConnection) MakeUserDbOwner(userName string, dbName string) error {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (p *PostgresConnection) MakeUserDbOwner(userName string, dbName string) err
 }
 
 func (p *PostgresConnection) UpdateUserPrivs(userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -69,7 +69,7 @@ func (p *PostgresConnection) UpdateUserPrivs(userName string, serverPrivs string
 }
 
 func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 }
 
 func (p *PostgresConnection) Execute(qry string, user string) error {
-	conn, err := p.GetDbConnection(user)
+	conn, err := p.GetDbConnection(&user, nil)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (p *PostgresConnection) CreateSchema(schemaName, creator string) error {
 }
 
 func (p *PostgresConnection) DropDb(dbName string) error {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,8 @@ func (p *PostgresConnection) DropDb(dbName string) error {
 }
 
 func (p *PostgresConnection) DropSchema(schemaName, userName string) error {
-	conn, err := p.GetDbConnection(userName)
+	dbName := GetDbNameFromScopeName(schemaName)
+	conn, err := p.GetDbConnection(&userName, &dbName)
 	if err != nil {
 		return err
 	}
@@ -141,7 +142,7 @@ func (p *PostgresConnection) DropSchema(schemaName, userName string) error {
 }
 
 func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +165,7 @@ func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 }
 
 func (p *PostgresConnection) GetSchemas(userName string) (map[string]shared.DbSideSchema, error) {
-	conn, err := p.GetDbConnection(userName)
+	conn, err := p.GetDbConnection(&userName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +188,7 @@ func (p *PostgresConnection) GetSchemas(userName string) (map[string]shared.DbSi
 }
 
 func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +197,7 @@ func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {
 }
 
 func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface{}, bool, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -214,7 +215,7 @@ func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface
 }
 
 func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -247,11 +248,4 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string,
 
 	qry += "' WITH DETACHED;"
 	return query_utils.SelectFirstValueInt64(conn, qry)
-}
-
-func (i *PostgresConnection) ScopeToDbName(scope string) (string, error) {
-	if scope == "" {
-		return "", fmt.Errorf("Empty scope not supported, expected a DB name")
-	}
-	return scope, nil
 }

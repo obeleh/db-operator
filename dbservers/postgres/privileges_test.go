@@ -134,7 +134,7 @@ func TestUpdateUserPrivs(t *testing.T) {
 		},
 	}
 
-	connGetter := func(name string) (*sql.DB, error) {
+	connGetter := func(userName, databaseName *string) (*sql.DB, error) {
 		return db, nil
 	}
 

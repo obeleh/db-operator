@@ -6,37 +6,64 @@ import (
 )
 
 type Connector interface {
-	Connect(connectInfo *DbServerConnectInfo, credentials *Credentials) (*sql.DB, error)
+	Connect(connectInfo *DbServerConnectInfo, credentials *Credentials, databaseName *string) (*sql.DB, error)
+}
+
+type ConnectionKey struct {
+	DbName, UserName string
 }
 
 type ConnectionsStore struct {
 	ServerConnInfo  *DbServerConnectInfo
 	UserCredentials map[string]*Credentials
-	connections     map[string]*sql.DB
+	connections     map[ConnectionKey]*sql.DB
 	Connector
 }
 
-func (c *ConnectionsStore) GetDbConnection(connectionName string) (*sql.DB, error) {
-	conn, found := c.connections[connectionName]
+func NewConnectionKey(userName, databaseName *string) ConnectionKey {
+	userNameForKey := ""
+	if userName != nil {
+		userNameForKey = *userName
+	}
+
+	databaseNameForKey := ""
+	if databaseName != nil {
+		databaseNameForKey = *databaseName
+	}
+
+	return ConnectionKey{
+		UserName: userNameForKey,
+		DbName:   databaseNameForKey,
+	}
+}
+
+func (c *ConnectionsStore) GetDbConnection(userName, databaseName *string) (*sql.DB, error) {
+	var creds *Credentials
+	connectionKey := NewConnectionKey(userName, databaseName)
+
+	conn, found := c.connections[connectionKey]
 	if found {
 		return conn, nil
 	}
-	var creds *Credentials
-	if connectionName != "" {
-		creds, found = c.UserCredentials[connectionName]
+
+	if userName == nil {
+		userName = &c.ServerConnInfo.UserName
+		creds = &c.ServerConnInfo.Credentials
+	} else {
+		creds, found = c.UserCredentials[*userName]
 		if !found {
-			return nil, fmt.Errorf("Connection with name '%s' not found", connectionName)
+			return nil, fmt.Errorf("Credentials for '%s' not found while constructing database connection", userName)
 		}
 	}
-	conn, err := c.Connect(c.ServerConnInfo, creds)
+	conn, err := c.Connect(c.ServerConnInfo, creds, databaseName)
 	if err != nil {
 		return nil, err
 	}
 
 	if c.connections == nil {
-		c.connections = make(map[string]*sql.DB)
+		c.connections = make(map[ConnectionKey]*sql.DB)
 	}
-	c.connections[connectionName] = conn
+	c.connections[connectionKey] = conn
 	return conn, nil
 }
 

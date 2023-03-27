@@ -228,8 +228,8 @@ func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func GetGrantorNamesFromDbPrivs(privs []dboperatorv1alpha1.DbPriv) []string {
 	userNames := []string{}
 	for _, priv := range privs {
-		if priv.Grantor != "" {
-			userNames = append(userNames, priv.Grantor)
+		if priv.Grantor != nil {
+			userNames = append(userNames, *priv.Grantor)
 		}
 	}
 	return userNames

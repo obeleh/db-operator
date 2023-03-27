@@ -233,9 +233,9 @@ func getServerVersion(conn *sql.DB) (*PostgresVersion, error) {
 	return parseVersionString(versionResult)
 }
 
-type ConnectionGetter func(string) (*sql.DB, error)
+type ConnectionGetter func(*string, *string) (*sql.DB, error)
 
-func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv, connGetter ConnectionGetter) (bool, error) {
+func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv, connectionGetter ConnectionGetter) (bool, error) {
 	// Server Privs
 	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname = $1", userName)
 	if err != nil {
@@ -278,21 +278,45 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	for _, dbPriv := range dbPrivs {
-		privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.Scope, serverVersion)
+		if dbPriv.Privs != "" && dbPriv.DefaultPrivs != "" {
+			return changed, fmt.Errorf("privs and default privs are not allowed together in the same privs object")
+		}
+
+		dbName := GetDbNameFromScopeName(dbPriv.Scope)
+		conn, err := connectionGetter(dbPriv.Grantor, &dbName)
 		if err != nil {
 			return changed, err
 		}
-		connForPrivs, err := connGetter(dbPriv.Grantor)
-		if err != nil {
-			return changed, err
+
+		if dbPriv.Privs != "" {
+			updateChanged, err := updateDbPrivs(conn, userName, dbPriv, serverVersion)
+			changed = updateChanged || changed
+			if err != nil {
+				return changed, err
+			}
 		}
-		privsChanged, err := adjustPrivileges(connForPrivs, userName, privMap)
-		changed = changed || privsChanged
-		if err != nil {
-			return changed, err
+
+		if dbPriv.DefaultPrivs != "" {
+			updateChanged, err := updateDefaultPrivs(conn, userName, dbPriv, serverVersion)
+			changed = updateChanged || changed
+			if err != nil {
+				return changed, err
+			}
 		}
 	}
 	return changed, nil
+}
+
+func updateDefaultPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion) (bool, error) {
+	return false, nil
+}
+
+func updateDbPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion) (bool, error) {
+	privMap, err := ParsePrivs(dbPriv.Privs, dbPriv.Scope, serverVersion)
+	if err != nil {
+		return false, err
+	}
+	return adjustPrivileges(conn, userName, privMap)
 }
 
 func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, error) {
@@ -369,7 +393,11 @@ func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string)
 }
 
 func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []string) ([]string, []string, []string, error) {
-	curPrivs, err := GetSchemaPrivileges(conn, user, schema)
+	schemaName, err := GetScopeAfterDb(schema)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	curPrivs, err := GetSchemaPrivileges(conn, user, schemaName)
 	return diffPrivs(curPrivs, privs, err)
 }
 
@@ -397,12 +425,16 @@ func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, erro
 }
 
 func GetSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, error) {
-	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schema)
+	schemaName, err := GetScopeAfterDb(schema)
+	if err != nil {
+		return nil, err
+	}
+	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schemaName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
 	}
 
-	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schema)
+	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schemaName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
 	}
@@ -433,7 +465,12 @@ func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []strin
 }
 
 func grantSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
-
+	/*
+		schemaName, err := GetScopeAfterDb(schema)
+		if err != nil {
+			return nil, err
+		}
+	*/
 	return nil
 }
 
@@ -568,6 +605,22 @@ func getDefaultPrivileges(conn *sql.DB, object_type string, user string, grantor
 		}
 	}
 	return privileges, nil
+}
+
+func GetDbNameFromScopeName(scopeName string) string {
+	if strings.Contains(scopeName, ".") {
+		parts := strings.Split(scopeName, ".")
+		return parts[0]
+	}
+	return scopeName
+}
+
+func GetScopeAfterDb(scopeName string) (string, error) {
+	parts := strings.Split(scopeName, ".")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("Expected two parts in scope '%s' got %d", scopeName, len(parts))
+	}
+	return parts[1], nil
 }
 
 /*

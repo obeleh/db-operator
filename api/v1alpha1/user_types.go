@@ -21,10 +21,10 @@ import (
 )
 
 type DbPriv struct {
-	Scope        string `json:"scope"`
-	Privs        string `json:"privs,omitempty"`
-	DefaultPrivs string `json:"default_privs,omitempty"`
-	Grantor      string `json:"grantor_user_name,omitempty"`
+	Scope        string  `json:"scope"`
+	Privs        string  `json:"privs,omitempty"`
+	DefaultPrivs string  `json:"default_privs,omitempty"`
+	Grantor      *string `json:"grantor_user_name,omitempty"`
 }
 
 // UserSpec defines the desired state of User

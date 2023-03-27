@@ -10,9 +10,13 @@ import (
 type MySqlConnector struct {
 }
 
-func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, credentials *shared.Credentials) (*sql.DB, error) {
+func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, credentials *shared.Credentials, databaseName *string) (*sql.DB, error) {
 	// "username:password@tcp(127.0.0.1:3306)/test"
 	var connStr string
+	if databaseName == nil {
+		databaseName = &connectInfo.Database
+	}
+
 	if credentials == nil {
 		if connectInfo.Password == nil {
 			return nil, fmt.Errorf("Passwordless connections not yet implemented for MySQL connections")
@@ -23,7 +27,7 @@ func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, creden
 			*connectInfo.Password,
 			connectInfo.Host,
 			connectInfo.Port,
-			connectInfo.Database,
+			databaseName,
 		)
 	} else {
 		if credentials.Password == nil {
@@ -35,7 +39,7 @@ func (m *MySqlConnector) Connect(connectInfo *shared.DbServerConnectInfo, creden
 			*credentials.Password,
 			connectInfo.Host,
 			connectInfo.Port,
-			connectInfo.Database,
+			databaseName,
 		)
 	}
 

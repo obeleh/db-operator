@@ -24,7 +24,7 @@ func NewMySqlConnection(connectionInfo *shared.DbServerConnectInfo, userCredenti
 }
 
 func (m *MySqlConnection) CreateUser(userName string, password string) error {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (m *MySqlConnection) CreateUser(userName string, password string) error {
 }
 
 func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface{}, error) {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface
 }
 
 func (m *MySqlConnection) DropUser(userName string) error {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (m *MySqlConnection) DropUser(userName string) error {
 }
 
 func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 }
 
 func (m *MySqlConnection) Execute(qry, userName string) error {
-	conn, err := m.GetDbConnection(userName)
+	conn, err := m.GetDbConnection(&userName, nil)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (m *MySqlConnection) CreateDb(dbName string) error {
 }
 
 func (m *MySqlConnection) DropDb(dbName string) error {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func ToString(val interface{}) string {
 }
 
 func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
-	conn, err := m.GetDbConnection("")
+	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,18 +138,10 @@ func (m *MySqlConnection) DropSchema(schemaName, userName string) error {
 }
 
 func (p *MySqlConnection) UpdateUserPrivs(userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv) (bool, error) {
-	conn, err := p.GetDbConnection("")
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return false, err
 	}
 
 	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs)
-}
-
-func (p *MySqlConnection) ScopeToDbName(scope string) (string, error) {
-	parts := strings.Split(scope, ".")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("Unexpected scope found expected form db.something, db.* or *.*, got %s", scope)
-	}
-	return parts[0], nil
 }
