@@ -73,8 +73,8 @@ spec:
         command: 
         - /bin/sh
         - "-c"
-        - >
-          sleep 1
+        - |
+          sleep 1;
           while ! nc -z minio 9000; do   
             sleep 0.2
           done
