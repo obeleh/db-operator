@@ -74,17 +74,17 @@ func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	return users, nil
 }
 
-func (m *MySqlConnection) Execute(qry, userName string) error {
-	conn, err := m.GetDbConnection(&userName, nil)
+func (m *MySqlConnection) Execute(query string, userName *string) error {
+	conn, err := m.GetDbConnection(userName, nil)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(qry)
+	_, err = conn.Exec(query)
 	return err
 }
 
 func (m *MySqlConnection) CreateDb(dbName string) error {
-	return m.Execute(fmt.Sprintf("CREATE DATABASE `%s`;", dbName), "")
+	return m.Execute(fmt.Sprintf("CREATE DATABASE `%s`;", dbName), nil)
 }
 
 func (m *MySqlConnection) DropDb(dbName string, cascade bool) error {
@@ -128,15 +128,15 @@ func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 	return databases, nil
 }
 
-func (m *MySqlConnection) GetSchemas(userName string) (map[string]shared.DbSideSchema, error) {
+func (m *MySqlConnection) GetSchemas(userName *string) (map[string]shared.DbSideSchema, error) {
 	return nil, fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 
-func (m *MySqlConnection) CreateSchema(schemaName, creator string) error {
+func (m *MySqlConnection) CreateSchema(schemaName string, creator *string) error {
 	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 
-func (m *MySqlConnection) DropSchema(schemaName, userName string, cascade bool) error {
+func (m *MySqlConnection) DropSchema(schemaName string, userName *string, cascade bool) error {
 	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 

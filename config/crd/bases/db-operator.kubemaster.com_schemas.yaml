@@ -48,7 +48,6 @@ spec:
               name:
                 type: string
             required:
-            - creator
             - db_name
             - db_server_name
             - drop_on_deletion

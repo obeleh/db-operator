@@ -37,6 +37,8 @@ docker pull postgres:latest
 make kind-cluster
 make deploy-test-infra
 make install
+# set up port forwards
+# see Running the operator on your machine for dns entries in your hosts file
 make kuttl-test-cockroachdb-debugmode
 make kuttl-test-mysql-debugmode
 make kuttl-test-postgres-debugmode
@@ -64,7 +66,7 @@ operator-sdk create api --group db-operator --version v1alpha1 --kind <KIND> --r
 add this line to your `/etc/hosts` file:
 
 ```
-127.0.0.1	localhost postgres.postgres.svc.cluster.local mysql.mysql.svc.cluster.local
+127.0.0.1	localhost postgres.postgres.svc.cluster.local mysql.mysql.svc.cluster.local cockroachdb-public cockroachdb-public.cockroachdb.svc.cluster.local
 ```
 
 ```

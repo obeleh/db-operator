@@ -25,12 +25,12 @@ import (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
-	Server         string `json:"db_server_name"`
-	DbName         string `json:"db_name"`
-	Name           string `json:"name"`
-	DropOnDeletion bool   `json:"drop_on_deletion"`
-	CascadeOnDrop  bool   `json:"cascade_on_drop,omitempty"`
-	Creator        string `json:"creator"`
+	Server         string  `json:"db_server_name"`
+	DbName         string  `json:"db_name"`
+	Name           string  `json:"name"`
+	DropOnDeletion bool    `json:"drop_on_deletion"`
+	CascadeOnDrop  bool    `json:"cascade_on_drop,omitempty"`
+	Creator        *string `json:"creator,omitempty"`
 }
 
 // SchemaStatus defines the observed state of Schema

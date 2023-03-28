@@ -63,10 +63,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		if !shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
 			rc.LogError(err, fmt.Sprintf("Failed loading %s.%s", rc.nsNm.Namespace, rc.nsNm.Name))
 		}
-		// Not found
 		return res, nil
 	}
-
+	defer rcl.CleanupConn()
 	rc.Log.Info(fmt.Sprintf("Reconciling %s.%s ", rc.nsNm.Namespace, rc.nsNm.Name))
 	res = ctrl.Result{}
 	err = nil
@@ -123,7 +122,6 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			res = shared.RetryAfter(30)
 		}
 	}
-	rcl.CleanupConn()
 	return res, nil
 }
 

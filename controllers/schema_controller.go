@@ -74,7 +74,7 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 		} else {
 			s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, dbNsm, err))
 		}
-		return ctrl.Result{}, err
+		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err
 	}
 
 	return ctrl.Result{}, nil
@@ -93,8 +93,8 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 	}
 
 	creators := []string{}
-	if s.schema.Spec.Creator != "" {
-		creators = append(creators, s.schema.Spec.Creator)
+	if s.schema.Spec.Creator != nil {
+		creators = append(creators, *s.schema.Spec.Creator)
 	}
 
 	s.conn, err = s.GetDbConnection(dbServer, creators, &s.schema.Spec.DbName)
