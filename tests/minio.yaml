@@ -74,6 +74,7 @@ spec:
         - /bin/sh
         - "-c"
         - >
+          sleep 1
           while ! nc -z minio 9000; do   
             sleep 0.2
           done
@@ -91,7 +92,7 @@ spec:
           mc mb testminio/testbucket;
           # mc policy download testminio/testbucket;
           mc admin user add testminio MYKEY MYSECRET;
-          mc admin policy set testminio readwrite user=MYKEY;
+          mc admin policy attach testminio readwrite --user MYKEY;
           mc config host add testminio1 http://minio:9000 MYKEY MYSECRET;
           mc ls testminio1/testbucket; # should fail if we didn't configure access correctly
           exit 0;

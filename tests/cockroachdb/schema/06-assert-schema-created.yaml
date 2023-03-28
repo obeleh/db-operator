@@ -1,6 +1,0 @@
-apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: Schema
-metadata:
-  name: app1
-status:
-  created: true
