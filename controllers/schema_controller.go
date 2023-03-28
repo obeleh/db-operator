@@ -68,7 +68,12 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 	}
 	err = s.client.Get(s.ctx, dbNsm, &s.db)
 	if err != nil {
-		s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, dbNsm, err))
+		if s.MarkedToBeDeleted() {
+			// DB got deleted before schema did
+			err = s.RemoveFinalizer(&s.schema)
+		} else {
+			s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, dbNsm, err))
+		}
 		return ctrl.Result{}, err
 	}
 

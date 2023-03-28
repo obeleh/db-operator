@@ -52,6 +52,11 @@ func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+func (rc *Reco) RemoveFinalizer(cr client.Object) error {
+	controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
+	return rc.client.Update(rc.ctx, cr)
+}
+
 func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	res, err := rcl.LoadCR()
 	if err != nil {
@@ -83,8 +88,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 				res, err = rcl.RemoveObj()
 				// if reconciler asks for reque, don't remove Finalizer yet
 				if err == nil && !res.Requeue {
-					controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
-					err = rc.client.Update(rc.ctx, cr)
+					err = rc.RemoveFinalizer(cr)
 				}
 				rcl.NotifyChanges()
 			}
@@ -102,8 +106,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		}
 	} else {
 		if markedToBeDeleted {
-			controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
-			err = rc.client.Update(rc.ctx, cr)
+			err = rc.RemoveFinalizer(cr)
 		} else {
 			res, err = rcl.CreateObj()
 			if err == nil {
