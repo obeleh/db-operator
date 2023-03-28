@@ -190,7 +190,7 @@ func TestGetDatabasePrivilegest(t *testing.T) {
 	}
 	defer db.Close()
 	expectGetDatabasePrivileges(mock, FullPostgresVersionString)
-	privs, err := GetDatabasePrivileges(db, "testuser", "testdb")
+	privs, err := getDatabasePrivilegesPg(db, "testuser", "testdb")
 	if err != nil {
 		t.Errorf("database privileges failed %s", err)
 	}

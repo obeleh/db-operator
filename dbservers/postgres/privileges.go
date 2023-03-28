@@ -98,7 +98,7 @@ var ADJUST_PRIVILEGES_MAP = map[string]map[string]func(*sql.DB, string, string, 
 		"grant":  grantSchemaPrivileges,
 	},
 }
-var CHECK_PRIVILEGES_MAP = map[string]func(*sql.DB, string, string, []string) ([]string, []string, []string, error){
+var CHECK_PRIVILEGES_MAP = map[string]func(*sql.DB, string, string, []string, *PostgresVersion) ([]string, []string, []string, error){
 	"table":        hasTablePrivileges,
 	"database":     hasDatabasePrivileges,
 	"schema":       hasSchemaPrivileges,
@@ -320,7 +320,7 @@ func updateDefaultPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1
 	if err != nil {
 		return false, err
 	}
-	return adjustPrivileges(conn, userName, privMap)
+	return adjustPrivileges(conn, userName, privMap, serverVersion)
 }
 
 func ParseDefaultPrivs(defaultPrivs, scope, grantor string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
@@ -360,7 +360,7 @@ func updateDbPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPr
 	if err != nil {
 		return false, err
 	}
-	return adjustPrivileges(conn, userName, privMap)
+	return adjustPrivileges(conn, userName, privMap, serverVersion)
 }
 
 func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, error) {
@@ -399,7 +399,7 @@ Return the difference between the privileges that a user already has and
 	    * privileges they currently hold but were not requested
 	    * privileges requested that they do not hold
 */
-func hasTablePrivileges(conn *sql.DB, user string, table string, privs []string) ([]string, []string, []string, error) {
+func hasTablePrivileges(conn *sql.DB, user string, table string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
 	curPrivs, err := getTablePrivileges(conn, user, table)
 	return diffPrivs(curPrivs, privs, err)
 }
@@ -431,12 +431,17 @@ the privileges that they desire to have.
   - privileges they currently hold but were not requested
   - privileges requested that they do not hold
 */
-func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) ([]string, []string, []string, error) {
-	curPrivs, err := GetDatabasePrivileges(conn, user, db)
-	return diffPrivs(curPrivs, privs, err)
+func hasDatabasePrivileges(conn *sql.DB, user string, db string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
+	if serverVersion.ProductName == CockroachDB {
+		curPrivs, err := getDatabasePrivilegesCrdb(conn, user, db)
+		return diffPrivs(curPrivs, privs, err)
+	} else {
+		curPrivs, err := getDatabasePrivilegesPg(conn, user, db)
+		return diffPrivs(curPrivs, privs, err)
+	}
 }
 
-func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []string) ([]string, []string, []string, error) {
+func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
 	schemaName, err := GetScopeAfterDb(schema)
 	if err != nil {
 		return nil, nil, nil, err
@@ -445,7 +450,28 @@ func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []strin
 	return diffPrivs(curPrivs, privs, err)
 }
 
-func GetDatabasePrivileges(conn *sql.DB, user string, db string) ([]string, error) {
+func getDatabasePrivilegesCrdb(conn *sql.DB, user string, db string) ([]string, error) {
+	rows, err := conn.Query(fmt.Sprintf("SHOW GRANTS ON DATABASE %q FOR %q;", db, user))
+	if err != nil {
+		return nil, err
+	}
+
+	privileges := []string{}
+	for rows.Next() {
+		var databaseName, grantee, privilegeType string
+		var isGrantable bool
+
+		err = rows.Scan(&databaseName, &grantee, &privilegeType, &isGrantable)
+		if err != nil {
+			return privileges, err
+		}
+		privileges = append(privileges, privilegeType)
+	}
+
+	return privileges, nil
+}
+
+func getDatabasePrivilegesPg(conn *sql.DB, user string, db string) ([]string, error) {
 	datacl, err := query_utils.SelectFirstValueStringNullToEmpty(conn, "SELECT datacl FROM pg_database WHERE datname = $1", db)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read databasePrivs %s", err)
@@ -508,14 +534,15 @@ func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []strin
 	}
 }
 
-func grantSchemaPrivileges(conn *sql.DB, user string, db string, privs []string) error {
-	/*
-		schemaName, err := GetScopeAfterDb(schema)
-		if err != nil {
-			return nil, err
-		}
-	*/
-	return nil
+func grantSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
+	schemaName, err := GetScopeAfterDb(scope)
+	if err != nil {
+		return err
+	}
+	privsStr := strings.Join(privs, ", ")
+	query := fmt.Sprintf("GRANT %s on SCHEMA %q to %q;", privsStr, schemaName, user)
+	_, err = conn.Exec(query)
+	return err
 }
 
 func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
@@ -545,11 +572,18 @@ func grantDefaultTablePrivileges(conn *sql.DB, user string, role string, privs [
 	return err
 }
 
-func revokeSchemaPrivileges(conn *sql.DB, user string, role string, privs []string) error {
-	return nil
+func revokeSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
+	schemaName, err := GetScopeAfterDb(scope)
+	if err != nil {
+		return err
+	}
+	privsStr := strings.Join(privs, ", ")
+	query := fmt.Sprintf("REVOKE %s on SCHEMA %q FROM %q;", privsStr, schemaName, user)
+	_, err = conn.Exec(query)
+	return err
 }
 
-func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[string][]string) (bool, error) {
+func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[string][]string, serverVersion *PostgresVersion) (bool, error) {
 	if len(privsMapMap) == 0 {
 		return false, nil
 	}
@@ -558,7 +592,7 @@ func adjustPrivileges(conn *sql.DB, user string, privsMapMap map[string]map[stri
 	for privType, privsMap := range privsMapMap {
 		for name, privs := range privsMap {
 			checkFun := CHECK_PRIVILEGES_MAP[privType]
-			_, otherCurrent, desired, err := checkFun(conn, user, name, privs)
+			_, otherCurrent, desired, err := checkFun(conn, user, name, privs, serverVersion)
 			if err != nil {
 				return false, err
 			}
@@ -597,7 +631,7 @@ type DefualtPrivilege struct {
 	Grantee        string
 }
 
-func hasDefaultTablePrivileges(conn *sql.DB, user string, database string, privs []string) ([]string, []string, []string, error) {
+func hasDefaultTablePrivileges(conn *sql.DB, user string, database string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
 	objectType := "r" // r = relation (table, view),
 	curPrivs, err := getDefaultPrivilegesGivenByCurrentUser(conn, objectType, user)
 	return diffPrivs(curPrivs, privs, err)
@@ -690,30 +724,32 @@ func GetScopeAfterDb(scopeName string) (string, error) {
 }
 
 /*
-SELECT r.rolname AS role_name,
+TABLE PRIVS:
+SELECT grantee AS user, CONCAT(table_schema, '.', table_name) AS table,
+    CASE
+        WHEN COUNT(privilege_type) = 7 THEN 'ALL'
+        ELSE ARRAY_TO_STRING(ARRAY_AGG(privilege_type), ', ')
+    END AS grants
+FROM information_schema.role_table_grants
+GROUP BY table_name, table_schema, grantee;
 
-	n.nspname AS schema_name,
-	p.perm AS privilege
+ROLES:
+SELECT * FROM pg_roles;
 
-FROM pg_catalog.pg_namespace AS n
+OR:
+SELECT r.rolname, r.rolsuper, r.rolinherit,
+  r.rolcreaterole, r.rolcreatedb, r.rolcanlogin,
+  r.rolconnlimit, r.rolvaliduntil,
+  ARRAY(SELECT b.rolname
+        FROM pg_catalog.pg_auth_members m
+        JOIN pg_catalog.pg_roles b ON (m.roleid = b.oid)
+        WHERE m.member = r.oid) as memberof
+, r.rolreplication
+, r.rolbypassrls
+FROM pg_catalog.pg_roles r
+WHERE r.rolname !~ '^pg_'
+ORDER BY 1;
 
-	CROSS JOIN pg_catalog.pg_roles AS r
-	CROSS JOIN (VALUES ('CREATE'), ('USAGE')) AS p(perm)
 
-WHERE n.nspname NOT IN ('crdb_internal', 'information_schema', 'pg_catalog', 'pg_extension') AND has_schema_privilege(r.oid, n.oid, p.perm);
 
-WITH "names"("name") AS (
-
-	SELECT n.nspname AS "name"
-	  FROM pg_catalog.pg_namespace n
-	    WHERE n.nspname !~ '^pg_'
-	      AND n.nspname <> 'information_schema'
-
-) SELECT "name",
-
-	pg_catalog.has_schema_privilege('app1-application-user', "name", 'CREATE') AS "create",
-	pg_catalog.has_schema_privilege('app1-application-user', "name", 'USAGE') AS "usage"
-	  FROM "names";
-
-WHERE
 */
