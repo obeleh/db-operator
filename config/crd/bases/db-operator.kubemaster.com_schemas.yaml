@@ -35,6 +35,8 @@ spec:
           spec:
             description: SchemaSpec defines the desired state of Schema
             properties:
+              cascade_on_drop:
+                type: boolean
               creator:
                 type: string
               db_name:

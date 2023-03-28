@@ -37,6 +37,8 @@ spec:
             properties:
               after_create_sql:
                 type: string
+              cascade_on_drop:
+                type: boolean
               db_name:
                 type: string
               drop_on_deletion:

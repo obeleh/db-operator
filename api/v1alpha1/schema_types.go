@@ -29,6 +29,7 @@ type SchemaSpec struct {
 	DbName         string `json:"db_name"`
 	Name           string `json:"name"`
 	DropOnDeletion bool   `json:"drop_on_deletion"`
+	CascadeOnDrop  bool   `json:"cascade_on_drop,omitempty"`
 	Creator        string `json:"creator"`
 }
 

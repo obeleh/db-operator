@@ -122,7 +122,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 	if r.db.Spec.DropOnDeletion {
 		r.Log.Info(fmt.Sprintf("dropping db %s", r.db.Spec.DbName))
-		err := r.conn.DropDb(r.db.Spec.DbName)
+		err := r.conn.DropDb(r.db.Spec.DbName, r.db.Spec.CascadeOnDrop)
 		if err != nil {
 			r.LogError(err, fmt.Sprintf("failed to drop db %s\n%s", r.db.Spec.DbName, err))
 			return shared.GradualBackoffRetry(r.db.GetCreationTimestamp().Time), err

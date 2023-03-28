@@ -25,6 +25,7 @@ type DbSpec struct {
 	Server         string `json:"server"`
 	DbName         string `json:"db_name"`
 	DropOnDeletion bool   `json:"drop_on_deletion"`
+	CascadeOnDrop  bool   `json:"cascade_on_drop,omitempty"`
 	AfterCreateSQL string `json:"after_create_sql,omitempty"`
 }
 

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"strings"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
@@ -122,22 +123,34 @@ func (p *PostgresConnection) CreateSchema(schemaName, creator string) error {
 	return p.Execute(fmt.Sprintf("CREATE SCHEMA %q;", schemaName), creator)
 }
 
-func (p *PostgresConnection) DropDb(dbName string) error {
+func (p *PostgresConnection) DropDb(dbName string, cascade bool) error {
 	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q;", dbName))
+	cascadeStr := ""
+	if cascade {
+		cascadeStr = "CASCADE"
+	}
+	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q %s;", dbName, cascadeStr))
 	return err
 }
 
-func (p *PostgresConnection) DropSchema(schemaName, userName string) error {
-	dbName := GetDbNameFromScopeName(schemaName)
-	conn, err := p.GetDbConnection(&userName, &dbName)
+func (p *PostgresConnection) DropSchema(schemaName, userName string, cascade bool) error {
+	var dbName *string
+	if strings.Contains(schemaName, ".") {
+		dbNameStr := GetDbNameFromScopeName(schemaName)
+		dbName = &dbNameStr
+	}
+	conn, err := p.GetDbConnection(&userName, dbName)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP SCHEMA %q;", schemaName))
+	cascadeStr := ""
+	if cascade {
+		cascadeStr = "CASCADE"
+	}
+	_, err = conn.Exec(fmt.Sprintf("DROP SCHEMA %q %s;", schemaName, cascadeStr))
 	return err
 }
 

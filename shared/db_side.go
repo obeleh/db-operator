@@ -31,8 +31,8 @@ type DbServerConnectionInterface interface {
 	GetUsers() (map[string]DbSideUser, error)
 	CreateDb(dbName string) error
 	CreateSchema(schemaName, creator string) error
-	DropDb(dbName string) error
-	DropSchema(schemaName, userName string) error
+	DropDb(dbName string, cascade bool) error
+	DropSchema(schemaName, userName string, cascade bool) error
 	GetDbs() (map[string]DbSideDb, error)
 	GetSchemas(userName string) (map[string]DbSideSchema, error)
 	UpdateUserPrivs(string, string, []dboperatorv1alpha1.DbPriv) (bool, error)

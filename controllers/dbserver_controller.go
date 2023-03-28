@@ -92,7 +92,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 	for name := range databases {
-		r.Log.Info(fmt.Sprintf("Found DB %s", name))
+		//r.Log.Info(fmt.Sprintf("Found DB %s", name))
 		databaseNames = append(databaseNames, name)
 	}
 
@@ -108,7 +108,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	for name := range users {
 		userNames = append(userNames, name)
-		r.Log.Info(fmt.Sprintf("Found user %s", name))
+		//r.Log.Info(fmt.Sprintf("Found user %s", name))
 	}
 
 	err = r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")

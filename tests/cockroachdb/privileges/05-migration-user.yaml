@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: migration-user-secret
+data:
+  password: bWlncmF0aW9ucHc=
+
+---
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: User
+metadata:
+  name: migration-user
+spec:
+  db_server_name: example-host
+  user_name: migrationuser
+  secret_name: migration-user-secret
+  server_privs: LOGIN
+  db_privs:
+    - scope: example-db
+      privs: ALL

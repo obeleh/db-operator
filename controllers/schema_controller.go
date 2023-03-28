@@ -155,9 +155,9 @@ func (s *SchemaReco) SetStatus(schema *dboperatorv1alpha1.Schema, created bool) 
 func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {
 	if s.schema.Spec.DropOnDeletion {
 		s.Log.Info(fmt.Sprintf("dropping schema %s.%s", s.schema.Spec.DbName, s.schema.Name))
-		err := s.conn.DropSchema(s.schema.Name, s.schema.Spec.Creator)
+		err := s.conn.DropSchema(s.schema.Name, s.schema.Spec.Creator, s.schema.Spec.CascadeOnDrop)
 		if err != nil {
-			s.LogError(err, fmt.Sprintf("failed to drop schema %s\n%s", s.schema.Spec.DbName, err))
+			s.LogError(err, fmt.Sprintf("failed to drop schema %s.%s\n%s", s.schema.Spec.DbName, s.schema.Name, err))
 			return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err
 		}
 		s.Log.Info(fmt.Sprintf("finalized schema %s.%s", s.schema.Spec.DbName, s.schema.Spec.Name))

@@ -87,10 +87,13 @@ func (m *MySqlConnection) CreateDb(dbName string) error {
 	return m.Execute(fmt.Sprintf("CREATE DATABASE `%s`;", dbName), "")
 }
 
-func (m *MySqlConnection) DropDb(dbName string) error {
+func (m *MySqlConnection) DropDb(dbName string, cascade bool) error {
 	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
+	}
+	if cascade {
+		return fmt.Errorf("CASCADE option not posible for MySQL")
 	}
 	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE `%s`;", dbName))
 	return err
@@ -133,7 +136,7 @@ func (m *MySqlConnection) CreateSchema(schemaName, creator string) error {
 	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 
-func (m *MySqlConnection) DropSchema(schemaName, userName string) error {
+func (m *MySqlConnection) DropSchema(schemaName, userName string, cascade bool) error {
 	return fmt.Errorf("TODO check if there is a difference between schemas and dbs in MySQL")
 }
 

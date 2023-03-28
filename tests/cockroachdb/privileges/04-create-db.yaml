@@ -1,0 +1,11 @@
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: Db
+metadata:
+  name: example-db
+spec:
+  db_name: example-db
+  drop_on_deletion: true
+  cascade_on_drop: true # automatically cleans up grants
+  server: example-host
+  after_create_sql: REVOKE ALL ON SCHEMA "example-db".public FROM PUBLIC;
