@@ -117,7 +117,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	err := r.conn.DropUser(r.user.Spec.UserName)
 	if err != nil {
 		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
-		return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), err
+		return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), nil
 	}
 	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	return ctrl.Result{}, nil
@@ -205,7 +205,14 @@ func (r *UserReco) NotifyChanges() {
 		r.client.Scheme(),
 	}
 
-	reco.Reconcile(context.TODO(), reconcileRequest)
+	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
+	if err != nil {
+		r.LogError(err, "failed notifying DBServer")
+	}
+	if res.Requeue {
+		time.Sleep(res.RequeueAfter)
+		r.NotifyChanges()
+	}
 }
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

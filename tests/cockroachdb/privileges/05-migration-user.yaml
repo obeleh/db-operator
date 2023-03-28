@@ -13,7 +13,7 @@ metadata:
   name: migration-user
 spec:
   db_server_name: example-host
-  user_name: migrationuser
+  user_name: migration-user
   secret_name: migration-user-secret
   server_privs: LOGIN
   db_privs:

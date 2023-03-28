@@ -495,16 +495,15 @@ func getDatabasePrivilegesPg(conn *sql.DB, user string, db string) ([]string, er
 }
 
 func GetSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, error) {
-	schemaName, err := GetScopeAfterDb(schema)
-	if err != nil {
-		return nil, err
+	if strings.Contains(schema, ".") {
+		return nil, fmt.Errorf("expected no dot in schema at this point")
 	}
-	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schemaName)
+	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schema)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
 	}
 
-	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schemaName)
+	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schema)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
 	}

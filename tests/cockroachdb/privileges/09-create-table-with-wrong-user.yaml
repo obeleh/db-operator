@@ -11,7 +11,7 @@ spec:
         - name: PGHOST
           value: cockroachdb-public.cockroachdb.svc.cluster.local
         - name: PGUSER
-          value: applicationuser
+          value: application-user
         - name: PGPASSWORD
           value: applicationpw
         - name: DATABASE

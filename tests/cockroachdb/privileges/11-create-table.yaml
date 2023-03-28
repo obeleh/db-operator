@@ -12,7 +12,7 @@ spec:
         - name: PGHOST
           value: cockroachdb-public.cockroachdb.svc.cluster.local
         - name: PGUSER
-          value: migrationuser
+          value: migration-user
         - name: PGPASSWORD
           value: migrationpw
         - name: PGPORT

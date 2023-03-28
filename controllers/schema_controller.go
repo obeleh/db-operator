@@ -125,7 +125,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 		message := "no database connection possible"
 		err = fmt.Errorf(message)
 		s.LogError(err, message)
-		return ctrl.Result{}, err
+		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
 	}
 	err = s.conn.CreateSchema(s.schema.Spec.Name, s.schema.Spec.Creator)
 	if err != nil {
@@ -158,7 +158,7 @@ func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {
 		err := s.conn.DropSchema(s.schema.Name, s.schema.Spec.Creator, s.schema.Spec.CascadeOnDrop)
 		if err != nil {
 			s.LogError(err, fmt.Sprintf("failed to drop schema %s.%s\n%s", s.schema.Spec.DbName, s.schema.Name, err))
-			return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err
+			return shared.GradualBackoffRetry(s.schema.GetDeletionTimestamp().Time), nil
 		}
 		s.Log.Info(fmt.Sprintf("finalized schema %s.%s", s.schema.Spec.DbName, s.schema.Spec.Name))
 	} else {

@@ -1,0 +1,14 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: example-host
+status:
+  connection_available: true
+  databases:
+  - defaultdb
+  - postgres
+  - system
+  users: 
+  - application-user
+  - migration-user
+  - root

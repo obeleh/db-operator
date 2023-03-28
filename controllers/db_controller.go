@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -153,7 +154,14 @@ func (r *DbReco) NotifyChanges() {
 		r.client.Scheme(),
 	}
 
-	reco.Reconcile(context.TODO(), reconcileRequest)
+	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
+	if err != nil {
+		r.LogError(err, "failed notifying DBServer")
+	}
+	if res.Requeue {
+		time.Sleep(res.RequeueAfter)
+		r.NotifyChanges()
+	}
 }
 
 func (r *DbReco) EnsureCorrect() (bool, error) {

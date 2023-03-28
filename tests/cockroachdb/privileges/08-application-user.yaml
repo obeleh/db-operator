@@ -13,7 +13,7 @@ metadata:
   name: application-user
 spec:
   db_server_name: example-host
-  user_name: applicationuser
+  user_name: application-user
   secret_name: application-user-secret
   server_privs: LOGIN
   db_privs:

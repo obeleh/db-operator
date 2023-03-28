@@ -4,6 +4,3 @@ delete:
 - apiVersion: db-operator.kubemaster.com/v1alpha1
   kind: User
   name: migration-user
-- apiVersion: db-operator.kubemaster.com/v1alpha1
-  kind: User
-  name: application-user

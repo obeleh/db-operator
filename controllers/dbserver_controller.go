@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"time"
 
 	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
@@ -87,7 +86,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.LogError(err, message)
 		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if err != nil {
-			return ctrl.Result{Requeue: true, RequeueAfter: time.Second}, nil
+			return shared.RetryAfter(3), nil
 		}
 		return ctrl.Result{}, nil
 	}
@@ -102,7 +101,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.LogError(err, message)
 		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if err != nil {
-			return ctrl.Result{Requeue: true}, nil
+			return shared.RetryAfter(3), nil
 		}
 		return ctrl.Result{}, nil
 	}
@@ -113,7 +112,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	err = r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
 	if err != nil {
-		return ctrl.Result{Requeue: true}, nil
+		return shared.RetryAfter(3), nil
 	}
 	r.Log.Info("Done")
 	return ctrl.Result{}, nil

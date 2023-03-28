@@ -77,7 +77,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		if shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
 			exists = false
 		} else {
-			return res, nil
+			return shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time), nil
 		}
 	}
 	if exists {
@@ -94,10 +94,13 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		} else {
 			var changes bool
 			changes, err = rcl.EnsureCorrect()
-			if err == nil {
+			if err == nil && !res.Requeue {
 				res, err = rc.EnsureFinalizer(cr)
-			} else if cr != nil {
-				res = shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time)
+				if err != nil {
+					// should be able to retry quickly since only we couldn't add the finalizer
+					res = shared.RetryAfter(3)
+					err = nil
+				}
 			}
 			if changes {
 				rcl.NotifyChanges()
@@ -108,7 +111,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			err = rc.RemoveFinalizer(cr)
 		} else {
 			res, err = rcl.CreateObj()
-			if err == nil {
+			if err == nil && !res.Requeue {
 				res, err = rc.EnsureFinalizer(cr)
 				rcl.NotifyChanges()
 			}
