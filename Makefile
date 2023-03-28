@@ -120,6 +120,7 @@ deploy-test-infra:
 	kubectl apply -f ./tests/cockroachdb-manifests/operator.yaml
 	kubectl wait --timeout=10m --for=condition=available deployment cockroach-operator-manager -n cockroach-operator-system
 	kubectl apply -f ./tests/cockroachdb-manifests/later/cluster.yaml
+	while ! kubectl -n cockroachdb get statefulset/cockroachdb ; do sleep 3 ; done
 	kubectl -n cockroachdb rollout status --watch --timeout=300s statefulset/cockroachdb
 	kubectl apply -f ./tests/cockroachdb-manifests/later/client-secure.yaml
 	# kubectl -n postgres port-forward svc/postgres 5432 &
@@ -356,7 +357,6 @@ kuttl-test-mysql:
 kuttl-test-mysql-debugmode:
 	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-mysql-debugmode.yaml
-
 
 kuttl-test-cockroachdb-debugmode:
 	mkdir -p tests/outputs 
