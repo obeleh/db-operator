@@ -11,6 +11,7 @@ func SelectFirstValueString(conn *sql.DB, query string, args ...interface{}) (st
 	if err != nil {
 		return "", err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		value := sql.NullString{}
@@ -32,6 +33,7 @@ func SelectFirstValueStringNullToEmpty(conn *sql.DB, query string, args ...inter
 	if err != nil {
 		return "", err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		value := sql.NullString{}
@@ -53,6 +55,7 @@ func SelectFirstValueInt(conn *sql.DB, query string, args ...interface{}) (int, 
 	if err != nil {
 		return -1, err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		value := sql.NullInt32{}
@@ -74,6 +77,7 @@ func SelectFirstValueInt64(conn *sql.DB, query string, args ...interface{}) (int
 	if err != nil {
 		return -1, err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		value := sql.NullInt64{}
@@ -95,6 +99,8 @@ func SelectFirstValueStringSlice(conn *sql.DB, query string, args ...interface{}
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	output := []string{}
 	for rows.Next() {
 		value := sql.NullString{}
@@ -129,6 +135,7 @@ func SelectFirstValueBool(conn *sql.DB, query string, args ...interface{}) (bool
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		value := sql.NullBool{}

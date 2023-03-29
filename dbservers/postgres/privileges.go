@@ -377,6 +377,7 @@ func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("unable to read tablePrivs %s", err)
 	}
+	defer rows.Close()
 
 	tablePrivs := []string{}
 	for rows.Next() {
@@ -455,6 +456,7 @@ func getDatabasePrivilegesCrdb(conn *sql.DB, user string, db string) ([]string, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	privileges := []string{}
 	for rows.Next() {
@@ -664,6 +666,7 @@ func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, use
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	privileges := []string{}
 	if rows.Next() {

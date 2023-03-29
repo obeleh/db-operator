@@ -58,6 +58,7 @@ func (m *MySqlConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read users from server")
 	}
+	defer rows.Close()
 
 	users := make(map[string]shared.DbSideUser)
 
@@ -115,6 +116,8 @@ func (m *MySqlConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read databases from server %s", err)
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var db string
 		err := rows.Scan(&db)

@@ -74,11 +74,15 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 
 	exists, err := rcl.LoadObj()
 	if err != nil {
-		if shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
-			exists = false
-		} else {
-			return shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time), nil
+		if !shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
+			rc.LogError(err, fmt.Sprintf("failed loadObj for %s.%s", rc.nsNm.Namespace, rc.nsNm.Name))
+		} else if rcl.MarkedToBeDeleted() {
+			// if it's a "cannot find error" and current obj is marked to be deleted
+			// The parent resource has been removed. This resource probably doesn't exist anymore
+			rc.RemoveFinalizer(cr)
+			return ctrl.Result{}, nil
 		}
+		return shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time), nil
 	}
 	if exists {
 		if markedToBeDeleted {
@@ -433,6 +437,10 @@ func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer, databaseNam
 		Host:        dbServer.Spec.Address,
 		Port:        dbServer.Spec.Port,
 		Credentials: credentials,
+	}
+
+	if len(dbServer.Spec.Options) > 0 {
+		connectInfo.Options = dbServer.Spec.Options
 	}
 
 	if databaseName != nil {

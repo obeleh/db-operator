@@ -160,7 +160,7 @@ func (r *DbReco) NotifyChanges() {
 	}
 	if res.Requeue {
 		time.Sleep(res.RequeueAfter)
-		r.NotifyChanges()
+		reco.Reconcile(context.TODO(), reconcileRequest)
 	}
 }
 

@@ -92,6 +92,7 @@ func (p *PostgresConnection) GetUsers() (map[string]shared.DbSideUser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read users from server %s", err)
 	}
+	defer rows.Close()
 
 	users := make(map[string]shared.DbSideUser)
 
@@ -163,6 +164,7 @@ func (p *PostgresConnection) GetDbs() (map[string]shared.DbSideDb, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	databases := make(map[string]shared.DbSideDb)
 
@@ -186,6 +188,7 @@ func (p *PostgresConnection) GetSchemas(userName *string) (map[string]shared.DbS
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	schemas := make(map[string]shared.DbSideSchema)
 

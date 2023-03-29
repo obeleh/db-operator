@@ -61,11 +61,7 @@ func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.user.Spec.DbServerName) {
-			r.LogError(err, "failed getting DbServer")
-			return false, err
-		}
-		return false, nil
+		return false, err
 	}
 
 	grantorUserNames := GetGrantorNamesFromDbPrivs(r.user.Spec.DbPrivs)
@@ -74,9 +70,8 @@ func (r *UserReco) LoadObj() (bool, error) {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
 			r.LogError(err, "failed getting dbInfo")
-			return false, err
 		}
-		return false, nil
+		return false, err
 	}
 
 	r.users, err = r.conn.GetUsers()
@@ -103,11 +98,7 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 	_, err = r.EnsureCorrect()
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
-		return ctrl.Result{
-			// Gradual backoff
-			Requeue:      true,
-			RequeueAfter: time.Duration(time.Since(r.user.GetCreationTimestamp().Time).Seconds()),
-		}, err
+		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
 	}
 	return ctrl.Result{}, nil
 }
@@ -211,7 +202,7 @@ func (r *UserReco) NotifyChanges() {
 	}
 	if res.Requeue {
 		time.Sleep(res.RequeueAfter)
-		r.NotifyChanges()
+		reco.Reconcile(context.TODO(), reconcileRequest)
 	}
 }
 

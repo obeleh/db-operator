@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
@@ -59,24 +60,38 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if !shared.CannotFindError(err, r.Log, "DbServer", req.Namespace, req.Name) {
 			r.LogError(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
 		}
+		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
+	}
+
+	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
+
+	deletionTimestamp := dbServer.GetDeletionTimestamp()
+	markedToBeDeleted := deletionTimestamp != nil
+	if markedToBeDeleted {
+		destructionAgeInSecs := time.Since(deletionTimestamp.Time).Seconds()
+		// for the first X secs, do nothing. Give other resources time to clean up
+		if destructionAgeInSecs < 7 {
+			return shared.GradualBackoffRetry(deletionTimestamp.Time), nil
+		}
+		err = reco.RemoveFinalizer(dbServer)
+		if err != nil {
+			r.LogError(err, "failed removing finalizer")
+			return shared.RetryAfter(3), nil
+		}
 		return ctrl.Result{}, nil
 	}
 
 	databaseNames := []string{}
 	userNames := []string{}
 	var message string
-
-	reco := Reco{r.Client, ctx, r.Log, req.NamespacedName}
 	conn, err := reco.GetDbConnection(dbServer, nil, nil)
-
 	if err != nil {
 		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
 		if !shared.IsHandledErr(err) {
 			message = fmt.Sprintf("failed building dbConnection %s", err)
 			r.LogError(err, message)
-			return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
 		}
-		return ctrl.Result{}, nil
+		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
 	}
 
 	defer conn.Close()
@@ -84,11 +99,8 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
 		r.LogError(err, message)
-		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
-		if err != nil {
-			return shared.RetryAfter(3), nil
-		}
-		return ctrl.Result{}, nil
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		return shared.RetryAfter(3), nil
 	}
 	for name := range databases {
 		//r.Log.Info(fmt.Sprintf("Found DB %s", name))
@@ -115,6 +127,10 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return shared.RetryAfter(3), nil
 	}
 	r.Log.Info("Done")
+	_, err = reco.EnsureFinalizer(dbServer)
+	if err != nil {
+		return shared.RetryAfter(3), nil
+	}
 	return ctrl.Result{}, nil
 }
 

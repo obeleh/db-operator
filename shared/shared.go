@@ -118,6 +118,8 @@ func SelectToArrayMap(conn *sql.DB, query string, args ...interface{}) ([]map[st
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, err
@@ -157,6 +159,8 @@ func SelectToPropertyMap(conn *sql.DB, query string, key string, value string, a
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, err

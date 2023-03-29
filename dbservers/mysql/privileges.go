@@ -130,6 +130,7 @@ func getMode(conn *sql.DB) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read sql mode %s", err)
 	}
+	defer rows.Close()
 	rows.Next()
 	var modeStr string
 	err = rows.Scan(&modeStr)
@@ -660,6 +661,7 @@ func getPrivileges(conn *sql.DB, userName string, host string) (map[string][]str
 	if err != nil {
 		return nil, fmt.Errorf("unable to read databases from server %s", err)
 	}
+	defer rows.Close()
 
 	// first build a map to gather all privs per db
 	grants := map[string][]string{}
