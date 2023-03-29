@@ -87,6 +87,26 @@ func TestParsePrivs(t *testing.T) {
 	}
 }
 
+func TestParseTablePrivs(t *testing.T) {
+	privMap, err := ParsePrivs("/test_table:select,delete", "testdb", &PostgresVersion{ProductName: PostgreSQL})
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+
+	expected := map[string]map[string][]string{
+		"database": {
+			"testdb": []string{},
+		},
+		"table": {
+			"test_table": []string{"SELECT", "DELETE"},
+		},
+		"schema": {},
+	}
+	if !funk.Equal(privMap, expected) {
+		t.Errorf("got %s expected %s", privMap, expected)
+	}
+}
+
 func TestParseSchemaPrivs(t *testing.T) {
 	privMap, err := ParsePrivs("USAGE", "testdb.public", &PostgresVersion{ProductName: PostgreSQL})
 	if err != nil {

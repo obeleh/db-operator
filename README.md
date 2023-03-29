@@ -26,6 +26,62 @@ The Kuttl tests are quite good examples of how to implement a feature. You'll ha
 | Postgres | CockroachDB | MySQL |
 | -------- | ----------- | ------|
 | [backup job](tests/postgres/backup-job/) | [backup job](tests/cockroachdb/backup-job/) | [backup job](tests/mysql/backup-job/) |
+| [backup cron job](tests/postgres/backup-cron-job/) |  | [backup cron job](tests/mysql/backup-cron-job/) |
+| [restore job](tests/postgres/restore-job/) |  | [restore job](tests/mysql/restore-job/) |
+| [restore cron job](tests/postgres/restore-cron-job/) |  | [restore cron job](tests/mysql/restore-cron-job/) |
+| [copy job](tests/postgres/copy-job/) |  | [copy job](tests/mysql/copy-job/) |
+| [copy cron job](tests/postgres/copy-cron-job/) |  | [copy cron job](tests/mysql/copy-cron-job/) |
+
+### Privileges
+
+Examples from Kuttl tests:
+
+[Cockroach privileges](tests/cockroachdb/privileges/) of migration user + application user with least privilege access 
+[MySQL privileges](tests/mysql/privileges/) example on how to give SELECT on a table
+
+
+Privileges are split into:
+- Server privileges 
+- DB Privileges 
+    - DB Scoped
+    - Schema Scoped (not implemented for mysql)
+    - Table Scoped
+    - Default privileges (postgres / cockroachdb) This is required if you want access to tables created in the future
+
+### Postgres / CockroachDB privileges
+
+Possible server privileges: `SUPERUSER, CREATEROLE, CREATEDB, INHERIT, LOGIN, REPLICATION, BYPASSRLS`
+Possilbe database privileges: `CREATE, CONNECT, TEMPORARY, TEMP, ALL` (temp not for cockroachdb)
+Possible table privileges: `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, ALL`
+Possible schema privileges: `CREATE, USAGE`
+
+DbPrivs Examples:
+
+Database:
+```yaml
+- scope: example-db
+  privs: CONNECT
+```
+
+Schema:
+```yaml
+- scope: example-db.schema1
+  privs: USAGE
+  grantor_user_name: migration-user
+```
+
+Tables:
+```yaml
+- scope: example-db
+  privs: "/table1:select,delete"
+```
+
+DefaultPrivs example:
+```yaml
+- scope: example-db.TABLES
+  default_privs: SELECT,INSERT,UPDATE,DELETE
+  grantor_user_name: migration-user
+```
 
 
 ### Dev Requirements
