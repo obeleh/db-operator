@@ -1,0 +1,17 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+name: CockroachDBDebugMode
+testDirs:
+- ./tests/cockroachdb
+# Creating manifests is a bit tricky because it does some cert stuff for crdb it uses the oprator as an admission controller, so operator needs to exist
+#manifestDirs:
+#- ./tests/cockroachdb-manifests/
+# kindConfig: tests/kind-config.yaml
+# startKIND: true
+# startControlPlane: true
+# we're sharing the database, in order to have predictable state we don't do parallel tests
+command:
+- kubectl -n cockroachdb rollout status --watch --timeout=600s statefulset/cockroachdb
+parallel: 1
+artifactsDir: ./tests/outputs
+kindNodeCache: true
