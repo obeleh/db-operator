@@ -213,8 +213,16 @@ func Min(a, b float64) float64 {
 	return b
 }
 
+func Max(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func GradualBackoffRetry(creationTime time.Time) ctrl.Result {
-	retrySecs := Min(time.Since(creationTime).Seconds(), 300)
+	// waits for 1 sec minimum and 300 sec max
+	retrySecs := Max(Min(time.Since(creationTime).Seconds(), 300), 1)
 	return RetryAfter(retrySecs)
 }
 
