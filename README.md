@@ -18,6 +18,16 @@ For CockroachDB we use the internal functionality
 
 ![](./screenshots/backups.png)
 
+
+## Examples / Kuttl tests
+
+The Kuttl tests are quite good examples of how to implement a feature. You'll have to ignore the assertions of course
+
+| Postgres | CockroachDB | MySQL |
+| -------- | ----------- | ------|
+| [backup job](tests/postgres/backup-job/) | [backup job](tests/cockroachdb/backup-job/) | [backup job](tests/mysql/backup-job/) |
+
+
 ### Dev Requirements
 
 - docker
