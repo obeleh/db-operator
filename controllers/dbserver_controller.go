@@ -70,7 +70,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if markedToBeDeleted {
 		destructionAgeInSecs := time.Since(deletionTimestamp.Time).Seconds()
 		// for the first X secs, do nothing. Give other resources time to clean up
-		if destructionAgeInSecs < 7 {
+		if destructionAgeInSecs < 9 {
 			return shared.GradualBackoffRetry(deletionTimestamp.Time), nil
 		}
 		err = reco.RemoveFinalizer(dbServer)
