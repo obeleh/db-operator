@@ -50,10 +50,12 @@ Privileges are split into:
 
 ### Postgres / CockroachDB privileges
 
-Possible server privileges: `SUPERUSER, CREATEROLE, CREATEDB, INHERIT, LOGIN, REPLICATION, BYPASSRLS`
-Possilbe database privileges: `CREATE, CONNECT, TEMPORARY, TEMP, ALL` (temp not for cockroachdb)
-Possible table privileges: `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, ALL`
-Possible schema privileges: `CREATE, USAGE`
+| Scoped To | Possible Privileges |
+| --------- | ------------------- |
+| Server | `SUPERUSER, CREATEROLE, CREATEDB, INHERIT, LOGIN, REPLICATION, BYPASSRLS` |
+| Database | `CREATE, CONNECT, TEMPORARY, TEMP, ALL` (temp not for cockroachdb) |
+| Table | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, ALL` |
+| Schema | `CREATE, USAGE` |
 
 DbPrivs Examples:
 
