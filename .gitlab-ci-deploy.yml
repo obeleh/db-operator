@@ -21,7 +21,7 @@ deploy to eks:
   image:
     name: bitnami/git:latest
     entrypoint: [""]
-    pull_policy: if-not-present
+    # pull_policy: if-not-present
   variables: 
     AWS_ROLE_ARN: arn:aws:iam::$AWS_ACCOUNT_ID:role/db-operator_role
   before_script:
