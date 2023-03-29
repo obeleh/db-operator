@@ -36,8 +36,8 @@ The Kuttl tests are quite good examples of how to implement a feature. You'll ha
 
 Examples from Kuttl tests:
 
-[Cockroach privileges](tests/cockroachdb/privileges/) of migration user + application user with least privilege access 
-[MySQL privileges](tests/mysql/privileges/) example on how to give SELECT on a table
+- [Cockroach privileges](tests/cockroachdb/privileges/) of migration user + application user with least privilege access 
+- [MySQL privileges](tests/mysql/privileges/) example on how to give SELECT on a table
 
 
 Privileges are split into:
