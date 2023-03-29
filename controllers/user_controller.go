@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/obeleh/db-operator/shared"
-	"github.com/thoas/go-funk"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -128,9 +127,9 @@ func (r *UserReco) GetCR() client.Object {
 }
 
 func (r *UserReco) EnsureCorrect() (bool, error) {
-	errors := []error{}
 	/*
 		// A BIT UNSURE IF WE SHOULD USE THE RESOLVED DB NAME OR DB NAME IN PG CLUSTER as parameter to UpdateUserPrivs, it should already be determined by where this user lives
+		errors := []error{}
 		resolvedDbNamePrivs := []dboperatorv1alpha1.DbPriv{}
 		for _, dbPriv := range r.user.Spec.DbPrivs {
 			db := dboperatorv1alpha1.Db{}
@@ -161,18 +160,8 @@ func (r *UserReco) EnsureCorrect() (bool, error) {
 	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, r.user.Spec.DbPrivs)
 	if err != nil {
 		r.LogError(err, "Failed updating user privs")
-		errors = append(errors, shared.NewAlreadyHandledError(err))
 	}
-	var errsErr error
-	if len(errors) > 0 {
-		errsErr = fmt.Errorf("Got errors making sure user has correct privileges %s", errors)
-		if funk.All(funk.Map(errors, shared.IsHandledErr)) {
-			errsErr = shared.NewAlreadyHandledError(errsErr)
-		}
-	} else {
-		errsErr = nil
-	}
-	return changes, errsErr
+	return changes, err
 }
 
 func (r *UserReco) CleanupConn() {

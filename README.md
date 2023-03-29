@@ -11,6 +11,13 @@
 ![](./screenshots/backup-restore-diagram.png)
 
 
+### Backup stages diagram
+
+This repo uses the original images of postgres or msql to build it's backups.
+For CockroachDB we use the internal functionality
+
+![](./screenshots/backups.png)
+
 ### Dev Requirements
 
 - docker

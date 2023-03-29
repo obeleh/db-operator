@@ -253,6 +253,7 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprint(err))
 		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
+	defer pgConn.Close()
 
 	bucketInfo, err := actions.GetBucketStorageInfo()
 	if err != nil {
