@@ -12,6 +12,8 @@ include:
     if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   - &on-push-to-main
     if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  - &on-web-trigger
+    if: $CI_PIPELINE_SOURCE == 'web'
 
 .deploy_trigger:
   trigger:
@@ -131,6 +133,8 @@ deploy to dev:
   rules:
     - <<: *on-push-to-main
       allow_failure: false
+    - <<: *on-web-trigger
+      allow_failure: true
 
 deploy to uat: 
   extends: .uat_trigger
@@ -140,6 +144,8 @@ deploy to uat:
   rules:
     - <<: *on-push-to-main
       allow_failure: false
+    - <<: *on-web-trigger
+      allow_failure: true
 
 deploy to prod: 
   extends: .prod_trigger
@@ -149,6 +155,8 @@ deploy to prod:
   rules:
     - <<: *on-push-to-main
       allow_failure: false
+    - <<: *on-web-trigger
+      allow_failure: true
 
 build:
   image: docker:20.10.16
