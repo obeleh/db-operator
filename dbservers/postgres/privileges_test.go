@@ -271,11 +271,10 @@ func TestGetDefaultPrivileges(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT d.defaclacl
 	FROM pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace
-	WHERE pg_get_userbyid(d.defaclrole) = $1
+	WHERE pg_get_userbyid(d.defaclrole) = current_user
 	AND n.nspname is NULL
-	AND d.defaclobjtype = $2;
+	AND d.defaclobjtype = $1;
 	`).WithArgs(
-		"app1-migration-user",
 		"r",
 	).WillReturnRows(expected)
 
