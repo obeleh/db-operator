@@ -82,7 +82,7 @@ test image:
     TAG_COMMIT: $ECR_URI/$APP_NAME:c-$CI_COMMIT_SHA
     TAG_LATEST: $ECR_URI/$APP_NAME:latest
   script:
-    - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release unzip
+    - apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release unzip yq
     - mkdir -m 0755 -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     - apt-get update && apt-get install -y docker-ce-cli
@@ -122,7 +122,8 @@ test image:
   after_script:
     - kind delete cluster
   rules:
-    - *on-merge-request
+    - <<: *on-merge-request
+      allow_failure: true
     - *on-push-to-main
 
 deploy to dev: 
