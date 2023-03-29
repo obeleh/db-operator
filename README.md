@@ -2,7 +2,7 @@
 
 ## Design
 
-### Databases Diagram [ready / beta -ish]
+### Databases Diagram
 
 ![](./screenshots/databases-diagram.png)
 
