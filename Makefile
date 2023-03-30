@@ -187,9 +187,10 @@ ifndef ignore-not-found
 endif
 
 define KUSTOMIZATION_TEMPLATE
+namePrefix: db-operator-
 namespace: devops
 namePrefix: ""
-resources:
+bases:
 - ../crd
 - ../rbac
 - ../manager
@@ -219,6 +220,9 @@ images:
   newTag: c-${GIT_SHA}
 endef
 export KUSTOMIZATION_TEMPLATE
+
+update-configmap:
+	@echo "$$KUSTOMIZATION_TEMPLATE" > config/default/kustomization.yaml
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.

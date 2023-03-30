@@ -15,9 +15,9 @@ stages:
 deploy to eks:
   tags: [ "k8s-runner" ]
   stage: deploy_to_eks
-  needs:
-    - pipeline: $PARENT_PIPELINE_ID
-      job: test and image and kuttl test
+  # needs:
+  #   - pipeline: $PARENT_PIPELINE_ID
+  #     job: test and image and kuttl test
   image:
     name: bitnami/git:latest
     entrypoint: [""]
