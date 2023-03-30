@@ -189,18 +189,22 @@ endif
 define KUSTOMIZATION_TEMPLATE
 namePrefix: db-operator-
 namespace: devops
-namePrefix: ""
-bases:
+resources:
 - ../crd
 - ../rbac
 - ../manager
-patchesStrategicMerge:
+patches:
 # Protect the /metrics endpoint by putting it behind auth.
 # If you want your controller-manager to expose the /metrics
 # endpoint w/o any authn/z, please comment the following line.
-- manager_auth_proxy_patch.yaml
-
-patches:
+- path: manager_auth_proxy_patch.yaml
+# Make sure we don't deploy a namespace object with argo. That can be destructive if we remove the operator
+- patch: |-
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: system
+    $$patch: delete
 - target:
     version: v1 
     kind: ServiceAccount
