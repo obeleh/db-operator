@@ -58,16 +58,16 @@ variables:
    
 stages:
   - build-ci-image
-  - test
+  - test_n_image_n_kuttl_test
   - deploy_dev
   - deploy_uat
   - deploy_prod
 
-test image:
+test and image and kuttl test:
   services:
   - name: docker:dind
     command: [ "--tls=false" ]
-  stage: test
+  stage: test_n_image_n_kuttl_test
   tags: [ "k8s-runner" ]
   image:
     # name: $CI_REGISTRY_IMAGE:1.0.0

@@ -17,7 +17,7 @@ deploy to eks:
   stage: deploy_to_eks
   needs:
     - pipeline: $PARENT_PIPELINE_ID
-      job: build image
+      job: test and image and kuttl test
   image:
     name: bitnami/git:latest
     entrypoint: [""]
