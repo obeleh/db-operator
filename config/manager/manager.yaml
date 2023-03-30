@@ -72,6 +72,11 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        env:        
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -98,5 +103,11 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        volumeMounts:
+        - mountPath: /tempCertsDir
+          name: tmp-volume
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}

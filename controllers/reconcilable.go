@@ -165,17 +165,6 @@ func (r *Reco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
 	return db, err
 }
 
-func (r *Reco) GetDbServer(dbServerName string) (*dboperatorv1alpha1.DbServer, error) {
-	r.Log.Info(fmt.Sprintf("loading dbServer %s", dbServerName))
-	dbServer := &dboperatorv1alpha1.DbServer{}
-	nsName := types.NamespacedName{
-		Name:      dbServerName,
-		Namespace: r.nsNm.Namespace,
-	}
-	err := r.client.Get(r.ctx, nsName, dbServer)
-	return dbServer, err
-}
-
 func (r *Reco) EnsureScripts() error {
 	r.Log.Info("Ensure scripts")
 	cm := &v1.ConfigMap{}
@@ -299,7 +288,7 @@ func (r *Reco) GetDbServerFromDbName(dbName string) (*dboperatorv1alpha1.Db, *db
 	if err != nil {
 		return nil, nil, err
 	}
-	dbServer, err := r.GetDbServer(db.Spec.Server)
+	dbServer, err := GetDbServer(db.Spec.Server, r.client, r.nsNm.Namespace)
 	return db, dbServer, err
 }
 

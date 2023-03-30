@@ -58,7 +58,7 @@ func (r *UserReco) MarkedToBeDeleted() bool {
 
 func (r *UserReco) LoadObj() (bool, error) {
 	var err error
-	dbServer, err := r.GetDbServer(r.user.Spec.DbServerName)
+	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.client, r.nsNm.Namespace)
 	if err != nil {
 		return false, err
 	}
@@ -172,10 +172,16 @@ func (r *UserReco) CleanupConn() {
 
 func (r *UserReco) NotifyChanges() {
 	r.Log.Info("Notifying of User changes")
+	// getting dbServer because we need to figure out in what namespace it lives
+	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.client, r.user.Namespace)
+	if err != nil {
+		r.LogError(err, "failed notifying DBServer")
+	}
+
 	reconcileRequest := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      r.user.Spec.DbServerName,
-			Namespace: r.user.Namespace,
+			Namespace: dbServer.Namespace,
 		},
 	}
 

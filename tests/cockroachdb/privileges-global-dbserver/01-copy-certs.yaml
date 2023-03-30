@@ -1,0 +1,4 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: kubectl get secret -n cockroachdb cockroachdb-root -o yaml | yq 'del(.metadata.uid, .metadata.namespace, .metadata.creationTimestamp, .metadata.resourceVersion)' | kubectl -n default apply -f -

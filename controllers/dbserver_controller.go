@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"time"
@@ -27,6 +28,8 @@ import (
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/shared"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -156,4 +159,37 @@ func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
 		Complete(r)
+}
+
+// Gets DB server, it will prefer the local namespace but can go through Global namespaces as well
+func GetDbServer(dbServerName string, apiClient client.Client, localNamespace string) (*dboperatorv1alpha1.DbServer, error) {
+	dbServerList := dboperatorv1alpha1.DbServerList{}
+
+	err := apiClient.List(context.Background(), &dbServerList, &client.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dbServer := range dbServerList.Items {
+		if dbServer.Namespace == localNamespace {
+			return &dbServer, nil
+		}
+	}
+
+	cnt := len(dbServerList.Items)
+	if cnt == 1 {
+		dbServer := dbServerList.Items[0]
+		return &dbServer, nil
+	}
+
+	if cnt == 0 {
+		return nil, &errors.StatusError{ErrStatus: metav1.Status{
+			Status: metav1.StatusFailure,
+			Code:   http.StatusNotFound,
+			Reason: metav1.StatusReasonNotFound,
+		}}
+	}
+
+	// cnt > 1
+	return nil, fmt.Errorf("Got %d results, unable to pick", cnt)
 }

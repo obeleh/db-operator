@@ -83,7 +83,7 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 func (s *SchemaReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
-	dbServer, err := s.GetDbServer(s.schema.Spec.Server)
+	dbServer, err := GetDbServer(s.schema.Spec.Server, s.client, s.nsNm.Namespace)
 	if err != nil {
 		if !shared.CannotFindError(err, s.Log, "DbServer", s.nsNm.Namespace, s.nsNm.Name) {
 			s.LogError(err, "failed getting DbServer")

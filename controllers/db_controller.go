@@ -66,7 +66,7 @@ func (r *DbReco) LoadCR() (ctrl.Result, error) {
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
-	dbServer, err := r.GetDbServer(r.db.Spec.Server)
+	dbServer, err := GetDbServer(r.db.Spec.Server, r.client, r.nsNm.Namespace)
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
@@ -141,10 +141,16 @@ func (r *DbReco) GetCR() client.Object {
 
 func (r *DbReco) NotifyChanges() {
 	r.Log.Info("Notifying of DB changes")
+	// getting dbServer because we need to figure out in what namespace it lives
+	dbServer, err := GetDbServer(r.db.Spec.Server, r.client, r.db.Namespace)
+	if err != nil {
+		r.LogError(err, "failed notifying DBServer")
+	}
+
 	reconcileRequest := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      r.db.Spec.Server,
-			Namespace: r.db.Namespace,
+			Namespace: dbServer.Namespace,
 		},
 	}
 
