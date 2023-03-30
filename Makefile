@@ -209,11 +209,6 @@ patches:
     - op: add
       path: /metadata/annotations
       value: {"eks.amazonaws.com/role-arn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/db-operator_role"}
-configMapGenerator:
-- name: open-search-index-operator
-  literals:
-  - OPEN_SEARCH_ADDRESS=${OPEN_SEARCH_ADDRESS}
-  - SKIP_AWS_ROLE_ASSUMPTION=true
 images:
 - name: controller
   newName: ${IMAGE_TAG_BASE}
