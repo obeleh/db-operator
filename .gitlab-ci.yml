@@ -140,27 +140,27 @@ deploy to dev:
     - <<: *on-web-trigger
       allow_failure: true
 
-deploy to uat: 
-  extends: .uat_trigger
-  trigger:
-    strategy: depend
-  when: manual
-  rules:
-    - <<: *on-push-to-main
-      allow_failure: false
-    - <<: *on-web-trigger
-      allow_failure: true
+# deploy to uat: 
+#   extends: .uat_trigger
+#   trigger:
+#     strategy: depend
+#   when: manual
+#   rules:
+#     - <<: *on-push-to-main
+#       allow_failure: false
+#     - <<: *on-web-trigger
+#       allow_failure: true
 
-deploy to prod: 
-  extends: .prod_trigger
-  trigger:
-    strategy: depend
-  when: manual
-  rules:
-    - <<: *on-push-to-main
-      allow_failure: false
-    - <<: *on-web-trigger
-      allow_failure: true
+# deploy to prod: 
+#   extends: .prod_trigger
+#   trigger:
+#     strategy: depend
+#   when: manual
+#   rules:
+#     - <<: *on-push-to-main
+#       allow_failure: false
+#     - <<: *on-web-trigger
+#       allow_failure: true
 
 build:
   image: docker:20.10.16
