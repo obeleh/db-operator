@@ -24,6 +24,7 @@ deploy to eks:
     pull_policy: if-not-present
   variables: 
     AWS_ROLE_ARN: arn:aws:iam::$AWS_ACCOUNT_ID:role/db-operator_role
+    GIT_SHA: $CI_COMMIT_SHA
   before_script:
     - !reference [.scripts, setup-git-user]
   script: 
