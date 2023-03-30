@@ -131,8 +131,8 @@ test and image and kuttl test:
 
 deploy to dev: 
   extends: .dev_trigger
-  trigger:
-    strategy: depend
+  # trigger:
+  #   strategy: depend
   when: manual
   rules:
     - <<: *on-push-to-main
