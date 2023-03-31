@@ -1,0 +1,11 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: User
+metadata:
+  name: example-user
+spec:
+  db_server_name: example-host
+  user_name: userwithgeneratedsecret
+  secret_name: generated-secret
+  server_privs: LOGIN
+  db_privs: []
+  generate_secret: true

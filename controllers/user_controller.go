@@ -23,8 +23,10 @@ import (
 	"time"
 
 	"github.com/obeleh/db-operator/shared"
+	"github.com/sethvargo/go-password/password"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,7 +83,44 @@ func (r *UserReco) LoadObj() (bool, error) {
 	return exists, nil
 }
 
+func (r *UserReco) generateSecret() error {
+	secretName := types.NamespacedName{
+		Name:      r.user.Spec.SecretName,
+		Namespace: r.user.Namespace,
+	}
+	secret := &v1.Secret{}
+	err := r.client.Get(r.ctx, secretName, secret)
+	// This should have given an error that it didn't exist
+	// If it exists, we're happy with it, probably generated in a previous reconciliation loop
+	if err == nil {
+		return nil
+	}
+
+	generatedPassword, err := password.Generate(26, 9, 0, false, false)
+	if err != nil {
+		return err
+	}
+	secret = &v1.Secret{
+		Data: map[string][]byte{
+			"password": []byte(generatedPassword),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.user.Spec.SecretName,
+			Namespace: r.user.Namespace,
+		},
+	}
+	return r.client.Create(context.TODO(), secret)
+}
+
 func (r *UserReco) CreateObj() (ctrl.Result, error) {
+	if r.user.Spec.GenerateSecret {
+		err := r.generateSecret()
+		if err != nil {
+			r.LogError(err, "failed generating secret")
+			return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
+		}
+	}
+
 	creds, err := GetUserCredentials(&r.user, r.client, r.ctx)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))

@@ -10,6 +10,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
+	github.com/sethvargo/go-password v0.2.0
 	github.com/thoas/go-funk v0.9.3
 	go.uber.org/zap v1.21.0
 	k8s.io/api v0.25.0

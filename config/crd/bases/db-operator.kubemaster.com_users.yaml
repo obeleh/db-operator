@@ -54,6 +54,8 @@ spec:
                 type: array
               db_server_name:
                 type: string
+              generate_secret:
+                type: boolean
               password_key:
                 type: string
               secret_name:

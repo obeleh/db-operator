@@ -229,7 +229,7 @@ endef
 export MGR_KUSTOMIZATION_TEMPLATE
 
 # Doing this without kustomize binary so that we don't need that during deploy step in ci pipeline
-update-configmap:
+update-kustomizations:
 	@echo "$$KUSTOMIZATION_TEMPLATE" > config/default/kustomization.yaml
 	@echo "$$MGR_KUSTOMIZATION_TEMPLATE" > config/manager/kustomization.yaml
 
