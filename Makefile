@@ -380,4 +380,3 @@ kuttl-test-cockroachdb-debugmode:
 	kubectl kuttl test --config kuttl-test-cockroachdb-debugmode.yaml
 
 kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql kuttl-test-cockroachdb
-
