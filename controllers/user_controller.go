@@ -100,9 +100,14 @@ func (r *UserReco) generateSecret() error {
 	if err != nil {
 		return err
 	}
+	passwordKey := "password"
+	if r.user.Spec.PasswordKey != "" {
+		passwordKey = r.user.Spec.PasswordKey
+	}
+
 	secret = &v1.Secret{
 		Data: map[string][]byte{
-			"password": []byte(generatedPassword),
+			passwordKey: []byte(generatedPassword),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.user.Spec.SecretName,
