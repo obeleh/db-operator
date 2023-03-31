@@ -213,14 +213,11 @@ patches:
     - op: add
       path: /metadata/annotations
       value: {"eks.amazonaws.com/role-arn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/db-operator_role"}
-images:
-- name: controller
-  newName: ${IMAGE_TAG_BASE}
-  newTag: c-${GIT_SHA}
 endef
 export KUSTOMIZATION_TEMPLATE
 
 update-configmap:
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	@echo "$$KUSTOMIZATION_TEMPLATE" > config/default/kustomization.yaml
 
 .PHONY: install
