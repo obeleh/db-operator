@@ -30,3 +30,4 @@ commands:
 parallel: 1
 artifactsDir: ./tests/outputs
 kindNodeCache: true
+timeout: 50 # ci is slow
