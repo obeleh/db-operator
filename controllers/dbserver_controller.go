@@ -47,7 +47,7 @@ type DbServerReconciler struct {
 //+kubebuilder:rbac:groups=db-operator.kubemaster.com,resources=dbservers/finalizers,verbs=update
 
 // Generic Kubebuilder rules:
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 func (r *DbServerReconciler) LogError(err error, message string) {
