@@ -216,9 +216,22 @@ patches:
 endef
 export KUSTOMIZATION_TEMPLATE
 
+define MGR_KUSTOMIZATION_TEMPLATE
+resources:
+- manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: ${IMAGE_TAG_BASE}
+  newTag: c-${GIT_SHA}
+endef
+export MGR_KUSTOMIZATION_TEMPLATE
+
+# Doing this without kustomize binary so that we don't need that during deploy step in ci pipeline
 update-configmap:
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	@echo "$$KUSTOMIZATION_TEMPLATE" > config/default/kustomization.yaml
+	@echo "$$MGR_KUSTOMIZATION_TEMPLATE" > config/manager/kustomization.yaml
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
