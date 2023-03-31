@@ -30,7 +30,7 @@ deploy to eks:
   script: 
     - echo "deploying $ENV eks"
     - apt update && apt install -y make
-    - make update-configmap
+    - make update-kustomizations
     - GROUP_NAME=$(echo $CI_PROJECT_NAMESPACE | awk -F/ '{print $NF}')
     - git clone https://oauth2:$ARGO_OPS_REPO_TOKEN@$OPS_REPO_URL
     # make a clean new copy
