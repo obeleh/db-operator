@@ -58,7 +58,7 @@ func (r *BackupJobReco) LoadObj() (bool, error) {
 	var err error
 	r.backupJobs, err = r.GetJobMap()
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "BackupJob", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "BackupJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "Failed getting BackupJob")
 			return false, shared.NewAlreadyHandledError(err)
 		}
@@ -94,7 +94,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 	uploadContainer := storageInfo.BuildUploadContainer(r.backupJob.Spec.FixedFileName)
 	job := r.BuildJob([]v1.Container{backupContainer}, uploadContainer, r.backupJob.Name, r.backupJob.Spec.ServiceAccount)
 
-	err = r.client.Create(r.ctx, &job)
+	err = r.Client.Create(r.Ctx, &job)
 	if err != nil && !shared.AlreadyExistsError(err, r.Log, job.Kind, job.Namespace, job.Name) {
 		r.LogError(err, "Failed to create backup job")
 	}
@@ -106,17 +106,17 @@ func (r *BackupJobReco) RemoveObj() (ctrl.Result, error) {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.backupJob.Name,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 		},
 	}
-	err := r.client.Delete(r.ctx, job)
+	err := r.Client.Delete(r.Ctx, job)
 	return ctrl.Result{}, err
 }
 
 func (r *BackupJobReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.backupJob)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.backupJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -140,7 +140,7 @@ func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	br := BackupJobReco{
-		Reco: Reco{r.Client, ctx, log, req.NamespacedName},
+		Reco: Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
 	}
 	return br.Reco.Reconcile((&br))
 }

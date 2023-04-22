@@ -56,17 +56,17 @@ func (s *SchemaReco) MarkedToBeDeleted() bool {
 }
 
 func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
-	err := s.client.Get(s.ctx, s.nsNm, &s.schema)
+	err := s.Client.Get(s.Ctx, s.NsNm, &s.schema)
 	if err != nil {
-		s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.schema, s.nsNm.Name, err))
+		s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.schema, s.NsNm.Name, err))
 		return ctrl.Result{}, err
 	}
 
 	dbNsm := types.NamespacedName{
-		Namespace: s.nsNm.Namespace,
+		Namespace: s.NsNm.Namespace,
 		Name:      s.schema.Spec.DbName,
 	}
-	err = s.client.Get(s.ctx, dbNsm, &s.db)
+	err = s.Client.Get(s.Ctx, dbNsm, &s.db)
 	if err != nil {
 		if s.MarkedToBeDeleted() {
 			// DB got deleted before schema did
@@ -83,9 +83,9 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 func (s *SchemaReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
-	dbServer, err := GetDbServer(s.schema.Spec.Server, s.client, s.nsNm.Namespace)
+	dbServer, err := GetDbServer(s.schema.Spec.Server, s.Client, s.NsNm.Namespace)
 	if err != nil {
-		if !shared.CannotFindError(err, s.Log, "DbServer", s.nsNm.Namespace, s.nsNm.Name) {
+		if !shared.CannotFindError(err, s.Log, "DbServer", s.NsNm.Namespace, s.NsNm.Name) {
 			s.LogError(err, "failed getting DbServer")
 			return false, err
 		}
@@ -142,7 +142,7 @@ func (s *SchemaReco) SetStatus(schema *dboperatorv1alpha1.Schema, created bool) 
 	newStatus := dboperatorv1alpha1.SchemaStatus{Created: created}
 	if !reflect.DeepEqual(schema.Status, newStatus) {
 		schema.Status = newStatus
-		err := s.client.Status().Update(s.ctx, schema)
+		err := s.Client.Status().Update(s.Ctx, schema)
 		if err != nil {
 			message := fmt.Sprintf("failed patching status %s", err)
 			s.Log.Info(message)
@@ -187,7 +187,7 @@ func (s *SchemaReco) CleanupConn() {
 func (s *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := s.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	sr := SchemaReco{}
-	sr.Reco = Reco{s.Client, ctx, log, req.NamespacedName}
+	sr.Reco = Reco{shared.K8sClient{s.Client, ctx, req.NamespacedName, log}}
 	return sr.Reco.Reconcile(&sr)
 }
 

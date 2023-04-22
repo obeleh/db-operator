@@ -60,7 +60,7 @@ func (r *UserReco) MarkedToBeDeleted() bool {
 
 func (r *UserReco) LoadObj() (bool, error) {
 	var err error
-	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.client, r.nsNm.Namespace)
+	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.Client, r.NsNm.Namespace)
 	if err != nil {
 		return false, err
 	}
@@ -89,7 +89,7 @@ func (r *UserReco) generateSecret() error {
 		Namespace: r.user.Namespace,
 	}
 	secret := &v1.Secret{}
-	err := r.client.Get(r.ctx, secretName, secret)
+	err := r.Client.Get(r.Ctx, secretName, secret)
 	// This should have given an error that it didn't exist
 	// If it exists, we're happy with it, probably generated in a previous reconciliation loop
 	if err == nil {
@@ -114,7 +114,7 @@ func (r *UserReco) generateSecret() error {
 			Namespace: r.user.Namespace,
 		},
 	}
-	return r.client.Create(context.TODO(), secret)
+	return r.Client.Create(context.TODO(), secret)
 }
 
 func (r *UserReco) CreateObj() (ctrl.Result, error) {
@@ -126,7 +126,7 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		}
 	}
 
-	creds, err := GetUserCredentials(&r.user, r.client, r.ctx)
+	creds, err := GetUserCredentials(&r.user, r.Client, r.Ctx)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
@@ -158,9 +158,9 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 }
 
 func (r *UserReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.user)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.user)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.user, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.user, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -185,7 +185,7 @@ func (r *UserReco) EnsureCorrect() (bool, error) {
 				Name:      dbName,
 				Namespace: r.user.Namespace,
 			}
-			err = r.client.Get(r.ctx, nsm, &db)
+			err = r.Client.Get(r.Ctx, nsm, &db)
 			if err == nil {
 				resolvedDbNamePrivs = append(resolvedDbNamePrivs, dboperatorv1alpha1.DbPriv{
 					Scope: dbPriv.Scope,
@@ -217,7 +217,7 @@ func (r *UserReco) CleanupConn() {
 func (r *UserReco) NotifyChanges() {
 	r.Log.Info("Notifying of User changes")
 	// getting dbServer because we need to figure out in what namespace it lives
-	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.client, r.user.Namespace)
+	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.Client, r.user.Namespace)
 	if err != nil {
 		r.LogError(err, "failed notifying DBServer")
 	}
@@ -230,9 +230,9 @@ func (r *UserReco) NotifyChanges() {
 	}
 
 	reco := DbServerReconciler{
-		r.client,
+		r.Client,
 		r.Log,
-		r.client.Scheme(),
+		r.Client.Scheme(),
 	}
 
 	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
@@ -248,9 +248,7 @@ func (r *UserReco) NotifyChanges() {
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	ur := UserReco{
-		Reco: Reco{
-			r.Client, ctx, log, req.NamespacedName,
-		},
+		Reco: Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
 	}
 	return ur.Reco.Reconcile(&ur)
 }

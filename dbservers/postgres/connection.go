@@ -230,38 +230,92 @@ func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface
 	return maps[0], true, nil
 }
 
-func (p *PostgresConnection) CreateBackupJob(dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
+func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
 	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return 0, err
 	}
 
-	/*
-		BACKUP DATABASE bank \
-		INTO 's3://{BUCKET NAME}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}' \
-		AS OF SYSTEM TIME '-10s';
-	*/
-
-	qry := fmt.Sprintf("BACKUP DATABASE \"%s\" INTO", dbName)
-	if len(bucketStorageInfo.Prefix) > 0 {
-		qry += fmt.Sprintf(" '%s' IN", bucketStorageInfo.Prefix)
+	bucketString, err := getBucketString(bucketStorageInfo)
+	if err != nil {
+		return 0, err
 	}
 
-	qry += fmt.Sprintf(" '%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName)
+	/*
+		BACKUP DATABASE "database" \
+		INTO '{bucketstring}' \
+		AS OF SYSTEM TIME '-10s';
+	*/
+	qry := fmt.Sprintf(
+		"BACKUP DATABASE %q INTO '%s' AS OF SYSTEM TIME '-10s' WITH DETACHED;",
+		dbName,
+		bucketString,
+	)
+	return query_utils.SelectFirstValueInt64(conn, qry)
+}
 
-	if len(bucketStorageInfo.KeyName) > 0 {
-		qry += fmt.Sprintf("?AWS_ACCESS_KEY_ID=%s", bucketStorageInfo.KeyName)
-		if len(bucketSecret) > 0 {
-			qry += fmt.Sprintf("&AWS_SECRET_ACCESS_KEY=%s", bucketSecret)
+func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageInfo shared.BucketStorageInfo, scheduleName, schedule string, runNow bool) (int64, error) {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	bucketString, err := getBucketString(bucketStorageInfo)
+	if err != nil {
+		return 0, err
+	}
+	/*
+		CREATE SCHEDULE IF NOT EXISTS "scheduleName" FOR BACKUP DATABASE "database"
+		INTO '{bucketstring}'
+		RECURRING '{schedule}' FULL BACKUP
+		ALWAYS WITH SCHEDULE OPTIONS first_run=now;
+	*/
+
+	qry := fmt.Sprintf(
+		"CREATE SCHEDULE IF NOT EXISTS %q FOR BACKUP DATABASE %q INTO '%s' RECURRING '%s' FULL BACKUP ALWAYS",
+		scheduleName,
+		dbName,
+		bucketString,
+		schedule,
+	)
+	if runNow {
+		qry += " WITH SCHEDULE OPTIONS first_run=now"
+	}
+	qry += ";"
+
+	return query_utils.SelectFirstValueInt64(conn, qry)
+}
+
+func getBucketString(bucketStorageInfo shared.BucketStorageInfo) (string, error) {
+	var qry strings.Builder
+	qry.WriteString(fmt.Sprintf("%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName))
+
+	if bucketStorageInfo.Prefix != "" {
+		qry.WriteString("/" + bucketStorageInfo.Prefix)
+	}
+	qry.WriteString("?")
+
+	if bucketStorageInfo.KeyName != "" {
+		bucketSecret, err := bucketStorageInfo.GetBucketSecret()
+		if err != nil {
+			return "", err
 		}
+		qry.WriteString(fmt.Sprintf("AWS_ACCESS_KEY_ID=%s&AWS_SECRET_ACCESS_KEY=%s", bucketStorageInfo.KeyName, bucketSecret))
 	} else {
-		qry += "?AUTH=implicit"
+		qry.WriteString("AUTH=implicit")
 	}
 
 	if bucketStorageInfo.Endpoint != "" {
-		qry += fmt.Sprintf("&AWS_ENDPOINT=%s", bucketStorageInfo.Endpoint)
+		qry.WriteString(fmt.Sprintf("&AWS_ENDPOINT=%s", bucketStorageInfo.Endpoint))
+	}
+	return qry.String(), nil
+}
+
+func (p *PostgresConnection) GetBackupSchedule(name string) ([]map[string]interface{}, error) {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	qry += "' WITH DETACHED;"
-	return query_utils.SelectFirstValueInt64(conn, qry)
+	return shared.SelectToArrayMap(conn, "WITH x as (SHOW SCHEDULES) SELECT * FROM x where label = ? ORDER BY created DESC LIMIT 100;", name)
 }

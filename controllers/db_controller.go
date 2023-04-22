@@ -55,9 +55,9 @@ func (r *DbReco) MarkedToBeDeleted() bool {
 }
 
 func (r *DbReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.db)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.db)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", r.db, r.nsNm.Name, err))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", r.db, r.NsNm.Name, err))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -66,9 +66,9 @@ func (r *DbReco) LoadCR() (ctrl.Result, error) {
 func (r *DbReco) LoadObj() (bool, error) {
 	var err error
 	// First create conninfo without db name because we don't know whether it exists
-	dbServer, err := GetDbServer(r.db.Spec.Server, r.client, r.nsNm.Namespace)
+	dbServer, err := GetDbServer(r.db.Spec.Server, r.Client, r.NsNm.Namespace)
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
 			return false, err
 		}
@@ -142,7 +142,7 @@ func (r *DbReco) GetCR() client.Object {
 func (r *DbReco) NotifyChanges() {
 	r.Log.Info("Notifying of DB changes")
 	// getting dbServer because we need to figure out in what namespace it lives
-	dbServer, err := GetDbServer(r.db.Spec.Server, r.client, r.db.Namespace)
+	dbServer, err := GetDbServer(r.db.Spec.Server, r.Client, r.db.Namespace)
 	if err != nil {
 		r.LogError(err, "failed notifying DBServer")
 	}
@@ -155,9 +155,9 @@ func (r *DbReco) NotifyChanges() {
 	}
 
 	reco := DbServerReconciler{
-		r.client,
+		r.Client,
 		r.Log,
-		r.client.Scheme(),
+		r.Client.Scheme(),
 	}
 
 	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
@@ -183,7 +183,7 @@ func (r *DbReco) CleanupConn() {
 func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	dr := DbReco{}
-	dr.Reco = Reco{r.Client, ctx, log, req.NamespacedName}
+	dr.Reco = Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}}
 	return dr.Reco.Reconcile(&dr)
 }
 

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -33,10 +32,7 @@ type Reconcilable interface {
 }
 
 type Reco struct {
-	client client.Client
-	ctx    context.Context
-	Log    *zap.Logger
-	nsNm   types.NamespacedName
+	shared.K8sClient
 }
 
 const DB_OPERATOR_FINALIZER = "db-operator.kubemaster.com/finalizer"
@@ -44,7 +40,7 @@ const DB_OPERATOR_FINALIZER = "db-operator.kubemaster.com/finalizer"
 func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(cr, DB_OPERATOR_FINALIZER) {
 		controllerutil.AddFinalizer(cr, DB_OPERATOR_FINALIZER)
-		err := rc.client.Update(rc.ctx, cr)
+		err := rc.Client.Update(rc.Ctx, cr)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -54,19 +50,19 @@ func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 
 func (rc *Reco) RemoveFinalizer(cr client.Object) error {
 	controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
-	return rc.client.Update(rc.ctx, cr)
+	return rc.Client.Update(rc.Ctx, cr)
 }
 
 func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	res, err := rcl.LoadCR()
 	if err != nil {
-		if !shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
-			rc.LogError(err, fmt.Sprintf("Failed loading %s.%s", rc.nsNm.Namespace, rc.nsNm.Name))
+		if !shared.CannotFindError(err, rc.Log, "", rc.NsNm.Namespace, rc.NsNm.Name) {
+			rc.LogError(err, fmt.Sprintf("Failed loading %s.%s", rc.NsNm.Namespace, rc.NsNm.Name))
 		}
 		return res, nil
 	}
 	defer rcl.CleanupConn()
-	rc.Log.Info(fmt.Sprintf("Reconciling %s.%s ", rc.nsNm.Namespace, rc.nsNm.Name))
+	rc.Log.Info(fmt.Sprintf("Reconciling %s.%s ", rc.NsNm.Namespace, rc.NsNm.Name))
 	res = ctrl.Result{}
 	err = nil
 	cr := rcl.GetCR()
@@ -74,8 +70,8 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 
 	exists, err := rcl.LoadObj()
 	if err != nil {
-		if !shared.CannotFindError(err, rc.Log, "", rc.nsNm.Namespace, rc.nsNm.Name) {
-			rc.LogError(err, fmt.Sprintf("failed loadObj for %s.%s", rc.nsNm.Namespace, rc.nsNm.Name))
+		if !shared.CannotFindError(err, rc.Log, "", rc.NsNm.Namespace, rc.NsNm.Name) {
+			rc.LogError(err, fmt.Sprintf("failed loadObj for %s.%s", rc.NsNm.Namespace, rc.NsNm.Name))
 		} else if rcl.MarkedToBeDeleted() {
 			// if it's a "cannot find error" and current obj is marked to be deleted
 			// The parent resource has been removed. This resource probably doesn't exist anymore
@@ -137,9 +133,9 @@ func (r *Reco) GetBackupTarget(backupTarget string) (*dboperatorv1alpha1.BackupT
 	backupTargetCr := &dboperatorv1alpha1.BackupTarget{}
 	nsName := types.NamespacedName{
 		Name:      backupTarget,
-		Namespace: r.nsNm.Namespace,
+		Namespace: r.NsNm.Namespace,
 	}
-	err := r.client.Get(r.ctx, nsName, backupTargetCr)
+	err := r.Client.Get(r.Ctx, nsName, backupTargetCr)
 	return backupTargetCr, err
 }
 
@@ -148,9 +144,9 @@ func (r *Reco) GetRestoreTarget(restoreTarget string) (*dboperatorv1alpha1.Resto
 	restoreTargetCr := &dboperatorv1alpha1.RestoreTarget{}
 	nsName := types.NamespacedName{
 		Name:      restoreTarget,
-		Namespace: r.nsNm.Namespace,
+		Namespace: r.NsNm.Namespace,
 	}
-	err := r.client.Get(r.ctx, nsName, restoreTargetCr)
+	err := r.Client.Get(r.Ctx, nsName, restoreTargetCr)
 	return restoreTargetCr, err
 }
 
@@ -159,9 +155,9 @@ func (r *Reco) GetDb(dbName string) (*dboperatorv1alpha1.Db, error) {
 	db := &dboperatorv1alpha1.Db{}
 	nsName := types.NamespacedName{
 		Name:      dbName,
-		Namespace: r.nsNm.Namespace,
+		Namespace: r.NsNm.Namespace,
 	}
-	err := r.client.Get(r.ctx, nsName, db)
+	err := r.Client.Get(r.Ctx, nsName, db)
 	return db, err
 }
 
@@ -170,9 +166,9 @@ func (r *Reco) EnsureScripts() error {
 	cm := &v1.ConfigMap{}
 	nsName := types.NamespacedName{
 		Name:      shared.SCRIPTS_CONFIGMAP,
-		Namespace: r.nsNm.Namespace,
+		Namespace: r.NsNm.Namespace,
 	}
-	err := r.client.Get(r.ctx, nsName, cm)
+	err := r.Client.Get(r.Ctx, nsName, cm)
 	found := true
 
 	if err != nil {
@@ -189,7 +185,7 @@ func (r *Reco) EnsureScripts() error {
 			r.Log.Info("Scripts existed and were up to date")
 			return nil
 		} else {
-			r.client.Delete(r.ctx, cm)
+			r.Client.Delete(r.Ctx, cm)
 			cm = &v1.ConfigMap{}
 		}
 	}
@@ -199,7 +195,7 @@ func (r *Reco) EnsureScripts() error {
 	cm.Namespace = nsName.Namespace
 
 	r.Log.Info("Creating scripts cm")
-	err = r.client.Create(r.ctx, cm)
+	err = r.Client.Create(r.Ctx, cm)
 	if err != nil && !shared.AlreadyExistsError(err, r.Log, cm.Kind, cm.Namespace, cm.Name) {
 		r.LogError(err, "failed creating configmap with scripts")
 	}
@@ -210,10 +206,10 @@ func (r *Reco) GetS3Storage(storageLocation string) (dboperatorv1alpha1.S3Storag
 	s3Storage := &dboperatorv1alpha1.S3Storage{}
 	nsName := types.NamespacedName{
 		Name:      storageLocation,
-		Namespace: r.nsNm.Namespace,
+		Namespace: r.NsNm.Namespace,
 	}
 
-	err := r.client.Get(r.ctx, nsName, s3Storage)
+	err := r.Client.Get(r.Ctx, nsName, s3Storage)
 	return *s3Storage, err
 }
 
@@ -234,7 +230,7 @@ func (r *Reco) BuildJob(initContainers []v1.Container, container v1.Container, j
 	return batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 			Labels: map[string]string{
 				"controlledBy": "DbOperator",
 			},
@@ -264,7 +260,7 @@ func (r *Reco) BuildCronJob(initContainers []v1.Container, container v1.Containe
 	return batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 			Labels: map[string]string{
 				"controlledBy": "DbOperator",
 			},
@@ -288,7 +284,7 @@ func (r *Reco) GetDbServerFromDbName(dbName string) (*dboperatorv1alpha1.Db, *db
 	if err != nil {
 		return nil, nil, err
 	}
-	dbServer, err := GetDbServer(db.Spec.Server, r.client, r.nsNm.Namespace)
+	dbServer, err := GetDbServer(db.Spec.Server, r.Client, r.NsNm.Namespace)
 	return db, dbServer, err
 }
 
@@ -304,10 +300,10 @@ func (r *Reco) GetJobMap() (map[string]batchv1.Job, error) {
 	var err error
 	jobs := &batchv1.JobList{}
 	opts := []client.ListOption{
-		client.InNamespace(r.nsNm.Namespace),
+		client.InNamespace(r.NsNm.Namespace),
 		client.MatchingLabels{"controlledBy": "DbOperator"},
 	}
-	err = r.client.List(r.ctx, jobs, opts...)
+	err = r.Client.List(r.Ctx, jobs, opts...)
 	if err != nil {
 		r.LogError(err, "failed listing Jobs")
 		return nil, err
@@ -324,10 +320,10 @@ func (r *Reco) GetCronJobMap() (map[string]batchv1.CronJob, error) {
 	var err error
 	cronJobs := &batchv1.CronJobList{}
 	opts := []client.ListOption{
-		client.InNamespace(r.nsNm.Namespace),
+		client.InNamespace(r.NsNm.Namespace),
 		client.MatchingLabels{"controlledBy": "DbOperator"},
 	}
-	err = r.client.List(r.ctx, cronJobs, opts...)
+	err = r.Client.List(r.Ctx, cronJobs, opts...)
 	if err != nil {
 		r.LogError(err, "failed listing CronJobs")
 		return nil, err
@@ -356,7 +352,7 @@ func (r *Reco) GetDbServerSecrets(dbServer *dboperatorv1alpha1.DbServer) (v1.Sec
 		SourceSecret: &secretName,
 	}
 
-	err := r.client.Get(r.ctx, secretName, secret)
+	err := r.Client.Get(r.Ctx, secretName, secret)
 	if err != nil {
 		err = fmt.Errorf("failed to get secret: %s %s", dbServer.Spec.SecretName, err)
 	}
@@ -409,12 +405,12 @@ func (r *Reco) GetCredentialsForUser(namespace, userName string) (*shared.Creden
 		Name:      userName,
 		Namespace: namespace,
 	}
-	err := r.client.Get(r.ctx, userNsm, &user)
+	err := r.Client.Get(r.Ctx, userNsm, &user)
 	if err != nil {
 		return nil, err
 	}
 
-	return GetUserCredentials(&user, r.client, r.ctx)
+	return GetUserCredentials(&user, r.Client, r.Ctx)
 }
 
 func (r *Reco) GetConnectInfo(dbServer *dboperatorv1alpha1.DbServer, databaseName *string) (*shared.DbServerConnectInfo, error) {
@@ -463,7 +459,7 @@ func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, grantorNam
 	userCredentials := map[string]*shared.Credentials{}
 	if len(grantorNames) > 0 {
 		for _, userName := range grantorNames {
-			credentials, err := r.GetCredentialsForUser(r.nsNm.Namespace, userName)
+			credentials, err := r.GetCredentialsForUser(r.NsNm.Namespace, userName)
 			if err != nil {
 				return nil, err
 			}

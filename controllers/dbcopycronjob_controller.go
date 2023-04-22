@@ -62,7 +62,7 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 	var err error
 	r.copyCronJobs, err = r.GetCronJobMap()
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "CopyCronJob", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "CopyCronJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting CopyCronJob")
 			return false, err
 		}
@@ -82,7 +82,7 @@ func (r *DbCopyCronJobReco) UpdateStatus(exists bool) {
 	}
 	if !reflect.DeepEqual(r.copyCronJob.Status, newStatus) {
 		r.copyCronJob.Status = newStatus
-		r.StatusWriter.Update(r.ctx, &r.copyCronJob)
+		r.StatusWriter.Update(r.Ctx, &r.copyCronJob)
 	}
 }
 
@@ -114,7 +114,7 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 		r.copyCronJob.Spec.ServiceAccount,
 	)
 
-	err = r.client.Create(r.ctx, &cronJob)
+	err = r.Client.Create(r.Ctx, &cronJob)
 	if err != nil && !shared.AlreadyExistsError(err, r.Log, cronJob.Kind, cronJob.Namespace, cronJob.Name) {
 		r.LogError(err, "Failed to create copy cronJob")
 	}
@@ -127,18 +127,18 @@ func (r *DbCopyCronJobReco) RemoveObj() (ctrl.Result, error) {
 	job := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.copyCronJob.Name,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 		},
 	}
-	err := r.client.Delete(r.ctx, job)
+	err := r.Client.Delete(r.Ctx, job)
 	r.UpdateStatus(false)
 	return ctrl.Result{}, err
 }
 
 func (r *DbCopyCronJobReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.copyCronJob)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.copyCronJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not retrieved %s", r.copyCronJob, r.nsNm.Name, err))
+		r.Log.Info(fmt.Sprintf("%T: %s does not retrieved %s", r.copyCronJob, r.NsNm.Name, err))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -162,7 +162,7 @@ func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	cr := DbCopyCronJobReco{
-		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
+		Reco:         Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
 		StatusWriter: r.Status(),
 	}
 	return cr.Reco.Reconcile((&cr))

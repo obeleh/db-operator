@@ -59,7 +59,7 @@ func (r *BackupCronJobReco) LoadObj() (bool, error) {
 	var err error
 	r.backupCronJobs, err = r.GetCronJobMap()
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "BackupCronJob", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "BackupCronJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting BackupCronJob")
 			return false, err
 		}
@@ -79,7 +79,7 @@ func (r *BackupCronJobReco) UpdateStatus(exists bool) {
 	}
 	if !reflect.DeepEqual(r.backupCronJob.Status, newStatus) {
 		r.backupCronJob.Status = newStatus
-		r.StatusWriter.Update(r.ctx, &r.backupCronJob)
+		r.StatusWriter.Update(r.Ctx, &r.backupCronJob)
 	}
 }
 
@@ -115,7 +115,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 		r.backupCronJob.Spec.ServiceAccount,
 	)
 
-	err = r.client.Create(r.ctx, &cronJob)
+	err = r.Client.Create(r.Ctx, &cronJob)
 	if err != nil && !shared.AlreadyExistsError(err, r.Log, cronJob.Kind, cronJob.Namespace, cronJob.Name) {
 		r.LogError(err, "Failed to create backup cronjob")
 	}
@@ -128,18 +128,18 @@ func (r *BackupCronJobReco) RemoveObj() (ctrl.Result, error) {
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.backupCronJob.Name,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 		},
 	}
-	err := r.client.Delete(r.ctx, cronJob)
+	err := r.Client.Delete(r.Ctx, cronJob)
 	r.UpdateStatus(false)
 	return ctrl.Result{}, err
 }
 
 func (r *BackupCronJobReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.backupCronJob)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.backupCronJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupCronJob, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupCronJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -163,7 +163,7 @@ func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	br := BackupCronJobReco{
-		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
+		Reco:         Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
 		StatusWriter: r.Status(),
 	}
 	return br.Reco.Reconcile((&br))

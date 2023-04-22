@@ -133,4 +133,13 @@ resources:
   kind: Schema
   path: github.com/obeleh/db-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubemaster.com
+  group: db-operator
+  kind: CockroachDBBackupCronJob
+  path: github.com/obeleh/db-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

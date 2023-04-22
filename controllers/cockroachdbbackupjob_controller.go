@@ -23,10 +23,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -48,6 +46,7 @@ type CockroachDBBackupJobReconciler struct {
 
 type CrdbBackubJobReco struct {
 	Reco
+	BackupTargetHelper
 	backupJob    dboperatorv1alpha1.CockroachDBBackupJob
 	StatusClient client.StatusClient
 	conn         *postgres.PostgresConnection
@@ -175,7 +174,7 @@ func (r *CrdbBackubJobReco) getPostgresConnectionFromBackupTarget(backupTarget *
 func (r *CrdbBackubJobReco) SetStatus(newStatus dboperatorv1alpha1.CockroachDBBackupJobStatus) error {
 	if !reflect.DeepEqual(r.backupJob.Status, newStatus) {
 		r.backupJob.Status = newStatus
-		err := r.StatusClient.Status().Update(r.ctx, &r.backupJob)
+		err := r.StatusClient.Status().Update(r.Ctx, &r.backupJob)
 		if err != nil {
 			message := fmt.Sprintf("failed patching status %s", err)
 			r.Log.Info(message)
@@ -186,9 +185,9 @@ func (r *CrdbBackubJobReco) SetStatus(newStatus dboperatorv1alpha1.CockroachDBBa
 }
 
 func (r *CrdbBackubJobReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.backupJob)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.backupJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -240,53 +239,19 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
-	if err != nil {
-		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
-	}
-	actions, err := r.GetStorageActions(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	pgConn, err := r.getPostgresConnectionFromBackupTarget(backupTarget)
+	backupInfo, err := r.GetBackupInfo(r.backupJob.Spec.BackupTarget)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
 		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
+
+	pgConn := backupInfo.DbServerConnectionInterface.(*postgres.PostgresConnection)
 	defer pgConn.Close()
 
-	bucketInfo, err := actions.GetBucketStorageInfo()
-	if err != nil {
-		r.LogError(err, fmt.Sprint(err))
-		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
-	}
-
-	bucketSecret := ""
-	if len(bucketInfo.KeyName) > 0 {
-		secret := &v1.Secret{}
-		nsName := types.NamespacedName{
-			Name:      bucketInfo.K8sSecret,
-			Namespace: r.nsNm.Namespace,
-		}
-		err := r.client.Get(r.ctx, nsName, secret)
-		if err != nil {
-			r.LogError(err, fmt.Sprint(err))
-			return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
-		}
-
-		byts, found := secret.Data[bucketInfo.K8sSecretKey]
-		if !found {
-			err = fmt.Errorf("Unabled to find key %s in secret %s", bucketInfo.K8sSecretKey, bucketInfo.K8sSecret)
-			r.LogError(err, fmt.Sprint(err))
-			return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
-		}
-		bucketSecret = string(byts)
-	}
-
+	//dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
 	job_id, err := pgConn.CreateBackupJob(
-		backupTarget.Spec.DbName,
-		bucketSecret,
-		bucketInfo,
+		backupInfo.BackupTarget.Spec.DbName,
+		backupInfo.BucketStorageInfo,
 	)
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
@@ -313,9 +278,11 @@ func (r *CrdbBackubJobReco) RemoveObj() (ctrl.Result, error) {
 func (r *CockroachDBBackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
+	reco := Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}}
 	rr := CrdbBackubJobReco{
-		Reco:         Reco{r.Client, ctx, log, req.NamespacedName},
-		StatusClient: r,
+		Reco:               reco,
+		BackupTargetHelper: BackupTargetHelper{reco},
+		StatusClient:       r,
 	}
 	return rr.Reco.Reconcile((&rr))
 }

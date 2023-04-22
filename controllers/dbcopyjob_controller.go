@@ -60,7 +60,7 @@ func (r *DbCopyJobReco) LoadObj() (bool, error) {
 	var err error
 	r.copyJobs, err = r.GetJobMap()
 	if err != nil {
-		if !shared.CannotFindError(err, r.Log, "DbServer", r.nsNm.Namespace, r.nsNm.Name) {
+		if !shared.CannotFindError(err, r.Log, "DbServer", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
 			return false, err
 		}
@@ -94,7 +94,7 @@ func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
 
 	job := r.BuildJob([]v1.Container{backupContainer}, restoreContainer, r.copyJob.Name, r.copyJob.Spec.ServiceAccount)
 
-	err = r.client.Create(r.ctx, &job)
+	err = r.Client.Create(r.Ctx, &job)
 	if err != nil && !shared.AlreadyExistsError(err, r.Log, job.Kind, job.Namespace, job.Name) {
 		r.LogError(err, "Failed to create copy job")
 	}
@@ -106,17 +106,17 @@ func (r *DbCopyJobReco) RemoveObj() (ctrl.Result, error) {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.copyJob.Name,
-			Namespace: r.nsNm.Namespace,
+			Namespace: r.NsNm.Namespace,
 		},
 	}
-	err := r.client.Delete(r.ctx, job)
+	err := r.Client.Delete(r.Ctx, job)
 	return ctrl.Result{}, err
 }
 
 func (r *DbCopyJobReco) LoadCR() (ctrl.Result, error) {
-	err := r.client.Get(r.ctx, r.nsNm, &r.copyJob)
+	err := r.Client.Get(r.Ctx, r.NsNm, &r.copyJob)
 	if err != nil {
-		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.copyJob, r.nsNm.Name))
+		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.copyJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -140,7 +140,7 @@ func (r *DbCopyJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	rr := DbCopyJobReco{
-		Reco: Reco{r.Client, ctx, log, req.NamespacedName},
+		Reco: Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
 	}
 	return rr.Reco.Reconcile((&rr))
 }
