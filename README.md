@@ -103,7 +103,7 @@ make docker-build
 make kind-cluster
 make deploy-test-infra
 make deploy
-make kuttl-test  # currently only postgres is enabled in these tests
+make kuttl-test
 ```
 
 Manually:

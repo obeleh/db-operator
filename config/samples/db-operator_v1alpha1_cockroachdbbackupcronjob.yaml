@@ -1,0 +1,12 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: CockroachDBBackupCronJob
+metadata:
+  labels:
+    app.kubernetes.io/name: cockroachdbbackupcronjob
+    app.kubernetes.io/instance: cockroachdbbackupcronjob-sample
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: db-operator
+  name: cockroachdbbackupcronjob-sample
+spec:
+  # TODO(user): Add fields here

@@ -12,20 +12,21 @@ type StorageActions interface {
 	BuildContainer(script string, fixedFileName *string) v1.Container
 	BuildUploadContainer(fixedFileName *string) v1.Container
 	BuildDownloadContainer(fixedFileName *string) v1.Container
-	GetBucketStorageInfo() (shared.BucketStorageInfo, error)
+	GetBucketStorageInfo(shared.K8sClient) (shared.BucketStorageInfo, error)
 }
 
 type S3StorageInfo struct {
 	S3Storage dboperatorv1alpha1.S3Storage
 }
 
-func (s *S3StorageInfo) GetBucketStorageInfo() (shared.BucketStorageInfo, error) {
+func (s *S3StorageInfo) GetBucketStorageInfo(k8sClient shared.K8sClient) (shared.BucketStorageInfo, error) {
 	storageInfo := shared.BucketStorageInfo{
 		StorageTypeName: "s3",
 		BucketName:      s.S3Storage.Spec.BucketName,
 		Prefix:          s.S3Storage.Spec.Prefix,
 		Region:          s.S3Storage.Spec.Region,
 		Endpoint:        s.S3Storage.Spec.Endpoint,
+		K8sClient:       k8sClient,
 	}
 	if s.S3Storage.Spec.AccesKeyId != "" {
 		storageInfo.KeyName = s.S3Storage.Spec.AccesKeyId

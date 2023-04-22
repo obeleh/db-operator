@@ -270,7 +270,8 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	if serverPrivsChanging {
-		alter := []string{fmt.Sprintf("ALTER USER %q", userName)}
+		escapedUser := pq.QuoteIdentifier(userName)
+		alter := []string{fmt.Sprintf("ALTER USER %s", escapedUser)}
 		if len(roleAttrFlags) > 0 {
 			alter = append(alter, fmt.Sprintf("WITH %s", strings.Join(roleAttrFlags, " ")))
 		}
@@ -524,12 +525,15 @@ func GetSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, er
 
 func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
+	escapedDb := pq.QuoteIdentifier(db)
+	escapedUser := pq.QuoteIdentifier(user)
+
 	if user == "PUBLIC" {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %q TO PUBLIC", privsStr, db)
+		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO PUBLIC", privsStr, escapedDb)
 		_, err := conn.Exec(query)
 		return err
 	} else {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %q TO %q", privsStr, db, user)
+		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO %s", privsStr, escapedDb, escapedUser)
 		_, err := conn.Exec(query)
 		return err
 	}
@@ -541,19 +545,25 @@ func grantSchemaPrivileges(conn *sql.DB, user string, scope string, privs []stri
 		return err
 	}
 	privsStr := strings.Join(privs, ", ")
-	query := fmt.Sprintf("GRANT %s on SCHEMA %q to %q;", privsStr, schemaName, user)
+	escapedSchema := pq.QuoteIdentifier(schemaName)
+	escapedUser := pq.QuoteIdentifier(user)
+
+	query := fmt.Sprintf("GRANT %s on SCHEMA %s to %s;", privsStr, escapedSchema, escapedUser)
 	_, err = conn.Exec(query)
 	return err
 }
 
 func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
+	escapedDb := pq.QuoteIdentifier(db)
+	escapedUser := pq.QuoteIdentifier(user)
+
 	if user == "PUBLIC" {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %q FROM PUBLIC", privsStr, db)
+		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM PUBLIC", privsStr, escapedDb)
 		_, err := conn.Exec(query)
 		return err
 	} else {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %q FROM %q", privsStr, db, user)
+		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM %s", privsStr, escapedDb, escapedUser)
 		_, err := conn.Exec(query)
 		return err
 	}
@@ -561,14 +571,20 @@ func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []stri
 
 func revokeDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
-	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %q REVOKE %s ON TABLES FROM %q;", role, privsStr, user)
+	escapedUser := pq.QuoteIdentifier(user)
+	escapedRole := pq.QuoteIdentifier(role)
+
+	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %s REVOKE %s ON TABLES FROM %s;", escapedRole, privsStr, escapedUser)
 	_, err := conn.Exec(query)
 	return err
 }
 
 func grantDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
-	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %q GRANT %s ON TABLES TO %q;", role, privsStr, user)
+	escapedUser := pq.QuoteIdentifier(user)
+	escapedRole := pq.QuoteIdentifier(role)
+
+	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %s GRANT %s ON TABLES TO %s;", escapedRole, privsStr, escapedUser)
 	_, err := conn.Exec(query)
 	return err
 }
@@ -579,7 +595,10 @@ func revokeSchemaPrivileges(conn *sql.DB, user string, scope string, privs []str
 		return err
 	}
 	privsStr := strings.Join(privs, ", ")
-	query := fmt.Sprintf("REVOKE %s on SCHEMA %q FROM %q;", privsStr, schemaName, user)
+	escapedSchema := pq.QuoteIdentifier(schemaName)
+	escapedUser := pq.QuoteIdentifier(user)
+
+	query := fmt.Sprintf("REVOKE %s on SCHEMA %s FROM %s;", privsStr, escapedSchema, escapedUser)
 	_, err = conn.Exec(query)
 	return err
 }

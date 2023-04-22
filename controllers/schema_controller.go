@@ -187,7 +187,7 @@ func (s *SchemaReco) CleanupConn() {
 func (s *SchemaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := s.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	sr := SchemaReco{}
-	sr.Reco = Reco{shared.K8sClient{s.Client, ctx, req.NamespacedName, log}}
+	sr.Reco = Reco{shared.K8sClient{Client: s.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}}
 	return sr.Reco.Reconcile(&sr)
 }
 

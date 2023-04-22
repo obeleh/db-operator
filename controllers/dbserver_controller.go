@@ -66,7 +66,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
 	}
 
-	reco := Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, r.Log}}
+	reco := Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: r.Log}}
 
 	deletionTimestamp := dbServer.GetDeletionTimestamp()
 	markedToBeDeleted := deletionTimestamp != nil

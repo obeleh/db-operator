@@ -183,7 +183,7 @@ func (r *DbReco) CleanupConn() {
 func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	dr := DbReco{}
-	dr.Reco = Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}}
+	dr.Reco = Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}}
 	return dr.Reco.Reconcile(&dr)
 }
 

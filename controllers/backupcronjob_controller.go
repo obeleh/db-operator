@@ -163,7 +163,7 @@ func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	br := BackupCronJobReco{
-		Reco:         Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
+		Reco:         Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}},
 		StatusWriter: r.Status(),
 	}
 	return br.Reco.Reconcile((&br))

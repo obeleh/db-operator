@@ -278,7 +278,7 @@ func (r *CrdbBackubJobReco) RemoveObj() (ctrl.Result, error) {
 func (r *CockroachDBBackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
-	reco := Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}}
+	reco := Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}}
 	rr := CrdbBackubJobReco{
 		Reco:               reco,
 		BackupTargetHelper: BackupTargetHelper{reco},

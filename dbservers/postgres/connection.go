@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
+
+	"github.com/lib/pq"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/dbservers/query_utils"
@@ -39,7 +42,10 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`CREATE USER %q LOGIN PASSWORD '%s';`, userName, password))
+
+	quotedUserName := pq.QuoteIdentifier(userName)
+	quotedPassword := pq.QuoteLiteral(password)
+	_, err = conn.Exec(fmt.Sprintf(`CREATE USER %s LOGIN PASSWORD %s;`, quotedUserName, quotedPassword))
 	return err
 }
 
@@ -48,7 +54,9 @@ func (p *PostgresConnection) DropUser(userName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP USER IF EXISTS %q;", userName))
+
+	quotedUserName := pq.QuoteIdentifier(userName)
+	_, err = conn.Exec(fmt.Sprintf("DROP USER IF EXISTS %s;", quotedUserName))
 	return err
 }
 
@@ -117,11 +125,13 @@ func (p *PostgresConnection) Execute(qry string, user *string) error {
 }
 
 func (p *PostgresConnection) CreateDb(dbName string) error {
-	return p.Execute(fmt.Sprintf("CREATE DATABASE %q;", dbName), nil)
+	quotedDbName := pq.QuoteIdentifier(dbName)
+	return p.Execute(fmt.Sprintf("CREATE DATABASE %s;", quotedDbName), nil)
 }
 
 func (p *PostgresConnection) CreateSchema(schemaName string, creator *string) error {
-	return p.Execute(fmt.Sprintf("CREATE SCHEMA %q;", schemaName), creator)
+	quotedSchemaName := pq.QuoteIdentifier(schemaName)
+	return p.Execute(fmt.Sprintf("CREATE SCHEMA %s;", quotedSchemaName), creator)
 }
 
 func (p *PostgresConnection) DropDb(dbName string, cascade bool) error {
@@ -133,7 +143,8 @@ func (p *PostgresConnection) DropDb(dbName string, cascade bool) error {
 	if cascade {
 		cascadeStr = "CASCADE"
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %q %s;", dbName, cascadeStr))
+	quotedDbName := pq.QuoteIdentifier(dbName)
+	_, err = conn.Exec(fmt.Sprintf("DROP DATABASE %s %s;", quotedDbName, cascadeStr))
 	return err
 }
 
@@ -151,7 +162,8 @@ func (p *PostgresConnection) DropSchema(schemaName string, userName *string, cas
 	if cascade {
 		cascadeStr = "CASCADE"
 	}
-	_, err = conn.Exec(fmt.Sprintf("DROP SCHEMA %q %s;", schemaName, cascadeStr))
+	quotedSchemaName := pq.QuoteIdentifier(schemaName)
+	_, err = conn.Exec(fmt.Sprintf("DROP SCHEMA %s %s;", quotedSchemaName, cascadeStr))
 	return err
 }
 
@@ -246,9 +258,10 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo sh
 		INTO '{bucketstring}' \
 		AS OF SYSTEM TIME '-10s';
 	*/
+	quotedDbName := pq.QuoteIdentifier(dbName)
 	qry := fmt.Sprintf(
-		"BACKUP DATABASE %q INTO '%s' AS OF SYSTEM TIME '-10s' WITH DETACHED;",
-		dbName,
+		"BACKUP DATABASE %s INTO '%s' AS OF SYSTEM TIME '-10s' WITH DETACHED;",
+		quotedDbName,
 		bucketString,
 	)
 	return query_utils.SelectFirstValueInt64(conn, qry)
@@ -271,12 +284,17 @@ func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageIn
 		ALWAYS WITH SCHEDULE OPTIONS first_run=now;
 	*/
 
+	escapedScheduleName := pq.QuoteIdentifier(scheduleName)
+	escapedDbName := pq.QuoteIdentifier(dbName)
+	escapedBucketString := pq.QuoteLiteral(bucketString)
+	escapedSchedule := pq.QuoteLiteral(schedule)
+
 	qry := fmt.Sprintf(
-		"CREATE SCHEDULE IF NOT EXISTS %q FOR BACKUP DATABASE %q INTO '%s' RECURRING '%s' FULL BACKUP ALWAYS",
-		scheduleName,
-		dbName,
-		bucketString,
-		schedule,
+		"CREATE SCHEDULE IF NOT EXISTS %s FOR BACKUP DATABASE %s INTO %s RECURRING %s FULL BACKUP ALWAYS",
+		escapedScheduleName,
+		escapedDbName,
+		escapedBucketString,
+		escapedSchedule,
 	)
 	if runNow {
 		qry += " WITH SCHEDULE OPTIONS first_run=now"
@@ -287,28 +305,35 @@ func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageIn
 }
 
 func getBucketString(bucketStorageInfo shared.BucketStorageInfo) (string, error) {
-	var qry strings.Builder
-	qry.WriteString(fmt.Sprintf("%s://%s", bucketStorageInfo.StorageTypeName, bucketStorageInfo.BucketName))
+	u := &url.URL{
+		Scheme: bucketStorageInfo.StorageTypeName,
+		Host:   bucketStorageInfo.BucketName,
+	}
 
 	if bucketStorageInfo.Prefix != "" {
-		qry.WriteString("/" + bucketStorageInfo.Prefix)
+		u.Path = bucketStorageInfo.Prefix
 	}
-	qry.WriteString("?")
+
+	query := url.Values{}
 
 	if bucketStorageInfo.KeyName != "" {
 		bucketSecret, err := bucketStorageInfo.GetBucketSecret()
 		if err != nil {
 			return "", err
 		}
-		qry.WriteString(fmt.Sprintf("AWS_ACCESS_KEY_ID=%s&AWS_SECRET_ACCESS_KEY=%s", bucketStorageInfo.KeyName, bucketSecret))
+		query.Set("AWS_ACCESS_KEY_ID", bucketStorageInfo.KeyName)
+		query.Set("AWS_SECRET_ACCESS_KEY", bucketSecret)
 	} else {
-		qry.WriteString("AUTH=implicit")
+		query.Set("AUTH", "implicit")
 	}
 
 	if bucketStorageInfo.Endpoint != "" {
-		qry.WriteString(fmt.Sprintf("&AWS_ENDPOINT=%s", bucketStorageInfo.Endpoint))
+		query.Set("AWS_ENDPOINT", bucketStorageInfo.Endpoint)
 	}
-	return qry.String(), nil
+
+	u.RawQuery = query.Encode()
+
+	return u.String(), nil
 }
 
 func (p *PostgresConnection) GetBackupSchedule(name string) ([]map[string]interface{}, error) {

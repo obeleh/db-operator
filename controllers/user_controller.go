@@ -248,7 +248,7 @@ func (r *UserReco) NotifyChanges() {
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 	ur := UserReco{
-		Reco: Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
+		Reco: Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}},
 	}
 	return ur.Reco.Reconcile(&ur)
 }

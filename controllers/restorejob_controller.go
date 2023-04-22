@@ -143,7 +143,7 @@ func (r *RestoreJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 
 	rr := RestoreJobReco{
-		Reco: Reco{shared.K8sClient{r.Client, ctx, req.NamespacedName, log}},
+		Reco: Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: log}},
 	}
 	return rr.Reco.Reconcile((&rr))
 }
