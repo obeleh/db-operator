@@ -39,8 +39,8 @@ func (p *PostgresVersion) GetValidPrivs(privType string) []string {
 		}[privType]
 	} else if p.ProductName == CockroachDB {
 		return map[string][]string{
-			"database": {"CREATE", "CONNECT", "ALL"},
-			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"},
+			"database": {"CREATE", "CONNECT", "BACKUP", "RESTORE", "ALL"},
+			"table":    {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "BACKUP", "ALL"},
 			"schema":   {"CREATE", "USAGE"}, // accepted by has_schema_privilege
 		}[privType]
 	}
@@ -453,7 +453,10 @@ func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []strin
 }
 
 func getDatabasePrivilegesCrdb(conn *sql.DB, user string, db string) ([]string, error) {
-	rows, err := conn.Query(fmt.Sprintf("SHOW GRANTS ON DATABASE %q FOR %q;", db, user))
+	quotedDb := pq.QuoteIdentifier(db)
+	quotedUser := pq.QuoteIdentifier(user)
+
+	rows, err := conn.Query(fmt.Sprintf("SHOW GRANTS ON DATABASE %s FOR %s;", quotedDb, quotedUser))
 	if err != nil {
 		return nil, err
 	}
