@@ -38,16 +38,16 @@ spec:
               CockroachDBBackupCronJob
             properties:
               backup_target:
+                description: Creator      string `json:"creator"`
                 type: string
-              creator:
-                type: string
+              ignore_existing_backups:
+                type: boolean
               interval:
                 type: string
               suspend:
                 type: boolean
             required:
             - backup_target
-            - creator
             - interval
             - suspend
             type: object
@@ -55,6 +55,11 @@ spec:
             description: CockroachDBBackupCronJobStatus defines the observed state
               of CockroachDBBackupCronJob
             properties:
+              command:
+                type: string
+              created:
+                format: date-time
+                type: string
               schedule_id:
                 format: int64
                 type: integer
@@ -63,9 +68,9 @@ spec:
               state:
                 type: string
             required:
+            - created
             - schedule_id
             - schedule_status
-            - state
             type: object
         type: object
     served: true

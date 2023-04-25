@@ -1,0 +1,6 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: CockroachDBBackupCronJob
+metadata:
+  name: example-backup-cron-job
+status:
+  command: "BACKUP DATABASE \"example-db\" INTO 's3://testbucket?AWS_ACCESS_KEY_ID=MYKEY&AWS_ENDPOINT=http%3A%2F%2Fminio.default.svc.cluster.local%3A9000&AWS_SECRET_ACCESS_KEY=redacted' WITH detached"

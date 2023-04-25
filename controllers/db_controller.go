@@ -145,6 +145,7 @@ func (r *DbReco) NotifyChanges() {
 	dbServer, err := GetDbServer(r.db.Spec.Server, r.Client, r.db.Namespace)
 	if err != nil {
 		r.LogError(err, "failed notifying DBServer")
+		return
 	}
 
 	reconcileRequest := reconcile.Request{

@@ -298,29 +298,24 @@ func GetUserCredentials(dbUser *dboperatorv1alpha1.User, k8sClient client.Client
 		creds.Password = &password
 	}
 
-	if dbUser.Spec.CaCertKey != "" {
-		caCertBytes, found := secret.Data[dbUser.Spec.CaCertKey]
-		if !found {
-			return nil, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbUser.Spec.CaCertKey, dbUser.Namespace, dbUser.Spec.SecretName)
-		}
-		caCert := string(caCertBytes)
-		creds.CaCert = &caCert
+	keys := []struct {
+		specKey  *string
+		credsKey **string
+	}{
+		{&dbUser.Spec.CaCertKey, &creds.CaCert},
+		{&dbUser.Spec.TlsKeyKey, &creds.TlsKey},
+		{&dbUser.Spec.TlsCrtKey, &creds.TlsCrt},
 	}
-	if dbUser.Spec.TlsKeyKey != "" {
-		tlsKeyBytes, found := secret.Data[dbUser.Spec.TlsKeyKey]
-		if !found {
-			return nil, fmt.Errorf("tls_key_key '%s' not found in secret %s.%s", dbUser.Spec.TlsKeyKey, dbUser.Namespace, dbUser.Spec.SecretName)
+
+	for _, key := range keys {
+		if *key.specKey != "" {
+			valueBytes, found := secret.Data[*key.specKey]
+			if !found {
+				return nil, fmt.Errorf("key '%s' not found in secret %s.%s", *key.specKey, dbUser.Namespace, dbUser.Spec.SecretName)
+			}
+			value := string(valueBytes)
+			*key.credsKey = &value
 		}
-		tlsKey := string(tlsKeyBytes)
-		creds.TlsKey = &tlsKey
-	}
-	if dbUser.Spec.TlsCrtKey != "" {
-		tlsCrtBytes, found := secret.Data[dbUser.Spec.TlsCrtKey]
-		if !found {
-			return nil, fmt.Errorf("tls_cert_key '%s' not found in secret %s.%s", dbUser.Spec.TlsCrtKey, dbUser.Namespace, dbUser.Spec.SecretName)
-		}
-		tlsCrt := string(tlsCrtBytes)
-		creds.TlsCrt = &tlsCrt
 	}
 
 	return &creds, nil

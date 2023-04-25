@@ -242,13 +242,62 @@ func (p *PostgresConnection) GetBackupJobById(jobId int64) (map[string]interface
 	return maps[0], true, nil
 }
 
-func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
+func (p *PostgresConnection) GetBackupScheduleById(scheduleId int64) (map[string]interface{}, error) {
 	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	bucketString, err := getBucketString(bucketStorageInfo)
+	maps, err := shared.SelectToArrayMap(conn, "WITH x as (SHOW SCHEDULES) SELECT * FROM x WHERE id=$1;", scheduleId)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(maps) == 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("BackupSchedule with id %d not found", scheduleId))
+	}
+
+	return maps[0], nil
+}
+
+func (p *PostgresConnection) GetBackupScheduleByLabel(scheduleLabel string) (map[string]interface{}, error) {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	maps, err := shared.SelectToArrayMap(conn, "WITH x as (SHOW SCHEDULES) SELECT * FROM x WHERE label=$1;", scheduleLabel)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(maps) == 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("BackupSchedule with label %s not found", scheduleLabel))
+	}
+
+	return maps[0], nil
+}
+
+func (p *PostgresConnection) ResumeSchedule(scheduleId int64) error {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf("RESUME SCHEDULE %d", scheduleId))
+	return err
+}
+
+func (p *PostgresConnection) PauseSchedule(scheduleId int64) error {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(fmt.Sprintf("PAUSE SCHEDULE %d", scheduleId))
+	return err
+}
+
+func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {
+	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -258,24 +307,38 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo sh
 		INTO '{bucketstring}' \
 		AS OF SYSTEM TIME '-10s';
 	*/
-	quotedDbName := pq.QuoteIdentifier(dbName)
-	qry := fmt.Sprintf(
-		"BACKUP DATABASE %s INTO '%s' AS OF SYSTEM TIME '-10s' WITH DETACHED;",
-		quotedDbName,
-		bucketString,
-	)
-	return query_utils.SelectFirstValueInt64(conn, qry)
-}
-
-func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageInfo shared.BucketStorageInfo, scheduleName, schedule string, runNow bool) (int64, error) {
-	conn, err := p.GetDbConnection(nil, nil)
+	qry, err := p.ConstructBackupJobStatement(bucketStorageInfo, dbName, "AS OF SYSTEM TIME '-10s' ", false)
 	if err != nil {
 		return 0, err
 	}
+	return query_utils.SelectFirstValueInt64(conn, qry)
+}
 
-	bucketString, err := getBucketString(bucketStorageInfo)
+func (*PostgresConnection) ConstructBackupJobStatement(bucketStorageInfo shared.BucketStorageInfo, dbName string, systemTimeOffsetStr string, redact bool) (string, error) {
+	bucketString, err := getBucketString(bucketStorageInfo, redact)
 	if err != nil {
-		return 0, err
+		return "", err
+	}
+
+	quotedDbName := pq.QuoteIdentifier(dbName)
+	qry := fmt.Sprintf(
+		"BACKUP DATABASE %s INTO '%s' %sWITH detached;",
+		quotedDbName,
+		bucketString,
+		systemTimeOffsetStr,
+	)
+	return qry, nil
+}
+
+func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageInfo shared.BucketStorageInfo, scheduleName, schedule string, runNow bool, ignoreExistingBackups bool) ([]map[string]interface{}, error) {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	bucketString, err := getBucketString(bucketStorageInfo, false)
+	if err != nil {
+		return nil, err
 	}
 	/*
 		CREATE SCHEDULE IF NOT EXISTS "scheduleName" FOR BACKUP DATABASE "database"
@@ -296,15 +359,31 @@ func (p *PostgresConnection) CreateBackupSchedule(dbName string, bucketStorageIn
 		escapedBucketString,
 		escapedSchedule,
 	)
-	if runNow {
-		qry += " WITH SCHEDULE OPTIONS first_run=now"
+	if runNow || ignoreExistingBackups {
+		qry += " WITH SCHEDULE OPTIONS"
+
+		if runNow {
+			qry += " first_run=now"
+		}
+		if ignoreExistingBackups {
+			qry += ",ignore_existing_backups"
+		}
 	}
 	qry += ";"
-
-	return query_utils.SelectFirstValueInt64(conn, qry)
+	return shared.SelectToArrayMap(conn, qry)
 }
 
-func getBucketString(bucketStorageInfo shared.BucketStorageInfo) (string, error) {
+func (p *PostgresConnection) DropBackupSchedule(scheduleId int64) error {
+	conn, err := p.GetDbConnection(nil, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(fmt.Sprintf("DROP SCHEDULE %d", scheduleId))
+	return err
+}
+
+func getBucketString(bucketStorageInfo shared.BucketStorageInfo, redact bool) (string, error) {
 	u := &url.URL{
 		Scheme: bucketStorageInfo.StorageTypeName,
 		Host:   bucketStorageInfo.BucketName,
@@ -322,6 +401,9 @@ func getBucketString(bucketStorageInfo shared.BucketStorageInfo) (string, error)
 			return "", err
 		}
 		query.Set("AWS_ACCESS_KEY_ID", bucketStorageInfo.KeyName)
+		if redact {
+			bucketSecret = "redacted"
+		}
 		query.Set("AWS_SECRET_ACCESS_KEY", bucketSecret)
 	} else {
 		query.Set("AUTH", "implicit")
@@ -334,13 +416,4 @@ func getBucketString(bucketStorageInfo shared.BucketStorageInfo) (string, error)
 	u.RawQuery = query.Encode()
 
 	return u.String(), nil
-}
-
-func (p *PostgresConnection) GetBackupSchedule(name string) ([]map[string]interface{}, error) {
-	conn, err := p.GetDbConnection(nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return shared.SelectToArrayMap(conn, "WITH x as (SHOW SCHEDULES) SELECT * FROM x where label = ? ORDER BY created DESC LIMIT 100;", name)
 }

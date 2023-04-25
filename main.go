@@ -217,6 +217,7 @@ func main() {
 	}
 	if err = (&controllers.CockroachDBBackupCronJobReconciler{
 		Client: mgr.GetClient(),
+		Log:    logger.With(zap.Namespace("CockroachDBBackupCronJobReconciler")),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CockroachDBBackupCronJob")

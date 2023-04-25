@@ -120,7 +120,11 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	if err != nil && !shared.IsHandledErr(err) {
 		rc.LogError(err, fmt.Sprintf("Unhandled error in %s", shared.GetTypeName(rcl)))
 		if cr != nil {
-			res = shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time)
+			if markedToBeDeleted {
+				res = shared.GradualBackoffRetry(cr.GetDeletionTimestamp().Time)
+			} else {
+				res = shared.GradualBackoffRetry(cr.GetCreationTimestamp().Time)
+			}
 		} else {
 			res = shared.RetryAfter(30)
 		}
@@ -372,30 +376,26 @@ func (r *Reco) GetCredentials(dbServer *dboperatorv1alpha1.DbServer) (shared.Cre
 		creds.Password = &password
 	}
 
-	if dbServer.Spec.CaCertKey != "" {
-		caCertBytes, found := secret.Data[dbServer.Spec.CaCertKey]
-		if !found {
-			return creds, fmt.Errorf("ca_cert_key '%s' not found in secret %s.%s", dbServer.Spec.CaCertKey, dbServer.Namespace, dbServer.Spec.SecretName)
-		}
-		caCert := string(caCertBytes)
-		creds.CaCert = &caCert
+	keys := []struct {
+		specKey  *string
+		credsKey **string
+	}{
+		{&dbServer.Spec.CaCertKey, &creds.CaCert},
+		{&dbServer.Spec.TlsKeyKey, &creds.TlsKey},
+		{&dbServer.Spec.TlsCrtKey, &creds.TlsCrt},
 	}
-	if dbServer.Spec.TlsKeyKey != "" {
-		tlsKeyBytes, found := secret.Data[dbServer.Spec.TlsKeyKey]
-		if !found {
-			return creds, fmt.Errorf("tls_key_key '%s' not found in secret %s.%s", dbServer.Spec.TlsKeyKey, dbServer.Namespace, dbServer.Spec.SecretName)
+
+	for _, key := range keys {
+		if *key.specKey != "" {
+			valueBytes, found := secret.Data[*key.specKey]
+			if !found {
+				return creds, fmt.Errorf("key '%s' not found in secret %s.%s", *key.specKey, dbServer.Namespace, dbServer.Spec.SecretName)
+			}
+			value := string(valueBytes)
+			*key.credsKey = &value
 		}
-		tlsKey := string(tlsKeyBytes)
-		creds.TlsKey = &tlsKey
 	}
-	if dbServer.Spec.TlsCrtKey != "" {
-		tlsCrtBytes, found := secret.Data[dbServer.Spec.TlsCrtKey]
-		if !found {
-			return creds, fmt.Errorf("tls_cert_key '%s' not found in secret %s.%s", dbServer.Spec.TlsCrtKey, dbServer.Namespace, dbServer.Spec.SecretName)
-		}
-		tlsCrt := string(tlsCrtBytes)
-		creds.TlsCrt = &tlsCrt
-	}
+
 	return creds, nil
 }
 

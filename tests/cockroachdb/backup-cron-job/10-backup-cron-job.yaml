@@ -1,0 +1,10 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: CockroachDBBackupCronJob
+metadata:
+  name: example-backup-cron-job
+spec:
+  backup_target: example-backup-target
+  interval: "0 0 * * *"
+  ignore_existing_backups: true
+  suspend: false
+  drop_on_deletion: true

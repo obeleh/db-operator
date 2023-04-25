@@ -151,3 +151,7 @@ func (p *MySqlConnection) UpdateUserPrivs(userName string, serverPrivs string, d
 
 	return UpdateUserPrivs(conn, userName, serverPrivs, dbPrivs)
 }
+
+func quoteMySQLIdentifier(identifier string) string {
+	return "`" + strings.ReplaceAll(identifier, "`", "``") + "`"
+}

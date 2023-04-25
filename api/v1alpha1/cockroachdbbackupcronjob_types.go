@@ -22,17 +22,21 @@ import (
 
 // CockroachDBBackupCronJobSpec defines the desired state of CockroachDBBackupCronJob
 type CockroachDBBackupCronJobSpec struct {
-	Interval     string `json:"interval"`
-	Suspend      bool   `json:"suspend"`
-	Creator      string `json:"creator"`
-	BackupTarget string `json:"backup_target"`
+	Interval string `json:"interval"`
+	Suspend  bool   `json:"suspend"`
+	// Creator      string `json:"creator"`
+	BackupTarget          string `json:"backup_target"`
+	IgnoreExistingBackups bool   `json:"ignore_existing_backups,omitempty"`
+	DropOnDeletion        bool   `json:"drop_on_deletion"`
 }
 
 // CockroachDBBackupCronJobStatus defines the observed state of CockroachDBBackupCronJob
 type CockroachDBBackupCronJobStatus struct {
-	ScheduleId     int64  `json:"schedule_id"`
-	ScheduleStatus string `json:"schedule_status"`
-	State          string `json:"state"`
+	ScheduleId     int64       `json:"schedule_id"`
+	ScheduleStatus string      `json:"schedule_status"`
+	State          *string     `json:"state,omitempty"`
+	Command        *string     `json:"command,omitempty"`
+	Created        metav1.Time `json:"created"`
 }
 
 //+kubebuilder:object:root=true
