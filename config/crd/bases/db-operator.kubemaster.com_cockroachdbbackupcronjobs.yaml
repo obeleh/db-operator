@@ -40,6 +40,8 @@ spec:
               backup_target:
                 description: Creator      string `json:"creator"`
                 type: string
+              drop_on_deletion:
+                type: boolean
               ignore_existing_backups:
                 type: boolean
               interval:
@@ -48,6 +50,7 @@ spec:
                 type: boolean
             required:
             - backup_target
+            - drop_on_deletion
             - interval
             - suspend
             type: object
