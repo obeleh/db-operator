@@ -54,7 +54,7 @@ Privileges are split into:
 | --------- | ------------------- |
 | Server | `SUPERUSER, CREATEROLE, CREATEDB, INHERIT, LOGIN, REPLICATION, BYPASSRLS` |
 | Database | `CREATE, CONNECT, TEMPORARY (pg only), TEMP (pg only), BACKUP (crdb only), RESTORE (crdb only), ALL` (temp not for cockroachdb) |
-| Table | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, ALL` |
+| Table | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, BACKUP (crdb only), ALL` |
 | Schema | `CREATE, USAGE` |
 
 DbPrivs Examples:

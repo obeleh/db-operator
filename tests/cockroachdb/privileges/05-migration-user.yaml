@@ -16,6 +16,7 @@ spec:
   user_name: migration-user
   secret_name: migration-user-secret
   server_privs: LOGIN
+  drop_on_deletion: true
   db_privs:
     - scope: example-db
       privs: ALL

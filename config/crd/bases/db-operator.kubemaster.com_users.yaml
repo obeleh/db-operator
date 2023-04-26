@@ -54,6 +54,8 @@ spec:
                 type: array
               db_server_name:
                 type: string
+              drop_on_deletion:
+                type: boolean
               generate_secret:
                 type: boolean
               password_key:

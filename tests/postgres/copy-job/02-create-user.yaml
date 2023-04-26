@@ -16,6 +16,7 @@ spec:
   user_name: sjuul
   secret_name: example-user-secret
   server_privs: LOGIN
+  drop_on_deletion: true
   db_privs:
     - scope: source-db
       privs: ALL

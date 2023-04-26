@@ -39,6 +39,7 @@ type UserSpec struct {
 	DbServerName   string   `json:"db_server_name"`
 	DbPrivs        []DbPriv `json:"db_privs"`
 	ServerPrivs    string   `json:"server_privs"`
+	DropOnDeletion bool     `json:"drop_on_deletion,omitempty"`
 }
 
 // UserStatus defines the observed state of User

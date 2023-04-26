@@ -16,4 +16,5 @@ spec:
   user_name: sjuul
   secret_name: example-user-secret
   server_privs: ""
+  drop_on_deletion: true
   db_privs: []

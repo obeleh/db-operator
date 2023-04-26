@@ -7,5 +7,6 @@ spec:
   user_name: userwithgeneratedsecret
   secret_name: generated-secret
   server_privs: LOGIN
+  drop_on_deletion: true
   db_privs: []
   generate_secret: true

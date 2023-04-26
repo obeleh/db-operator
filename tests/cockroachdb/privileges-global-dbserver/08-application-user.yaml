@@ -16,6 +16,7 @@ spec:
   user_name: application-user
   secret_name: application-user-secret
   server_privs: LOGIN
+  drop_on_deletion: true
   db_privs:
   - scope: example-db.TABLES
     default_privs: SELECT,INSERT,UPDATE,DELETE

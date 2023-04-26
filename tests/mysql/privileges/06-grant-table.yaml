@@ -7,6 +7,7 @@ spec:
   user_name: sjuul
   secret_name: example-user-secret
   server_privs: "SELECT"
+  drop_on_deletion: true
   db_privs:
   - scope: example-db.SomeTable
     privs: "SELECT"

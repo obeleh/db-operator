@@ -147,13 +147,15 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 }
 
 func (r *UserReco) RemoveObj() (ctrl.Result, error) {
-	r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
-	err := r.conn.DropUser(r.user.Spec.UserName)
-	if err != nil {
-		r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
-		return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), nil
+	if r.user.Spec.DropOnDeletion {
+		r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
+		err := r.conn.DropUser(r.user.Spec.UserName)
+		if err != nil {
+			r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
+			return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), nil
+		}
+		r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	}
-	r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	return ctrl.Result{}, nil
 }
 
