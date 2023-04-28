@@ -1,0 +1,13 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbServer
+metadata:
+  name: example-host-cockroachdb-priviliges-global
+  namespace: default # global
+status:
+  connection_available: true
+  databases:
+  - defaultdb
+  - postgres
+  - system
+  users: 
+  - root

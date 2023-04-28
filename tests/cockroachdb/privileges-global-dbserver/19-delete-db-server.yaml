@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: db-operator.kubemaster.com/v1alpha1
+  kind: DbServer
+  metadata:
+    name: example-host-cockroachdb-priviliges-global
+    namespace: default # global
