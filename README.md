@@ -26,7 +26,7 @@ The Kuttl tests are quite good examples of how to implement a feature. You'll ha
 | Postgres | CockroachDB | MySQL |
 | -------- | ----------- | ------|
 | [backup job](tests/postgres/backup-job/) | [backup job](tests/cockroachdb/backup-job/) | [backup job](tests/mysql/backup-job/) |
-| [backup cron job](tests/postgres/backup-cron-job/) |  | [backup cron job](tests/mysql/backup-cron-job/) |
+| [backup cron job](tests/postgres/backup-cron-job/) | [backup cron job](tests/cockroachdb/backup-cron-job/) | [backup cron job](tests/mysql/backup-cron-job/) |
 | [restore job](tests/postgres/restore-job/) |  | [restore job](tests/mysql/restore-job/) |
 | [restore cron job](tests/postgres/restore-cron-job/) |  | [restore cron job](tests/mysql/restore-cron-job/) |
 | [copy job](tests/postgres/copy-job/) |  | [copy job](tests/mysql/copy-job/) |
