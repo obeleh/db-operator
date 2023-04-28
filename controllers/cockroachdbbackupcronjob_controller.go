@@ -117,48 +117,46 @@ func (r *CockroachDBBackupCronJobReco) GetCR() client.Object {
 	return &r.backupCronJob
 }
 
-func (r *CockroachDBBackupCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
+func (r *CockroachDBBackupCronJobReco) EnsureCorrect() (ctrl.Result, error) {
 	r.lazyBackupTargetHelper = NewLazyBackupTargetHelper(&r.K8sClient, r.backupCronJob.Spec.BackupTarget)
 	pgConn, err := r.lazyBackupTargetHelper.GetPgConnection()
 	if err != nil {
-		return false, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 	storageInfo, err := r.lazyBackupTargetHelper.GetBucketStorageInfo()
 	if err != nil {
-		return false, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 	dbName, err := r.lazyBackupTargetHelper.GetDbName()
 	if err != nil {
-		return false, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// give redacted statment for comparison
 	statement, err := pgConn.ConstructBackupJobStatement(storageInfo, dbName, "", true)
 	if err != nil {
-		return false, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 
-	changes := false
 	if statement != (*r.backupCronJob.Status.Command + ";") {
 		err = pgConn.DropBackupSchedule(r.backupCronJob.Status.ScheduleId)
 		if err != nil {
-			return false, ctrl.Result{}, err
+			return ctrl.Result{}, err
 		}
 		r.backupCronJob.Status.ScheduleId = 0
 		_, err = r.CreateObj()
 		if err != nil {
-			return false, ctrl.Result{}, err
+			return ctrl.Result{}, err
 		}
-		changes = true
 	}
 
 	scheduleMap, err := pgConn.GetBackupScheduleById(r.backupCronJob.Status.ScheduleId)
 	if err != nil {
-		return changes, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 	scheduleStatus, err := scheduleMapToJobStatus(scheduleMap)
 	if err != nil {
-		return changes, ctrl.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	if r.backupCronJob.Spec.Suspend {
@@ -172,7 +170,7 @@ func (r *CockroachDBBackupCronJobReco) EnsureCorrect() (bool, ctrl.Result, error
 		}
 	}
 
-	return changes, ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *CockroachDBBackupCronJobReco) CleanupConn() {

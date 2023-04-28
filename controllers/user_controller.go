@@ -135,7 +135,8 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
 	}
-	_, res, err := r.EnsureCorrect()
+	r.NotifyChanges() // Would be nice if we could make sure the notify is only triggered once here
+	res, err := r.EnsureCorrect()
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
@@ -170,7 +171,7 @@ func (r *UserReco) GetCR() client.Object {
 	return &r.user
 }
 
-func (r *UserReco) EnsureCorrect() (bool, ctrl.Result, error) {
+func (r *UserReco) EnsureCorrect() (ctrl.Result, error) {
 	/*
 		// A BIT UNSURE IF WE SHOULD USE THE RESOLVED DB NAME OR DB NAME IN PG CLUSTER as parameter to UpdateUserPrivs, it should already be determined by where this user lives
 		errors := []error{}
@@ -208,7 +209,7 @@ func (r *UserReco) EnsureCorrect() (bool, ctrl.Result, error) {
 	if changes {
 		r.NotifyChanges()
 	}
-	return changes, ctrl.Result{}, err
+	return ctrl.Result{}, err
 }
 
 func (r *UserReco) CleanupConn() {

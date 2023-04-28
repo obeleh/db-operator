@@ -154,11 +154,11 @@ func Min(a, b int) int {
 	return b
 }
 
-func (r *CrdbBackubJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
+func (r *CrdbBackubJobReco) EnsureCorrect() (ctrl.Result, error) {
 	if !r.BackupEnded() {
-		return false, shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
+		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
-	return false, ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *CrdbBackubJobReco) CleanupConn() {
