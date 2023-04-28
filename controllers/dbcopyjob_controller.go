@@ -110,7 +110,10 @@ func (r *DbCopyJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.Client.Delete(r.Ctx, job)
-	return ctrl.Result{}, err
+	if err != nil {
+		return r.LogAndBackoffDeletion(err, r.GetCR())
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *DbCopyJobReco) LoadCR() (ctrl.Result, error) {
@@ -126,8 +129,8 @@ func (r *DbCopyJobReco) GetCR() client.Object {
 	return &r.copyJob
 }
 
-func (r *DbCopyJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *DbCopyJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *DbCopyJobReco) CleanupConn() {

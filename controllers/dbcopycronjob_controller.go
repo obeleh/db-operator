@@ -91,16 +91,16 @@ func (r *DbCopyCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	err := r.EnsureScripts()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	fromDbServerActions, err := r.GetServerActionsFromDbName(r.copyCronJob.Spec.FromDbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	toDbServerActions, err := r.GetServerActionsFromDbName(r.copyCronJob.Spec.ToDbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	backupContainer := fromDbServerActions.BuildBackupContainer()
@@ -131,15 +131,18 @@ func (r *DbCopyCronJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.Client.Delete(r.Ctx, job)
+	if err != nil {
+		return r.LogAndBackoffDeletion(err, r.GetCR())
+	}
 	r.UpdateStatus(false)
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 func (r *DbCopyCronJobReco) LoadCR() (ctrl.Result, error) {
 	err := r.Client.Get(r.Ctx, r.NsNm, &r.copyCronJob)
 	if err != nil {
 		r.Log.Info(fmt.Sprintf("%T: %s does not retrieved %s", r.copyCronJob, r.NsNm.Name, err))
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	return ctrl.Result{}, nil
 }
@@ -148,8 +151,8 @@ func (r *DbCopyCronJobReco) GetCR() client.Object {
 	return &r.copyCronJob
 }
 
-func (r *DbCopyCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *DbCopyCronJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *DbCopyCronJobReco) CleanupConn() {

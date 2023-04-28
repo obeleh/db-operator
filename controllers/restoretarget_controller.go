@@ -40,9 +40,6 @@ type RestoreTargetReconciler struct {
 
 func (r *RestoreTargetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
-
-	// your logic here
-
 	return ctrl.Result{}, nil
 }
 

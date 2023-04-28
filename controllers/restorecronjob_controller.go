@@ -75,20 +75,20 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	err := r.EnsureScripts()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	restoreTarget, err := r.GetRestoreTarget(r.restoreCronJob.Spec.RestoreTarget)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	actions, err := r.GetServerActionsFromDbName(restoreTarget.Spec.DbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	storageInfo, err := r.GetStorageActions(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	restoreContainer := actions.BuildRestoreContainer()
@@ -118,14 +118,17 @@ func (r *RestoreCronJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.Client.Delete(r.Ctx, cronJob)
-	return ctrl.Result{}, err
+	if err != nil {
+		return r.LogAndBackoffDeletion(err, r.GetCR())
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *RestoreCronJobReco) LoadCR() (ctrl.Result, error) {
 	err := r.Client.Get(r.Ctx, r.NsNm, &r.restoreCronJob)
 	if err != nil {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.restoreCronJob, r.NsNm.Name))
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	return ctrl.Result{}, nil
 }
@@ -134,8 +137,8 @@ func (r *RestoreCronJobReco) GetCR() client.Object {
 	return &r.restoreCronJob
 }
 
-func (r *RestoreCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *RestoreCronJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *RestoreCronJobReco) CleanupConn() {

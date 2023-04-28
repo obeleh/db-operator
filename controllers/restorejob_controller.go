@@ -113,7 +113,10 @@ func (r *RestoreJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.Client.Delete(r.Ctx, job)
-	return ctrl.Result{}, err
+	if err != nil {
+		return r.LogAndBackoffDeletion(err, r.GetCR())
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *RestoreJobReco) LoadCR() (ctrl.Result, error) {
@@ -129,8 +132,8 @@ func (r *RestoreJobReco) GetCR() client.Object {
 	return &r.restoreJob
 }
 
-func (r *RestoreJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *RestoreJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *RestoreJobReco) CleanupConn() {

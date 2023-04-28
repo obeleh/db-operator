@@ -132,7 +132,7 @@ func (r *CrdbBackubJobReco) LoadCR() (ctrl.Result, error) {
 	err := r.Client.Get(r.Ctx, r.NsNm, &r.backupJob)
 	if err != nil {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.NsNm.Name))
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	r.lazyBackupTargetHelper = NewLazyBackupTargetHelper(&r.K8sClient, r.backupJob.Spec.BackupTarget)
@@ -175,17 +175,17 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 
 	pgConn, err := r.lazyBackupTargetHelper.GetPgConnection()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	dbName, err := r.lazyBackupTargetHelper.GetDbName()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	bucketStorageInfo, err := r.lazyBackupTargetHelper.GetBucketStorageInfo()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	//dbName string, bucketSecret string, bucketStorageInfo shared.BucketStorageInfo) (int64, error) {

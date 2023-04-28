@@ -126,20 +126,17 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 
 	creds, err := GetUserCredentials(&r.user, r.Client, r.Ctx)
 	if err != nil {
-		r.LogError(err, fmt.Sprint(err))
-		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	r.Log.Info(fmt.Sprintf("Creating user %s", r.user.Spec.UserName))
 	err = r.conn.CreateUser(r.user.Spec.UserName, *creds.Password)
 	if err != nil {
-		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
-		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	r.NotifyChanges() // Would be nice if we could make sure the notify is only triggered once here
 	res, err := r.EnsureCorrect()
 	if err != nil {
-		r.LogError(err, fmt.Sprint(err))
-		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), nil
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	return res, nil
 }
@@ -149,8 +146,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
 		err := r.conn.DropUser(r.user.Spec.UserName)
 		if err != nil {
-			r.LogError(err, fmt.Sprintf("Failed to drop user %s", r.user.Spec.UserName))
-			return shared.GradualBackoffRetry(r.user.GetDeletionTimestamp().Time), nil
+			return r.LogAndBackoffDeletion(err, r.GetCR())
 		}
 		r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	}
@@ -204,12 +200,12 @@ func (r *UserReco) EnsureCorrect() (ctrl.Result, error) {
 	*/
 	changes, err := r.conn.UpdateUserPrivs(r.user.Spec.UserName, r.user.Spec.ServerPrivs, r.user.Spec.DbPrivs)
 	if err != nil {
-		r.LogError(err, "Failed updating user privs")
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	if changes {
 		r.NotifyChanges()
 	}
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 func (r *UserReco) CleanupConn() {
@@ -226,27 +222,6 @@ func (r *UserReco) NotifyChanges() {
 		r.LogError(err, "failed notifying DBServer")
 	}
 	TriggerDbServerReconcile(dbServer)
-	// reconcileRequest := reconcile.Request{
-	// 	NamespacedName: types.NamespacedName{
-	// 		Name:      r.user.Spec.DbServerName,
-	// 		Namespace: dbServer.Namespace,
-	// 	},
-	// }
-
-	// reco := DbServerReconciler{
-	// 	r.Client,
-	// 	r.Log,
-	// 	r.Client.Scheme(),
-	// }
-
-	// res, err := reco.Reconcile(context.TODO(), reconcileRequest)
-	// if err != nil {
-	// 	r.LogError(err, "failed notifying DBServer")
-	// }
-	// if res.Requeue {
-	// 	time.Sleep(res.RequeueAfter)
-	// 	reco.Reconcile(context.TODO(), reconcileRequest)
-	// }
 }
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

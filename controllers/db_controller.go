@@ -55,7 +55,7 @@ func (r *DbReco) LoadCR() (ctrl.Result, error) {
 	err := r.Client.Get(r.Ctx, r.NsNm, &r.db)
 	if err != nil {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", r.db, r.NsNm.Name, err))
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	return ctrl.Result{}, nil
 }
@@ -95,7 +95,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 		message := "no database connection possible"
 		err = fmt.Errorf(message)
 		r.LogError(err, message)
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	err = r.conn.CreateDb(r.db.Spec.DbName)
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 		err := r.conn.DropDb(r.db.Spec.DbName, r.db.Spec.CascadeOnDrop)
 		if err != nil {
 			r.LogError(err, fmt.Sprintf("failed to drop db %s\n%s", r.db.Spec.DbName, err))
-			return shared.GradualBackoffRetry(r.db.GetCreationTimestamp().Time), err
+			return r.LogAndBackoffDeletion(err, r.GetCR())
 		}
 		r.Log.Info(fmt.Sprintf("finalized db %s", r.db.Spec.DbName))
 	} else {
@@ -149,8 +149,8 @@ func (r *DbReco) NotifyChanges() {
 	TriggerDbServerReconcile(dbServer)
 }
 
-func (r *DbReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *DbReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *DbReco) CleanupConn() {

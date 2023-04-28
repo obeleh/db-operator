@@ -78,6 +78,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 		}
 		return res, nil
 	}
+	if res.Requeue {
+		return res, nil
+	}
 	defer rcl.CleanupConn()
 	rc.Log.Info(fmt.Sprintf("Reconciling %s.%s ", rc.NsNm.Namespace, rc.NsNm.Name))
 	res = ctrl.Result{}

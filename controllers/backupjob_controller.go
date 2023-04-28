@@ -74,20 +74,20 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 
 	err := r.EnsureScripts()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	actions, err := r.GetServerActionsFromDbName(backupTarget.Spec.DbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	storageInfo, err := r.GetStorageActions(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	backupContainer := actions.BuildBackupContainer()
@@ -110,7 +110,10 @@ func (r *BackupJobReco) RemoveObj() (ctrl.Result, error) {
 		},
 	}
 	err := r.Client.Delete(r.Ctx, job)
-	return ctrl.Result{}, err
+	if err != nil {
+		return r.LogAndBackoffDeletion(err, r.GetCR())
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *BackupJobReco) LoadCR() (ctrl.Result, error) {
@@ -126,8 +129,8 @@ func (r *BackupJobReco) GetCR() client.Object {
 	return &r.backupJob
 }
 
-func (r *BackupJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *BackupJobReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (r *BackupJobReco) CleanupConn() {

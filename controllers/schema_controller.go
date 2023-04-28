@@ -129,8 +129,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 	}
 	err = s.conn.CreateSchema(s.schema.Spec.Name, s.schema.Spec.Creator)
 	if err != nil {
-		s.LogError(err, fmt.Sprintf("failed to Create Schema: %s", s.schema.Spec.Name))
-		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
+		return s.LogAndBackoffCreation(err, s.GetCR())
 	}
 	if s.schema.Status.Created == false {
 		s.SetStatus(&s.schema, true)
@@ -157,8 +156,7 @@ func (s *SchemaReco) RemoveObj() (ctrl.Result, error) {
 		s.Log.Info(fmt.Sprintf("dropping schema %s.%s", s.schema.Spec.DbName, s.schema.Name))
 		err := s.conn.DropSchema(s.schema.Name, s.schema.Spec.Creator, s.schema.Spec.CascadeOnDrop)
 		if err != nil {
-			s.LogError(err, fmt.Sprintf("failed to drop schema %s.%s\n%s", s.schema.Spec.DbName, s.schema.Name, err))
-			return shared.GradualBackoffRetry(s.schema.GetDeletionTimestamp().Time), nil
+			return s.LogAndBackoffCreation(err, s.GetCR())
 		}
 		s.Log.Info(fmt.Sprintf("finalized schema %s.%s", s.schema.Spec.DbName, s.schema.Spec.Name))
 	} else {
@@ -171,8 +169,8 @@ func (s *SchemaReco) GetCR() client.Object {
 	return &s.schema
 }
 
-func (r *SchemaReco) EnsureCorrect() (bool, ctrl.Result, error) {
-	return false, ctrl.Result{}, nil
+func (r *SchemaReco) EnsureCorrect() (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }
 
 func (s *SchemaReco) CleanupConn() {
