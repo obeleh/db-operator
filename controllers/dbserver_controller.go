@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"reflect"
 	"sort"
-	"time"
 
 	_ "github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
@@ -70,8 +69,7 @@ func (r *DbServerReconciler) LogError(err error, message string) {
 }
 
 func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Log = r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
-
+	r.Log.Info("Reconcile", zap.String("Namespace", req.Namespace), zap.String("Name", req.Name))
 	dbServer := &dboperatorv1alpha1.DbServer{}
 	err := r.Get(ctx, req.NamespacedName, dbServer)
 	if err != nil {
@@ -86,11 +84,6 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	deletionTimestamp := dbServer.GetDeletionTimestamp()
 	markedToBeDeleted := deletionTimestamp != nil
 	if markedToBeDeleted {
-		destructionAgeInSecs := time.Since(deletionTimestamp.Time).Seconds()
-		// for the first X secs, do nothing. Give other resources time to clean up
-		if destructionAgeInSecs < 9 {
-			return shared.GradualBackoffRetry(deletionTimestamp.Time), nil
-		}
 		err = reco.RemoveFinalizer(dbServer)
 		if err != nil {
 			r.LogError(err, "failed removing finalizer")
@@ -144,7 +137,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return shared.RetryAfter(3), nil
 	}
-	r.Log.Info("Done")
+	r.Log.Info("Reconcile Done", zap.String("Namespace", req.Namespace), zap.String("Name", req.Name))
 	return ctrl.Result{}, nil
 }
 
