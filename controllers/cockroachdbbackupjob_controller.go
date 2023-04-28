@@ -167,9 +167,6 @@ func (r *CrdbBackubJobReco) CleanupConn() {
 	}
 }
 
-func (r *CrdbBackubJobReco) NotifyChanges() {
-}
-
 func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 	if r.backupJob.Status.JobId != 0 {
 		// Skip, job already exists. We we're only reloading the status

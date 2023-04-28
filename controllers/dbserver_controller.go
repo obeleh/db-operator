@@ -34,7 +34,21 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+// https://yash-kukreja-98.medium.com/develop-on-kubernetes-series-demystifying-the-for-vs-owns-vs-watches-controller-builders-in-c11ab32a046e
+var reconcileDbServerChannel chan event.GenericEvent
+
+func InitializeDbServerChannel() {
+	reconcileDbServerChannel = make(chan event.GenericEvent)
+}
+
+func TriggerDbServerReconcile(dbServer *dboperatorv1alpha1.DbServer) {
+	reconcileDbServerChannel <- event.GenericEvent{Object: dbServer}
+}
 
 // DbServerReconciler reconciles a DbServer object
 type DbServerReconciler struct {
@@ -64,7 +78,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if !shared.CannotFindError(err, r.Log, "DbServer", req.Namespace, req.Name) {
 			r.LogError(err, fmt.Sprintf("Failed to get dbServer: %s", req.Name))
 		}
-		return shared.GradualBackoffRetry(dbServer.GetCreationTimestamp().Time), nil
+		return ctrl.Result{}, nil
 	}
 
 	reco := Reco{shared.K8sClient{Client: r.Client, Ctx: ctx, NsNm: req.NamespacedName, Log: r.Log}}
@@ -161,6 +175,7 @@ func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ct
 func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
+		Watches(&source.Channel{Source: reconcileDbServerChannel}, &handler.EnqueueRequestForObject{}). // trigger r.Reconcile when a value is received at the reconcileDbServerChannel
 		Complete(r)
 }
 

@@ -27,7 +27,6 @@ type Reconcilable interface {
 	EnsureCorrect() (bool, ctrl.Result, error)
 	GetCR() client.Object
 	CleanupConn()
-	NotifyChanges()
 	MarkedToBeDeleted() bool
 }
 
@@ -59,6 +58,16 @@ func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
 func (rc *Reco) RemoveFinalizer(cr client.Object) error {
 	controllerutil.RemoveFinalizer(cr, DB_OPERATOR_FINALIZER)
 	return rc.Client.Update(rc.Ctx, cr)
+}
+
+func (r *Reco) LogAndBackoffCreation(err error, obj client.Object) (ctrl.Result, error) {
+	r.LogError(err, fmt.Sprint(err))
+	return shared.GradualBackoffRetry(obj.GetCreationTimestamp().Time), nil
+}
+
+func (r *Reco) LogAndBackoffDeletion(err error, obj client.Object) (ctrl.Result, error) {
+	r.LogError(err, fmt.Sprint(err))
+	return shared.GradualBackoffRetry(obj.GetDeletionTimestamp().Time), nil
 }
 
 func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
@@ -97,11 +106,9 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 				if err == nil && !res.Requeue {
 					err = rc.RemoveFinalizer(cr)
 				}
-				rcl.NotifyChanges()
 			}
 		} else {
-			var changes bool
-			changes, res, err = rcl.EnsureCorrect()
+			_, res, err = rcl.EnsureCorrect()
 			if err == nil && !res.Requeue {
 				res, err = rc.EnsureFinalizer(cr)
 				if err != nil {
@@ -109,9 +116,6 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 					res = shared.RetryAfter(3)
 					err = nil
 				}
-			}
-			if changes {
-				rcl.NotifyChanges()
 			}
 		}
 	} else {
@@ -121,7 +125,6 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			res, err = rcl.CreateObj()
 			if err == nil && !res.Requeue {
 				res, err = rc.EnsureFinalizer(cr)
-				rcl.NotifyChanges()
 			}
 		}
 	}

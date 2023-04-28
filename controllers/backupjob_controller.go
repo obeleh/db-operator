@@ -133,9 +133,6 @@ func (r *BackupJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
 func (r *BackupJobReco) CleanupConn() {
 }
 
-func (r *BackupJobReco) NotifyChanges() {
-}
-
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 

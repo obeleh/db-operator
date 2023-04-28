@@ -19,14 +19,11 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 	"github.com/obeleh/db-operator/shared"
@@ -105,6 +102,7 @@ func (r *DbReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprintf("failed to Create DB: %s", r.db.Spec.DbName))
 		return shared.GradualBackoffRetry(r.db.GetCreationTimestamp().Time), nil
 	}
+	r.NotifyChanges()
 	if r.db.Spec.AfterCreateSQL != "" {
 		err = r.conn.Execute(r.db.Spec.AfterCreateSQL, nil)
 		if err != nil {
@@ -132,6 +130,7 @@ func (r *DbReco) RemoveObj() (ctrl.Result, error) {
 	} else {
 		r.Log.Info(fmt.Sprintf("did not drop db %s as per spec", r.db.Spec.DbName))
 	}
+	r.NotifyChanges()
 	return ctrl.Result{}, nil
 }
 
@@ -147,28 +146,7 @@ func (r *DbReco) NotifyChanges() {
 		r.LogError(err, "failed notifying DBServer")
 		return
 	}
-
-	reconcileRequest := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      r.db.Spec.Server,
-			Namespace: dbServer.Namespace,
-		},
-	}
-
-	reco := DbServerReconciler{
-		r.Client,
-		r.Log,
-		r.Client.Scheme(),
-	}
-
-	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
-	if err != nil {
-		r.LogError(err, "failed notifying DBServer")
-	}
-	if res.Requeue {
-		time.Sleep(res.RequeueAfter)
-		reco.Reconcile(context.TODO(), reconcileRequest)
-	}
+	TriggerDbServerReconcile(dbServer)
 }
 
 func (r *DbReco) EnsureCorrect() (bool, ctrl.Result, error) {

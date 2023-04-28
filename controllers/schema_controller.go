@@ -171,9 +171,6 @@ func (s *SchemaReco) GetCR() client.Object {
 	return &s.schema
 }
 
-func (s *SchemaReco) NotifyChanges() {
-}
-
 func (r *SchemaReco) EnsureCorrect() (bool, ctrl.Result, error) {
 	return false, ctrl.Result{}, nil
 }

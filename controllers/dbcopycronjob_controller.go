@@ -155,9 +155,6 @@ func (r *DbCopyCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
 func (r *DbCopyCronJobReco) CleanupConn() {
 }
 
-func (r *DbCopyCronJobReco) NotifyChanges() {
-}
-
 func (r *DbCopyCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With(zap.String("Namespace", req.Namespace)).With(zap.String("Name", req.Name))
 

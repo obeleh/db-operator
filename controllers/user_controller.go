@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/obeleh/db-operator/shared"
 	"github.com/sethvargo/go-password/password"
@@ -31,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
@@ -137,7 +135,6 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 		r.LogError(err, fmt.Sprintf("Failed to create user %s", r.user.Spec.UserName))
 		return shared.GradualBackoffRetry(r.user.GetCreationTimestamp().Time), err
 	}
-
 	_, res, err := r.EnsureCorrect()
 	if err != nil {
 		r.LogError(err, fmt.Sprint(err))
@@ -156,6 +153,7 @@ func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 		}
 		r.Log.Info(fmt.Sprintf("finalized user %s", r.user.Spec.UserName))
 	}
+	r.NotifyChanges()
 	return ctrl.Result{}, nil
 }
 
@@ -207,6 +205,9 @@ func (r *UserReco) EnsureCorrect() (bool, ctrl.Result, error) {
 	if err != nil {
 		r.LogError(err, "Failed updating user privs")
 	}
+	if changes {
+		r.NotifyChanges()
+	}
 	return changes, ctrl.Result{}, err
 }
 
@@ -223,28 +224,28 @@ func (r *UserReco) NotifyChanges() {
 	if err != nil {
 		r.LogError(err, "failed notifying DBServer")
 	}
+	TriggerDbServerReconcile(dbServer)
+	// reconcileRequest := reconcile.Request{
+	// 	NamespacedName: types.NamespacedName{
+	// 		Name:      r.user.Spec.DbServerName,
+	// 		Namespace: dbServer.Namespace,
+	// 	},
+	// }
 
-	reconcileRequest := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      r.user.Spec.DbServerName,
-			Namespace: dbServer.Namespace,
-		},
-	}
+	// reco := DbServerReconciler{
+	// 	r.Client,
+	// 	r.Log,
+	// 	r.Client.Scheme(),
+	// }
 
-	reco := DbServerReconciler{
-		r.Client,
-		r.Log,
-		r.Client.Scheme(),
-	}
-
-	res, err := reco.Reconcile(context.TODO(), reconcileRequest)
-	if err != nil {
-		r.LogError(err, "failed notifying DBServer")
-	}
-	if res.Requeue {
-		time.Sleep(res.RequeueAfter)
-		reco.Reconcile(context.TODO(), reconcileRequest)
-	}
+	// res, err := reco.Reconcile(context.TODO(), reconcileRequest)
+	// if err != nil {
+	// 	r.LogError(err, "failed notifying DBServer")
+	// }
+	// if res.Requeue {
+	// 	time.Sleep(res.RequeueAfter)
+	// 	reco.Reconcile(context.TODO(), reconcileRequest)
+	// }
 }
 
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

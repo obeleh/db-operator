@@ -181,9 +181,6 @@ func (r *CockroachDBBackupCronJobReco) CleanupConn() {
 	}
 }
 
-func (r *CockroachDBBackupCronJobReco) NotifyChanges() {
-}
-
 func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	if r.backupCronJob.Status.ScheduleId != 0 {
 		// Skip, job already exists. We we're only reloading the status
@@ -192,22 +189,22 @@ func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	if r.backupCronJob.Spec.Suspend {
 		err := fmt.Errorf("Unablable to create suspended backups, please enable suspended after first creation")
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	pgConn, err := r.lazyBackupTargetHelper.GetPgConnection()
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	dbName, err := r.lazyBackupTargetHelper.GetDbName()
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	bucketStorageInfo, err := r.lazyBackupTargetHelper.GetBucketStorageInfo()
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	runBackup := true
@@ -220,21 +217,21 @@ func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 		r.backupCronJob.Spec.IgnoreExistingBackups,
 	)
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	var scheduleMap map[string]interface{}
 	if len(arrayMap) == 0 { // schedule existed
 		scheduleMap, err = pgConn.GetBackupScheduleByLabel(r.backupCronJob.Name)
 		if err != nil {
-			return r.LogAndBackoffCreation(err)
+			return r.LogAndBackoffCreation(err, r.GetCR())
 		}
 	} else {
 		scheduleMap = arrayMap[0]
 	}
 	scheduleStatus, err := scheduleMapToJobStatus(scheduleMap)
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	// Sleep a bit so that we increase the chance of getting the latest result.
@@ -242,14 +239,9 @@ func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	err = r.UpdateStatus(pgConn, scheduleStatus.ScheduleId)
 	if err != nil {
-		return r.LogAndBackoffCreation(err)
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	return ctrl.Result{}, nil
-}
-
-func (r *CockroachDBBackupCronJobReco) LogAndBackoffCreation(err error) (ctrl.Result, error) {
-	r.LogError(err, fmt.Sprint(err))
-	return shared.GradualBackoffRetry(r.backupCronJob.GetCreationTimestamp().Time), nil
 }
 
 func (r *CockroachDBBackupCronJobReco) RemoveObj() (ctrl.Result, error) {

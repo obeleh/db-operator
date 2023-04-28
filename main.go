@@ -103,6 +103,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	controllers.InitializeDbServerChannel()
+
 	if err = (&controllers.DbCopyJobReconciler{
 		Client: mgr.GetClient(),
 		Log:    logger.With(zap.Namespace("DbCopyJobReconciler")),
