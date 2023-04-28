@@ -126,8 +126,8 @@ func (r *DbCopyJobReco) GetCR() client.Object {
 	return &r.copyJob
 }
 
-func (r *DbCopyJobReco) EnsureCorrect() (bool, error) {
-	return false, nil
+func (r *DbCopyJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
+	return false, ctrl.Result{}, nil
 }
 
 func (r *DbCopyJobReco) CleanupConn() {

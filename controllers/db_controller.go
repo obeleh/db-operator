@@ -171,8 +171,8 @@ func (r *DbReco) NotifyChanges() {
 	}
 }
 
-func (r *DbReco) EnsureCorrect() (bool, error) {
-	return false, nil
+func (r *DbReco) EnsureCorrect() (bool, ctrl.Result, error) {
+	return false, ctrl.Result{}, nil
 }
 
 func (r *DbReco) CleanupConn() {

@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // DbServerReconciler reconciles a DbServer object
@@ -89,7 +90,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var message string
 	conn, err := reco.GetDbConnection(dbServer, nil, nil)
 	if err != nil {
-		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message, reco)
 		if !shared.IsHandledErr(err) {
 			message = fmt.Sprintf("failed building dbConnection %s", err)
 			r.LogError(err, message)
@@ -102,7 +103,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		message = fmt.Sprintf("Failed reading databases: %s", err)
 		r.LogError(err, message)
-		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message, reco)
 		return shared.RetryAfter(3), nil
 	}
 	for name := range databases {
@@ -114,7 +115,7 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		message = fmt.Sprintf("Failed reading users: %s", err)
 		r.LogError(err, message)
-		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message)
+		err = r.SetStatus(dbServer, ctx, databaseNames, userNames, false, message, reco)
 		if err != nil {
 			return shared.RetryAfter(3), nil
 		}
@@ -125,24 +126,26 @@ func (r *DbServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		//r.Log.Info(fmt.Sprintf("Found user %s", name))
 	}
 
-	err = r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases")
+	err = r.SetStatus(dbServer, ctx, databaseNames, userNames, true, "successfully connected to database and retrieved users and databases", reco)
 	if err != nil {
 		return shared.RetryAfter(3), nil
 	}
 	r.Log.Info("Done")
-	_, err = reco.EnsureFinalizer(dbServer)
-	if err != nil {
-		return shared.RetryAfter(3), nil
-	}
 	return ctrl.Result{}, nil
 }
 
-func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string) error {
+func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ctx context.Context, databaseNames []string, userNames []string, connectionAvailable bool, statusMessage string, reco Reco) error {
 	sort.Strings(databaseNames)
 	sort.Strings(userNames)
-
+	changed := reco.AddFinalizerToCr(dbServer)
 	newStatus := dboperatorv1alpha1.DbServerStatus{Databases: databaseNames, Users: userNames, ConnectionAvailable: connectionAvailable, Message: statusMessage}
-	if !reflect.DeepEqual(dbServer.Status, newStatus) {
+	if changed {
+		dbServer.Status = newStatus
+		err := reco.Client.Update(reco.Ctx, dbServer)
+		if err != nil {
+			return err
+		}
+	} else if !reflect.DeepEqual(dbServer.Status, newStatus) {
 		dbServer.Status = newStatus
 		err := r.Status().Update(ctx, dbServer)
 		if err != nil {
@@ -159,6 +162,14 @@ func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
 		Complete(r)
+}
+
+func (rc *DbServerReconciler) AddFinalizerToCr(cr client.Object) bool {
+	if !controllerutil.ContainsFinalizer(cr, DB_OPERATOR_FINALIZER) {
+		controllerutil.AddFinalizer(cr, DB_OPERATOR_FINALIZER)
+		return true
+	}
+	return false
 }
 
 // Gets DB server, it will prefer the local namespace but can go through Global namespaces as well

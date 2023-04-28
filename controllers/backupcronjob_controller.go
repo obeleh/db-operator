@@ -149,8 +149,8 @@ func (r *BackupCronJobReco) GetCR() client.Object {
 	return &r.backupCronJob
 }
 
-func (r *BackupCronJobReco) EnsureCorrect() (bool, error) {
-	return false, nil
+func (r *BackupCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
+	return false, ctrl.Result{}, nil
 }
 
 func (r *BackupCronJobReco) CleanupConn() {

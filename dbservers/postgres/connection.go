@@ -307,6 +307,8 @@ func (p *PostgresConnection) CreateBackupJob(dbName string, bucketStorageInfo sh
 		INTO '{bucketstring}' \
 		AS OF SYSTEM TIME '-10s';
 	*/
+
+	// BACKUP DATABASE "example-db" INTO 's3://testbucket?AWS_ACCESS_KEY_ID=MYKEY&AWS_ENDPOINT=http%3A%2F%2Fminio.default.svc.cluster.local%3A9000&AWS_SECRET_ACCESS_KEY=MYSECRET' AS OF SYSTEM TIME '-10s' WITH detached;
 	qry, err := p.ConstructBackupJobStatement(bucketStorageInfo, dbName, "AS OF SYSTEM TIME '-10s' ", false)
 	if err != nil {
 		return 0, err

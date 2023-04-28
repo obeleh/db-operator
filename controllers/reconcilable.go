@@ -24,7 +24,7 @@ type Reconcilable interface {
 	RemoveObj() (ctrl.Result, error)
 	LoadCR() (ctrl.Result, error)
 	LoadObj() (bool, error)
-	EnsureCorrect() (bool, error)
+	EnsureCorrect() (bool, ctrl.Result, error)
 	GetCR() client.Object
 	CleanupConn()
 	NotifyChanges()
@@ -37,9 +37,17 @@ type Reco struct {
 
 const DB_OPERATOR_FINALIZER = "db-operator.kubemaster.com/finalizer"
 
-func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
+func (rc *Reco) AddFinalizerToCr(cr client.Object) bool {
 	if !controllerutil.ContainsFinalizer(cr, DB_OPERATOR_FINALIZER) {
 		controllerutil.AddFinalizer(cr, DB_OPERATOR_FINALIZER)
+		return true
+	}
+	return false
+}
+
+func (rc *Reco) EnsureFinalizer(cr client.Object) (ctrl.Result, error) {
+	changed := rc.AddFinalizerToCr(cr)
+	if changed {
 		err := rc.Client.Update(rc.Ctx, cr)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -93,7 +101,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 			}
 		} else {
 			var changes bool
-			changes, err = rcl.EnsureCorrect()
+			changes, res, err = rcl.EnsureCorrect()
 			if err == nil && !res.Requeue {
 				res, err = rc.EnsureFinalizer(cr)
 				if err != nil {

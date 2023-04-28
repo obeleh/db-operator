@@ -117,9 +117,12 @@ func (r *CrdbBackubJobReco) SetStatus(newStatus dboperatorv1alpha1.CockroachDBBa
 		r.backupJob.Status = newStatus
 		err := r.StatusClient.Status().Update(r.Ctx, &r.backupJob)
 		if err != nil {
-			message := fmt.Sprintf("failed patching status %s", err)
-			r.Log.Info(message)
-			return fmt.Errorf(message)
+			return err
+		}
+		// Add finalizer here because reco doesn't add finalizer to requeues
+		_, err = r.EnsureFinalizer(&r.backupJob)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -151,20 +154,11 @@ func Min(a, b int) int {
 	return b
 }
 
-func (r *CrdbBackubJobReco) EnsureCorrect() (bool, error) {
+func (r *CrdbBackubJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
 	if !r.BackupEnded() {
-		// keep polling
-		go func() {
-			for i := 2; i < 100; i++ {
-				if r.BackupEnded() {
-					break
-				}
-				time.Sleep(time.Duration(Min(i, 30)) * time.Second)
-				r.LoadObj()
-			}
-		}()
+		return false, shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
-	return false, nil
+	return false, ctrl.Result{}, nil
 }
 
 func (r *CrdbBackubJobReco) CleanupConn() {
@@ -207,6 +201,7 @@ func (r *CrdbBackubJobReco) CreateObj() (ctrl.Result, error) {
 		return shared.GradualBackoffRetry(r.backupJob.GetCreationTimestamp().Time), nil
 	}
 
+	println("Jobid", job_id)
 	r.SetStatus(dboperatorv1alpha1.CockroachDBBackupJobStatus{
 		JobId:    job_id,
 		Created:  metav1.Now(),
@@ -248,7 +243,7 @@ func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.Cockro
 	if found && createdT != nil {
 		created = metav1.NewTime(createdT.(time.Time))
 	} else {
-		created = metav1.Time{}
+		created = metav1.Unix(0, 0)
 	}
 
 	startedT, found := jobMap["started"]
@@ -256,7 +251,7 @@ func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.Cockro
 	if found && startedT != nil {
 		started = metav1.NewTime(startedT.(time.Time))
 	} else {
-		started = metav1.Time{}
+		started = metav1.Unix(0, 0)
 	}
 
 	finishedT, found := jobMap["finished"]
@@ -264,7 +259,7 @@ func jobMapToJobStatus(jobMap map[string]interface{}) (dboperatorv1alpha1.Cockro
 	if found && finishedT != nil {
 		finished = metav1.NewTime(finishedT.(time.Time))
 	} else {
-		finished = metav1.Time{}
+		finished = metav1.Unix(0, 0)
 	}
 
 	return dboperatorv1alpha1.CockroachDBBackupJobStatus{

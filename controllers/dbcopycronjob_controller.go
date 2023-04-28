@@ -148,8 +148,8 @@ func (r *DbCopyCronJobReco) GetCR() client.Object {
 	return &r.copyCronJob
 }
 
-func (r *DbCopyCronJobReco) EnsureCorrect() (bool, error) {
-	return true, nil
+func (r *DbCopyCronJobReco) EnsureCorrect() (bool, ctrl.Result, error) {
+	return false, ctrl.Result{}, nil
 }
 
 func (r *DbCopyCronJobReco) CleanupConn() {

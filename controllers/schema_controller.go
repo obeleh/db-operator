@@ -174,8 +174,8 @@ func (s *SchemaReco) GetCR() client.Object {
 func (s *SchemaReco) NotifyChanges() {
 }
 
-func (s *SchemaReco) EnsureCorrect() (bool, error) {
-	return false, nil
+func (r *SchemaReco) EnsureCorrect() (bool, ctrl.Result, error) {
+	return false, ctrl.Result{}, nil
 }
 
 func (s *SchemaReco) CleanupConn() {
