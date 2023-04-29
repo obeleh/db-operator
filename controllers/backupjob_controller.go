@@ -50,10 +50,6 @@ type BackupJobReco struct {
 	lazyBackupTargetHelper *LazyBackupTargetHelper
 }
 
-func (r *BackupJobReco) MarkedToBeDeleted() bool {
-	return r.backupJob.GetDeletionTimestamp() != nil
-}
-
 func (r *BackupJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("Loading backupJob %s", r.backupJob.Name))
 	var err error

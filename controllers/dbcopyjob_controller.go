@@ -50,10 +50,6 @@ type DbCopyJobReco struct {
 	copyJobs map[string]batchv1.Job
 }
 
-func (r *DbCopyJobReco) MarkedToBeDeleted() bool {
-	return r.copyJob.GetDeletionTimestamp() != nil
-}
-
 func (r *DbCopyJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading copyJob %s", r.copyJob.Name))
 

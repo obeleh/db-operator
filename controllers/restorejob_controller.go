@@ -49,10 +49,6 @@ type RestoreJobReco struct {
 	restoreJobs map[string]batchv1.Job
 }
 
-func (r *RestoreJobReco) MarkedToBeDeleted() bool {
-	return r.restoreJob.GetDeletionTimestamp() != nil
-}
-
 func (r *RestoreJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading restoreJob %s", r.restoreJob.Name))
 

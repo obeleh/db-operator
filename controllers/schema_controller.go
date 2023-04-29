@@ -51,10 +51,6 @@ type SchemaReco struct {
 	conn    shared.DbServerConnectionInterface
 }
 
-func (s *SchemaReco) MarkedToBeDeleted() bool {
-	return s.schema.GetDeletionTimestamp() != nil
-}
-
 func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 	err := s.Client.Get(s.Ctx, s.NsNm, &s.schema)
 	if err != nil {
@@ -68,7 +64,8 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 	}
 	err = s.Client.Get(s.Ctx, dbNsm, &s.db)
 	if err != nil {
-		if s.MarkedToBeDeleted() {
+		markedToBeDeleted := s.schema.GetDeletionTimestamp() != nil
+		if markedToBeDeleted {
 			// DB got deleted before schema did
 			err = s.RemoveFinalizer(&s.schema)
 		} else {

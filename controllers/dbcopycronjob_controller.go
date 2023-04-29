@@ -52,10 +52,6 @@ type DbCopyCronJobReco struct {
 	StatusWriter client.StatusWriter
 }
 
-func (r *DbCopyCronJobReco) MarkedToBeDeleted() bool {
-	return r.copyCronJob.GetDeletionTimestamp() != nil
-}
-
 func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading copyCronJob %s", r.copyCronJob.Name))
 

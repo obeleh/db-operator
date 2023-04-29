@@ -52,10 +52,6 @@ type CockroachDBBackupCronJobReco struct {
 	lazyBackupTargetHelper *LazyBackupTargetHelper
 }
 
-func (r *CockroachDBBackupCronJobReco) MarkedToBeDeleted() bool {
-	return r.backupCronJob.GetDeletionTimestamp() != nil
-}
-
 func (r *CockroachDBBackupCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading Cockroachdb backupCronJob %s", r.backupCronJob.Name))
 	var err error

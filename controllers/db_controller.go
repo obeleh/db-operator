@@ -47,10 +47,6 @@ type DbReco struct {
 	conn shared.DbServerConnectionInterface
 }
 
-func (r *DbReco) MarkedToBeDeleted() bool {
-	return r.db.GetDeletionTimestamp() != nil
-}
-
 func (r *DbReco) LoadCR() (ctrl.Result, error) {
 	err := r.Client.Get(r.Ctx, r.NsNm, &r.db)
 	if err != nil {

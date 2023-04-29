@@ -50,10 +50,6 @@ type BackupCronJobReco struct {
 	StatusWriter   client.StatusWriter
 }
 
-func (r *BackupCronJobReco) MarkedToBeDeleted() bool {
-	return r.backupCronJob.GetDeletionTimestamp() != nil
-}
-
 func (r *BackupCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading backupCronJob %s", r.backupCronJob.Name))
 	var err error

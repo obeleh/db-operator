@@ -49,10 +49,6 @@ type RestoreCronJobReco struct {
 	restoreCronJobs map[string]batchv1.CronJob
 }
 
-func (r *RestoreCronJobReco) MarkedToBeDeleted() bool {
-	return r.restoreCronJob.GetDeletionTimestamp() != nil
-}
-
 func (r *RestoreCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading restoreCronJob %s", r.restoreCronJob.Name))
 	var err error

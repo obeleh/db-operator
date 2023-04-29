@@ -50,10 +50,6 @@ type CrdbBackubJobReco struct {
 	lazyBackupTargetHelper *LazyBackupTargetHelper
 }
 
-func (r *CrdbBackubJobReco) MarkedToBeDeleted() bool {
-	return r.backupJob.GetDeletionTimestamp() != nil
-}
-
 func (r *CrdbBackubJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading Cockroachdb backupJob %s", r.backupJob.Name))
 	var err error

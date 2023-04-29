@@ -27,7 +27,6 @@ type Reconcilable interface {
 	EnsureCorrect() (ctrl.Result, error)
 	GetCR() client.Object
 	CleanupConn()
-	MarkedToBeDeleted() bool
 }
 
 type Reco struct {
@@ -92,7 +91,7 @@ func (rc *Reco) Reconcile(rcl Reconcilable) (ctrl.Result, error) {
 	if err != nil {
 		if !shared.CannotFindError(err, rc.Log, "", rc.NsNm.Namespace, rc.NsNm.Name) {
 			rc.LogError(err, fmt.Sprintf("failed loadObj for %s.%s", rc.NsNm.Namespace, rc.NsNm.Name))
-		} else if rcl.MarkedToBeDeleted() {
+		} else if markedToBeDeleted {
 			// if it's a "cannot find error" and current obj is marked to be deleted
 			// The parent resource has been removed. This resource probably doesn't exist anymore
 			rc.RemoveFinalizer(cr)

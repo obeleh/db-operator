@@ -52,10 +52,6 @@ type UserReco struct {
 	conn  shared.DbServerConnectionInterface
 }
 
-func (r *UserReco) MarkedToBeDeleted() bool {
-	return r.user.GetDeletionTimestamp() != nil
-}
-
 func (r *UserReco) LoadObj() (bool, error) {
 	var err error
 	dbServer, err := GetDbServer(r.user.Spec.DbServerName, r.Client, r.NsNm.Namespace)
