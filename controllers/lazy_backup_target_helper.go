@@ -2,6 +2,7 @@ package controllers
 
 import (
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
+	"github.com/obeleh/db-operator/dbservers"
 	"github.com/obeleh/db-operator/dbservers/postgres"
 	"github.com/obeleh/db-operator/shared"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,7 +50,7 @@ func (h *LazyBackupTargetHelper) GetStorageActions() (StorageActions, error) {
 	return h.lazyStorageActionsHelper.GetStorageActions()
 }
 
-func (h *LazyBackupTargetHelper) GetPgConnection() (*postgres.PostgresConnection, error) {
+func (h *LazyBackupTargetHelper) GetLazyDbHelper() (*LazyDbHelper, error) {
 	if h.lazyDbHelper == nil {
 		backupTarget, err := h.GetBackupTarget()
 		if err != nil {
@@ -57,7 +58,15 @@ func (h *LazyBackupTargetHelper) GetPgConnection() (*postgres.PostgresConnection
 		}
 		h.lazyDbHelper = NewLazyDbHelper(h.K8sClient, backupTarget.Spec.DbName, nil)
 	}
-	return h.lazyDbHelper.GetPgConnection()
+	return h.lazyDbHelper, nil
+}
+
+func (h *LazyBackupTargetHelper) GetPgConnection() (*postgres.PostgresConnection, error) {
+	lazyDbHelper, err := h.GetLazyDbHelper()
+	if err != nil {
+		return nil, err
+	}
+	return lazyDbHelper.GetPgConnection()
 }
 
 func (h *LazyBackupTargetHelper) GetDbName() (string, error) {
@@ -82,4 +91,23 @@ func (h *LazyBackupTargetHelper) CleanupConn() {
 	if h.lazyDbHelper != nil {
 		h.lazyDbHelper.CleanupConn()
 	}
+}
+
+func (h *LazyBackupTargetHelper) GetServerActions() (shared.DbActions, error) {
+	lazyDbHelper, err := h.GetLazyDbHelper()
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := lazyDbHelper.GetDb()
+	if err != nil {
+		return nil, err
+	}
+
+	dbServer, err := lazyDbHelper.GetDbServer()
+	if err != nil {
+		return nil, err
+	}
+
+	return dbservers.GetServerActions(dbServer, db, dbServer.Spec.Options)
 }

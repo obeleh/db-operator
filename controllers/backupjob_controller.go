@@ -45,8 +45,9 @@ type BackupJobReconciler struct {
 
 type BackupJobReco struct {
 	Reco
-	backupJob  dboperatorv1alpha1.BackupJob
-	backupJobs map[string]batchv1.Job
+	backupJob              dboperatorv1alpha1.BackupJob
+	backupJobs             map[string]batchv1.Job
+	lazyBackupTargetHelper *LazyBackupTargetHelper
 }
 
 func (r *BackupJobReco) MarkedToBeDeleted() bool {
@@ -77,15 +78,11 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
-	backupTarget, err := r.GetBackupTarget(r.backupJob.Spec.BackupTarget)
+	actions, err := r.lazyBackupTargetHelper.GetServerActions()
 	if err != nil {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
-	actions, err := r.GetServerActionsFromDbName(backupTarget.Spec.DbName)
-	if err != nil {
-		return r.LogAndBackoffCreation(err, r.GetCR())
-	}
-	storageInfo, err := r.GetStorageActions(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
+	storageInfo, err := r.lazyBackupTargetHelper.GetStorageActions()
 	if err != nil {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
@@ -122,6 +119,7 @@ func (r *BackupJobReco) LoadCR() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
+	r.lazyBackupTargetHelper = NewLazyBackupTargetHelper(&r.K8sClient, r.backupJob.Spec.BackupTarget)
 	return ctrl.Result{}, nil
 }
 
@@ -134,6 +132,9 @@ func (r *BackupJobReco) EnsureCorrect() (ctrl.Result, error) {
 }
 
 func (r *BackupJobReco) CleanupConn() {
+	if r.lazyBackupTargetHelper != nil {
+		r.lazyBackupTargetHelper.CleanupConn()
+	}
 }
 
 func (r *BackupJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
