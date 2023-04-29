@@ -45,9 +45,10 @@ type BackupCronJobReconciler struct {
 
 type BackupCronJobReco struct {
 	Reco
-	backupCronJob  dboperatorv1alpha1.BackupCronJob
-	backupCronJobs map[string]batchv1.CronJob
-	StatusWriter   client.StatusWriter
+	backupCronJob          dboperatorv1alpha1.BackupCronJob
+	backupCronJobs         map[string]batchv1.CronJob
+	StatusWriter           client.StatusWriter
+	lazyBackupTargetHelper *LazyBackupTargetHelper
 }
 
 func (r *BackupCronJobReco) LoadObj() (bool, error) {
@@ -84,20 +85,12 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 
 	err := r.EnsureScripts()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
-	backupTarget, err := r.GetBackupTarget(r.backupCronJob.Spec.BackupTarget)
+	storageInfo, actions, err := r.lazyBackupTargetHelper.GetActionsObjs()
 	if err != nil {
-		return ctrl.Result{}, err
-	}
-	actions, err := r.GetServerActionsFromDbName(backupTarget.Spec.DbName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	storageInfo, err := r.GetStorageActions(backupTarget.Spec.StorageType, backupTarget.Spec.StorageLocation)
-	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	backupContainer := actions.BuildBackupContainer()
@@ -138,6 +131,7 @@ func (r *BackupCronJobReco) LoadCR() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.backupCronJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
+	r.lazyBackupTargetHelper = NewLazyBackupTargetHelper(&r.K8sClient, r.backupCronJob.Spec.BackupTarget)
 	return ctrl.Result{}, nil
 }
 
@@ -150,6 +144,9 @@ func (r *BackupCronJobReco) EnsureCorrect() (ctrl.Result, error) {
 }
 
 func (r *BackupCronJobReco) CleanupConn() {
+	if r.lazyBackupTargetHelper != nil {
+		r.lazyBackupTargetHelper.CleanupConn()
+	}
 }
 
 func (r *BackupCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

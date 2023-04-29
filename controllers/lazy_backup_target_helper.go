@@ -111,3 +111,17 @@ func (h *LazyBackupTargetHelper) GetServerActions() (shared.DbActions, error) {
 
 	return dbservers.GetServerActions(dbServer, db, dbServer.Spec.Options)
 }
+
+func (h *LazyBackupTargetHelper) GetActionsObjs() (StorageActions, shared.DbActions, error) {
+	storageActions, err := h.GetStorageActions()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serverActions, err := h.GetServerActions()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return storageActions, serverActions, nil
+}

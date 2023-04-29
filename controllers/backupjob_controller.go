@@ -74,11 +74,7 @@ func (r *BackupJobReco) CreateObj() (ctrl.Result, error) {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
-	actions, err := r.lazyBackupTargetHelper.GetServerActions()
-	if err != nil {
-		return r.LogAndBackoffCreation(err, r.GetCR())
-	}
-	storageInfo, err := r.lazyBackupTargetHelper.GetStorageActions()
+	storageInfo, actions, err := r.lazyBackupTargetHelper.GetActionsObjs()
 	if err != nil {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
