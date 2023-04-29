@@ -73,16 +73,16 @@ func (r *DbCopyJobReco) CreateObj() (ctrl.Result, error) {
 
 	err := r.EnsureScripts()
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	fromDbServerActions, err := r.GetServerActionsFromDbName(r.copyJob.Spec.FromDbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 	toDbServerActions, err := r.GetServerActionsFromDbName(r.copyJob.Spec.ToDbName)
 	if err != nil {
-		return ctrl.Result{}, err
+		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
 	backupContainer := fromDbServerActions.BuildBackupContainer()

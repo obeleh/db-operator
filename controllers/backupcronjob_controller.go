@@ -88,7 +88,7 @@ func (r *BackupCronJobReco) CreateObj() (ctrl.Result, error) {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
-	storageInfo, actions, err := r.lazyBackupTargetHelper.GetActionsObjs()
+	storageInfo, actions, err := r.lazyBackupTargetHelper.GetStorageInfoAndActions()
 	if err != nil {
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}

@@ -45,8 +45,9 @@ type RestoreJobReconciler struct {
 
 type RestoreJobReco struct {
 	Reco
-	restoreJob  dboperatorv1alpha1.RestoreJob
-	restoreJobs map[string]batchv1.Job
+	restoreJob              dboperatorv1alpha1.RestoreJob
+	restoreJobs             map[string]batchv1.Job
+	lazyRestoreTargetHelper *LazyRestoreTargetHelper
 }
 
 func (r *RestoreJobReco) LoadObj() (bool, error) {
@@ -75,18 +76,7 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	restoreTarget, err := r.GetRestoreTarget(r.restoreJob.Spec.RestoreTarget)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	actions, err := r.GetServerActionsFromDbName(restoreTarget.Spec.DbName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	storageInfo, err := r.GetStorageActions(restoreTarget.Spec.StorageType, restoreTarget.Spec.StorageLocation)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	storageInfo, actions, err := r.lazyRestoreTargetHelper.GetStorageInfoAndActions()
 
 	restoreContainer := actions.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreJob.Spec.FixedFileName)
@@ -121,6 +111,7 @@ func (r *RestoreJobReco) LoadCR() (ctrl.Result, error) {
 		r.Log.Info(fmt.Sprintf("%T: %s does not exist", r.restoreJob, r.NsNm.Name))
 		return ctrl.Result{}, err
 	}
+	r.lazyRestoreTargetHelper = NewLazyRestoreTargetHelper(&r.K8sClient, r.restoreJob.Spec.RestoreTarget)
 	return ctrl.Result{}, nil
 }
 
