@@ -1,6 +1,0 @@
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: example-backup-cron-job
-status:
-  succeeded: 1

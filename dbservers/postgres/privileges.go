@@ -240,6 +240,58 @@ func getServerVersion(conn *sql.DB) (*PostgresVersion, error) {
 	return parseVersionString(versionResult)
 }
 
+func revokeAllOfPrivMap(conn *sql.DB, privsMapMap map[string]map[string][]string, user string) error {
+	for privType, privsMap := range privsMapMap {
+		for name, privs := range privsMap {
+			revokeFun := ADJUST_PRIVILEGES_MAP[privType]["revoke"]
+			err := revokeFun(conn, user, name, privs)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func RevokeAllDbPrivs(conn *sql.DB, user string, dbPrivs []dboperatorv1alpha1.DbPriv, connectionGetter ConnectionGetter) error {
+	serverVersion, err := getServerVersion(conn)
+	if err != nil {
+		return err
+	}
+
+	for _, dbPriv := range dbPrivs {
+
+		dbName := GetDbNameFromScopeName(dbPriv.Scope)
+		conn, err := connectionGetter(dbPriv.Grantor, &dbName)
+		if err != nil {
+			return err
+		}
+
+		if dbPriv.DefaultPrivs != "" {
+			privsMapMap, err := ParseDefaultPrivs(dbPriv.DefaultPrivs, dbPriv.Scope, *dbPriv.Grantor, serverVersion)
+			if err != nil {
+				return err
+			}
+			err = revokeAllOfPrivMap(conn, privsMapMap, user)
+			if err != nil {
+				return err
+			}
+		}
+
+		if dbPriv.Privs != "" {
+			privsMapMap, err := ParsePrivs(dbPriv.Privs, dbPriv.Scope, serverVersion)
+			if err != nil {
+				return err
+			}
+			err = revokeAllOfPrivMap(conn, privsMapMap, user)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs []dboperatorv1alpha1.DbPriv, connectionGetter ConnectionGetter) (bool, error) {
 	// Server Privs
 	maps, err := shared.SelectToArrayMap(conn, "SELECT * FROM pg_roles WHERE rolname = $1", userName)
@@ -654,13 +706,33 @@ type DefualtPrivilege struct {
 	Grantee        string
 }
 
+func RevokeAllPrivilegesInSchema(conn *sql.DB, schemaName string, userName string) error {
+	quotedUserName := pq.QuoteIdentifier(userName)
+	quotedSchemaName := pq.QuoteIdentifier(schemaName)
+
+	for _, objType := range []string{"TABLES", "SEQUENCES", "FUNCTIONS"} {
+		_, err := conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON ALL %s IN SCHEMA %s FROM %s;", objType, quotedSchemaName, quotedUserName))
+		if err != nil {
+			return err
+		}
+		_, err = conn.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL PRIVILEGES ON %s FROM %s;", quotedSchemaName, objType, quotedUserName))
+		if err != nil {
+			return err
+		}
+		_, err = conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON SCHEMA %s FROM %s;", quotedSchemaName, quotedUserName))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func hasDefaultTablePrivileges(conn *sql.DB, user string, database string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
 	objectType := "r" // r = relation (table, view),
 	curPrivs, err := getDefaultPrivilegesGivenByCurrentUser(conn, objectType, user)
 	return diffPrivs(curPrivs, privs, err)
 }
 
-// TODO: default privileges for schema not yet supported
 func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, user string) ([]string, error) {
 	//https://www.dba-ninja.com/2020/06/how-to-find-default-access-privileges-on-postgresql-with-pg_default_acl.html
 	/*
@@ -703,7 +775,12 @@ func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, use
 		for _, defaclacl := range defaclacls {
 			parts := strings.Split(defaclacl, "=")
 			grantee := parts[0]
+			grantee = stripOuterChars(grantee, "\"")
 			privs := parts[1]
+			if strings.Contains(privs, "/") {
+				privs = strings.Split(privs, "/")[0]
+			}
+
 			if objectType == "r" { // r = relation (table, view),
 				if user == grantee {
 					if strings.Contains(privs, "a") {
@@ -729,6 +806,34 @@ func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, use
 		}
 	}
 	return privileges, nil
+}
+
+func GetSchemas(conn *sql.DB) (map[string]shared.DbSideSchema, error) {
+	rows, err := conn.Query("SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname NOT IN ('crdb_internal', 'information_schema', 'pg_catalog', 'pg_extension', 'pg_toast');")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	schemas := make(map[string]shared.DbSideSchema)
+
+	for rows.Next() {
+		var schema shared.DbSideSchema
+		err := rows.Scan(&schema.SchemaName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load PostgresDb")
+		}
+		schemas[schema.SchemaName] = schema
+	}
+	return schemas, nil
+}
+
+func stripOuterChars(objectName string, chars string) string {
+	if strings.HasPrefix(objectName, chars) && strings.HasSuffix(objectName, chars) {
+		objectName = strings.TrimPrefix(objectName, chars)
+		objectName = strings.TrimSuffix(objectName, chars)
+	}
+	return objectName
 }
 
 func GetDbNameFromScopeName(scopeName string) string {

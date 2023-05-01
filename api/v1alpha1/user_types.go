@@ -27,19 +27,26 @@ type DbPriv struct {
 	Grantor      *string `json:"grantor_user_name,omitempty"`
 }
 
+type DropUserOptions struct {
+	RevokePrivileges bool   `json:"revoke_privileges,omitempty"`
+	DropOwned        bool   `json:"drop_owned,omitempty"`
+	ReassingOwnedTo  string `json:"reassign_owned_to,omitempty"`
+}
+
 // UserSpec defines the desired state of User
 type UserSpec struct {
-	UserName       string   `json:"user_name"`
-	SecretName     string   `json:"secret_name"`
-	GenerateSecret bool     `json:"generate_secret,omitempty"`
-	PasswordKey    string   `json:"password_key,omitempty"` // defaults to password
-	CaCertKey      string   `json:"ca_cert_key,omitempty"`
-	TlsCrtKey      string   `json:"tls_cert_key,omitempty"`
-	TlsKeyKey      string   `json:"tls_key_key,omitempty"`
-	DbServerName   string   `json:"db_server_name"`
-	DbPrivs        []DbPriv `json:"db_privs"`
-	ServerPrivs    string   `json:"server_privs"`
-	DropOnDeletion bool     `json:"drop_on_deletion,omitempty"`
+	UserName        string           `json:"user_name"`
+	SecretName      string           `json:"secret_name"`
+	GenerateSecret  bool             `json:"generate_secret,omitempty"`
+	PasswordKey     string           `json:"password_key,omitempty"` // defaults to password
+	CaCertKey       string           `json:"ca_cert_key,omitempty"`
+	TlsCrtKey       string           `json:"tls_cert_key,omitempty"`
+	TlsKeyKey       string           `json:"tls_key_key,omitempty"`
+	DbServerName    string           `json:"db_server_name"`
+	DbPrivs         []DbPriv         `json:"db_privs"`
+	ServerPrivs     string           `json:"server_privs"`
+	DropOnDeletion  bool             `json:"drop_on_deletion,omitempty"`
+	DropUserOptions *DropUserOptions `json:"drop_user_options,omitempty"`
 }
 
 // UserStatus defines the observed state of User

@@ -140,7 +140,7 @@ func (r *UserReco) CreateObj() (ctrl.Result, error) {
 func (r *UserReco) RemoveObj() (ctrl.Result, error) {
 	if r.user.Spec.DropOnDeletion {
 		r.Log.Info(fmt.Sprintf("Dropping user %s", r.user.Spec.UserName))
-		err := r.conn.DropUser(r.user.Spec.UserName)
+		err := r.conn.DropUser(r.user.Spec)
 		if err != nil {
 			return r.LogAndBackoffDeletion(err, r.GetCR())
 		}

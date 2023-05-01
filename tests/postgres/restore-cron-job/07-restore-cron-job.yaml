@@ -1,8 +1,0 @@
-apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: RestoreCronJob
-metadata:
-  name: example-restore-cron-job
-spec:
-  restore_target: example-restore-target
-  interval: "0 0 30 2 *"
-  suspend: false

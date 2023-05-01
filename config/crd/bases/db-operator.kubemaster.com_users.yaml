@@ -56,6 +56,15 @@ spec:
                 type: string
               drop_on_deletion:
                 type: boolean
+              drop_user_options:
+                properties:
+                  drop_owned:
+                    type: boolean
+                  reassign_owned_to:
+                    type: string
+                  revoke_privileges:
+                    type: boolean
+                type: object
               generate_secret:
                 type: boolean
               password_key:

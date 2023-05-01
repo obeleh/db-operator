@@ -27,7 +27,7 @@ type DbServerConnectInfo struct {
 
 type DbServerConnectionInterface interface {
 	CreateUser(userName string, password string) error
-	DropUser(userName string) error
+	DropUser(userSpec dboperatorv1alpha1.UserSpec) error
 	GetUsers() (map[string]DbSideUser, error)
 	CreateDb(dbName string) error
 	CreateSchema(schemaName string, creator *string) error

@@ -40,12 +40,15 @@ func (m *MySqlConnection) SelectToArrayMap(query string) ([]map[string]interface
 	return shared.SelectToArrayMap(conn, query)
 }
 
-func (m *MySqlConnection) DropUser(userName string) error {
+func (m *MySqlConnection) DropUser(userSpec dboperatorv1alpha1.UserSpec) error {
+	if userSpec.DropUserOptions != nil {
+		return fmt.Errorf("DROP USER options not supported (yet?) for MySQL")
+	}
 	conn, err := m.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(fmt.Sprintf(`DROP USER '%s'@'%%';`, userName))
+	_, err = conn.Exec(fmt.Sprintf(`DROP USER '%s'@'%%';`, userSpec.UserName))
 	return err
 }
 

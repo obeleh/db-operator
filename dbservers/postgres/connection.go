@@ -49,13 +49,43 @@ func (p *PostgresConnection) CreateUser(userName string, password string) error 
 	return err
 }
 
-func (p *PostgresConnection) DropUser(userName string) error {
+func (p *PostgresConnection) DropUser(userSpec dboperatorv1alpha1.UserSpec) error {
 	conn, err := p.GetDbConnection(nil, nil)
 	if err != nil {
 		return err
 	}
 
+	userName := userSpec.UserName
+	dropUserOptions := userSpec.DropUserOptions
 	quotedUserName := pq.QuoteIdentifier(userName)
+	dbPrivs := userSpec.DbPrivs
+	if dropUserOptions != nil {
+		if dropUserOptions.ReassingOwnedTo != "" && dropUserOptions.DropOwned {
+			return fmt.Errorf("DROP USER options 'ReassingOwnedTo' and 'DropOwned' are mutually exclusive")
+		}
+
+		if dropUserOptions.DropOwned {
+			_, err = conn.Exec(fmt.Sprintf("DROP OWNED BY %s;", quotedUserName))
+			if err != nil {
+				return err
+			}
+		}
+
+		if dropUserOptions.ReassingOwnedTo != "" {
+			_, err = conn.Exec(fmt.Sprintf("REASSIGN OWNED BY %s TO %s;", quotedUserName, pq.QuoteIdentifier(dropUserOptions.ReassingOwnedTo)))
+			if err != nil {
+				return err
+			}
+		}
+
+		if dropUserOptions.RevokePrivileges && len(dbPrivs) > 0 {
+			err = RevokeAllDbPrivs(conn, userName, dbPrivs, p.GetDbConnection)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	_, err = conn.Exec(fmt.Sprintf("DROP USER IF EXISTS %s;", quotedUserName))
 	return err
 }
@@ -196,23 +226,7 @@ func (p *PostgresConnection) GetSchemas(userName *string) (map[string]shared.DbS
 	if err != nil {
 		return nil, err
 	}
-	rows, err := conn.Query("SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname NOT IN ('crdb_internal', 'information_schema', 'pg_catalog', 'pg_extension');")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	schemas := make(map[string]shared.DbSideSchema)
-
-	for rows.Next() {
-		var schema shared.DbSideSchema
-		err := rows.Scan(&schema.SchemaName)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load PostgresDb")
-		}
-		schemas[schema.SchemaName] = schema
-	}
-	return schemas, nil
+	return GetSchemas(conn)
 }
 
 func (p *PostgresConnection) GetBackupJobs() ([]map[string]interface{}, error) {

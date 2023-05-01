@@ -1,5 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- command: kubectl create job --from=cronjob/example-restore-cron-job example-restore-cron-job
-  namespaced: true

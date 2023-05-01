@@ -1,8 +1,0 @@
-apiVersion: db-operator.kubemaster.com/v1alpha1
-kind: Db
-metadata:
-  name: example-db
-spec:
-  db_name: example-db-real-name
-  drop_on_deletion: true
-  server: example-host
