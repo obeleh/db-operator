@@ -25,10 +25,12 @@ ALTER DATABASE "%s" OWNER TO "%s";
 
 type PostgresConnection struct {
 	shared.ConnectionsStore
+	Flavor string
 }
 
-func NewPostgresConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials) *PostgresConnection {
+func NewPostgresConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials, flavor string) *PostgresConnection {
 	return &PostgresConnection{
+		Flavor: flavor,
 		ConnectionsStore: shared.ConnectionsStore{
 			ServerConnInfo:  connectionInfo,
 			UserCredentials: userCredentials,
@@ -65,9 +67,19 @@ func (p *PostgresConnection) DropUser(userSpec dboperatorv1alpha1.UserSpec) erro
 		}
 
 		if dropUserOptions.DropOwned {
-			_, err = conn.Exec(fmt.Sprintf("DROP OWNED BY %s;", quotedUserName))
+			databases, err := GetDatabasesUserHasAccessTo(conn, userName)
 			if err != nil {
 				return err
+			}
+			for _, db := range databases {
+				dbConn, err := p.GetDbConnection(nil, &db)
+				if err != nil {
+					return err
+				}
+				_, err = dbConn.Exec(fmt.Sprintf("DROP OWNED BY %s;", quotedUserName))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -171,6 +183,9 @@ func (p *PostgresConnection) DropDb(dbName string, cascade bool) error {
 	}
 	cascadeStr := ""
 	if cascade {
+		if p.Flavor != "cockroachdb" {
+			return fmt.Errorf("cascade option is only supported for cockroachdb")
+		}
 		cascadeStr = "CASCADE"
 	}
 	quotedDbName := pq.QuoteIdentifier(dbName)
@@ -190,6 +205,9 @@ func (p *PostgresConnection) DropSchema(schemaName string, userName *string, cas
 	}
 	cascadeStr := ""
 	if cascade {
+		if p.Flavor != "cockroachdb" {
+			return fmt.Errorf("cascade option is only supported for cockroachdb")
+		}
 		cascadeStr = "CASCADE"
 	}
 	quotedSchemaName := pq.QuoteIdentifier(schemaName)

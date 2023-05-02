@@ -26,6 +26,7 @@ type PostgresVersion struct {
 }
 
 type ConnectionGetter func(*string, *string) (*sql.DB, error)
+type privsAdjuster func(*sql.DB, string, string, []string) error
 
 const PostgreSQL = "PostgreSQL"
 const CockroachDB = "CockroachDB"
@@ -80,7 +81,7 @@ var DATABASE_PRIV_MAP = map[string]string{
 	"T": "TEMPORARY",
 	"c": "CONNECT",
 }
-var ADJUST_PRIVILEGES_MAP = map[string]map[string]func(*sql.DB, string, string, []string) error{
+var ADJUST_PRIVILEGES_MAP = map[string]map[string]privsAdjuster{
 	"table": {
 		"revoke": revokeTablePrivileges,
 		"grant":  grantTablePrivileges,
@@ -268,6 +269,22 @@ func RevokeAllDbPrivs(conn *sql.DB, user string, dbPrivs []dboperatorv1alpha1.Db
 		}
 
 		if dbPriv.DefaultPrivs != "" {
+			// get schema's this user could get default privs on from current grantor connection
+			schemas, err := GetSchemas(conn)
+			if err != nil {
+				return err
+			}
+			objType, err := GetScopeAfterDb(dbPriv.Scope)
+			if err != nil {
+				return err
+			}
+			for schema := range schemas {
+				err := revokeDefaultedPrivs(conn, objType, user, schema)
+				if err != nil {
+					return err
+				}
+			}
+
 			privsMapMap, err := ParseDefaultPrivs(dbPriv.DefaultPrivs, dbPriv.Scope, *dbPriv.Grantor, serverVersion)
 			if err != nil {
 				return err
@@ -377,7 +394,6 @@ func updateDefaultPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1
 }
 
 func ParseDefaultPrivs(defaultPrivs, scope, grantor string, serverVersion *PostgresVersion) (map[string]map[string][]string, error) {
-	//db := GetDbNameFromScopeName(scope)
 	scopeAfterDb, err := GetScopeAfterDb(scope)
 	if err != nil {
 		return nil, err
@@ -392,8 +408,6 @@ func ParseDefaultPrivs(defaultPrivs, scope, grantor string, serverVersion *Postg
 	}
 
 	var desiredPrivSet []string
-	var currentPrivSet []string
-
 	if scopeAfterDb == "TABLES" {
 		name := grantor
 		oPrivs["defaultTable"][name] = toPrivSet(defaultPrivs)
@@ -401,7 +415,7 @@ func ParseDefaultPrivs(defaultPrivs, scope, grantor string, serverVersion *Postg
 		return nil, fmt.Errorf(fmt.Sprintf("Not implemented to update default privileges on %s", scope))
 	}
 
-	if !funk.Subset(currentPrivSet, serverVersion.GetValidPrivs("table")) {
+	if !funk.Subset(desiredPrivSet, serverVersion.GetValidPrivs("table")) {
 		invalidPrivs := strings.Join(funk.Subtract(desiredPrivSet, serverVersion.GetValidPrivs("table")).([]string), " ")
 		return nil, fmt.Errorf("invalid privs specified for %s: %s", "table", invalidPrivs)
 	}
@@ -474,6 +488,13 @@ func grantTablePrivileges(conn *sql.DB, user string, table string, privs []strin
 
 func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
 	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %q FROM %q", strings.Join(privs, ", "), table, user))
+	return err
+}
+
+func revokeDefaultedPrivs(conn *sql.DB, objType string, userName string, schemaName string) error {
+	quotedUserName := pq.QuoteIdentifier(userName)
+	quotedSchemaName := pq.QuoteIdentifier(schemaName)
+	_, err := conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON ALL %s IN SCHEMA %s FROM %s;", objType, quotedSchemaName, quotedUserName))
 	return err
 }
 
@@ -706,27 +727,6 @@ type DefualtPrivilege struct {
 	Grantee        string
 }
 
-func RevokeAllPrivilegesInSchema(conn *sql.DB, schemaName string, userName string) error {
-	quotedUserName := pq.QuoteIdentifier(userName)
-	quotedSchemaName := pq.QuoteIdentifier(schemaName)
-
-	for _, objType := range []string{"TABLES", "SEQUENCES", "FUNCTIONS"} {
-		_, err := conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON ALL %s IN SCHEMA %s FROM %s;", objType, quotedSchemaName, quotedUserName))
-		if err != nil {
-			return err
-		}
-		_, err = conn.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL PRIVILEGES ON %s FROM %s;", quotedSchemaName, objType, quotedUserName))
-		if err != nil {
-			return err
-		}
-		_, err = conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON SCHEMA %s FROM %s;", quotedSchemaName, quotedUserName))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func hasDefaultTablePrivileges(conn *sql.DB, user string, database string, privs []string, serverVersion *PostgresVersion) ([]string, []string, []string, error) {
 	objectType := "r" // r = relation (table, view),
 	curPrivs, err := getDefaultPrivilegesGivenByCurrentUser(conn, objectType, user)
@@ -826,6 +826,37 @@ func GetSchemas(conn *sql.DB) (map[string]shared.DbSideSchema, error) {
 		schemas[schema.SchemaName] = schema
 	}
 	return schemas, nil
+}
+
+func GetDatabasesUserHasAccessTo(conn *sql.DB, userName string) ([]string, error) {
+	rows, err := conn.Query(`
+		SELECT
+			d.datname AS database_name
+		FROM
+			pg_database d
+		CROSS JOIN
+			pg_roles r
+		WHERE
+			d.datname NOT IN ('template0', 'template1', 'postgres')
+			AND r.rolname = $1
+			AND has_database_privilege(r.rolname, d.datname, 'CONNECT');
+	`, userName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	databases := []string{}
+
+	for rows.Next() {
+		var database string
+		err := rows.Scan(&database)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load PostgresDb")
+		}
+		databases = append(databases, database)
+	}
+	return databases, nil
 }
 
 func stripOuterChars(objectName string, chars string) string {

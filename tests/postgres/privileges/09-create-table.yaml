@@ -1,0 +1,30 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-table-right
+spec:
+  template:
+    spec:
+      containers:
+      - name: execute-qry
+        env:
+        - name: PGHOST
+          value: postgres.postgres.svc.cluster.local
+        - name: PGUSER
+          value: migration-user
+        - name: PGPASSWORD
+          value: migrationpw
+        - name: DATABASE
+          value: example-db
+        - name: PGPORT
+          value: "5432"
+        - name: PGCONNECT_TIMEOUT
+          value: "3"
+        image: postgres:latest
+        command: [
+          "bash" , "-c", 
+          "psql --host=$PGHOST --user=$PGUSER --port=$PGPORT --dbname=$DATABASE -c \"SET search_path TO app1; CREATE TABLE sometable(some_id serial PRIMARY KEY, some_name VARCHAR (255));\""
+        ]
+      restartPolicy: Never
+  backoffLimit: 1

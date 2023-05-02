@@ -68,10 +68,14 @@ func (s *SchemaReco) LoadCR() (ctrl.Result, error) {
 		if markedToBeDeleted {
 			// DB got deleted before schema did
 			err = s.RemoveFinalizer(&s.schema)
+			if err != nil {
+				return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
+			}
+			return ctrl.Result{}, nil
 		} else {
 			s.Log.Info(fmt.Sprintf("%T: %s does not exist, %s", s.db, dbNsm, err))
 		}
-		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), err
+		return shared.GradualBackoffRetry(s.schema.GetCreationTimestamp().Time), nil
 	}
 
 	return ctrl.Result{}, nil
@@ -82,8 +86,8 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 	// First create conninfo without db name because we don't know whether it exists
 	dbServer, err := GetDbServer(s.schema.Spec.Server, s.Client, s.NsNm.Namespace)
 	if err != nil {
-		if !shared.CannotFindError(err, s.Log, "DbServer", s.NsNm.Namespace, s.NsNm.Name) {
-			s.LogError(err, "failed getting DbServer")
+		if !shared.CannotFindError(err, s.Log, "Schema", s.NsNm.Namespace, s.NsNm.Name) {
+			s.LogError(err, "failed getting Schema")
 			return false, err
 		}
 		return false, nil

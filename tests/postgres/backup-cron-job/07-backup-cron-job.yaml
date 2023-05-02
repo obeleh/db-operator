@@ -1,0 +1,8 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: BackupCronJob
+metadata:
+  name: example-backup-cron-job
+spec:
+  backup_target: example-backup-target
+  interval: "0 0 30 2 *"
+  suspend: false

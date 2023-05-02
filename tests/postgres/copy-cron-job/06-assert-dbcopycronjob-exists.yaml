@@ -1,0 +1,7 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: DbCopyCronJob
+metadata:
+  name: example-db-copycronjob
+status:
+  exists: true
+  cronjob_name: example-db-copycronjob

@@ -11,10 +11,12 @@ import (
 
 type MySqlConnection struct {
 	shared.ConnectionsStore
+	Flavor string
 }
 
-func NewMySqlConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials) *MySqlConnection {
+func NewMySqlConnection(connectionInfo *shared.DbServerConnectInfo, userCredentials map[string]*shared.Credentials, flavor string) *MySqlConnection {
 	return &MySqlConnection{
+		Flavor: flavor,
 		ConnectionsStore: shared.ConnectionsStore{
 			ServerConnInfo:  connectionInfo,
 			UserCredentials: userCredentials,

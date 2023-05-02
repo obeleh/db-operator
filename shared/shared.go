@@ -29,9 +29,13 @@ func NewAlreadyHandledError(err error) AlreadyHandledError {
 	}
 }
 
-func CannotFindError(err error, log *zap.Logger, kind, namespace, name string) bool {
+func IsCannotFindError(err error) bool {
 	statusErr, wasStatusErr := err.(*errors.StatusError)
-	if statusErr != nil && wasStatusErr && statusErr.ErrStatus.Reason == "NotFound" {
+	return statusErr != nil && wasStatusErr && statusErr.ErrStatus.Reason == "NotFound"
+}
+
+func CannotFindError(err error, log *zap.Logger, kind, namespace, name string) bool {
+	if IsCannotFindError(err) {
 		if kind != "" {
 			log.Info(fmt.Sprintf("Object: %s.%s.%s not found", kind, namespace, name))
 		} else {

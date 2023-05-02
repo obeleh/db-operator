@@ -1,0 +1,10 @@
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: Schema
+metadata:
+  name: app1
+spec:
+  name: app1
+  db_name: example-db
+  db_server_name: example-host
+  drop_on_deletion: false # dropped with owner
+  creator: migration-user

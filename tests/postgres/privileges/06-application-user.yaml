@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: application-user-secret
+data:
+  password: YXBwbGljYXRpb25wdw==
+
+---
+
+apiVersion: db-operator.kubemaster.com/v1alpha1
+kind: User
+metadata:
+  name: application-user
+spec:
+  db_server_name: example-host
+  user_name: application-user
+  secret_name: application-user-secret
+  server_privs: LOGIN
+  drop_on_deletion: true
+  drop_user_options:
+    revoke_privileges: true
+  db_privs:
+  - scope: example-db.TABLES
+    default_privs: SELECT,INSERT,UPDATE,DELETE
+    grantor_user_name: migration-user
+  - scope: example-db
+    privs: CONNECT
+  - scope: example-db.app1
+    privs: USAGE
+    grantor_user_name: migration-user
