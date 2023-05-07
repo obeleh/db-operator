@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -353,31 +352,15 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 	}
 
 	for _, dbPriv := range dbPrivs {
-		if dbPriv.Privs != "" && dbPriv.DefaultPrivs != "" {
-			return changed, fmt.Errorf("privs and default privs are not allowed together in the same privs object")
-		}
-
-		dbName := GetDbNameFromScopeName(dbPriv.Scope)
-		conn, err := connectionGetter(dbPriv.Grantor, &dbName)
+		privReconciler, err := GetPrivsReconciler(userName, dbPriv, serverVersion, connectionGetter)
 		if err != nil {
 			return changed, err
 		}
-
-		if dbPriv.Privs != "" {
-			updateChanged, err := updateDbPrivs(conn, userName, dbPriv, serverVersion)
-			changed = updateChanged || changed
-			if err != nil {
-				return changed, err
-			}
+		curChange, err := privReconciler.ReconcilePrivs()
+		if err != nil {
+			return changed, err
 		}
-
-		if dbPriv.DefaultPrivs != "" {
-			updateChanged, err := updateDefaultPrivs(conn, userName, dbPriv, serverVersion)
-			changed = updateChanged || changed
-			if err != nil {
-				return changed, err
-			}
-		}
+		changed = changed || curChange
 	}
 	return changed, nil
 }
@@ -430,34 +413,6 @@ func updateDbPrivs(conn *sql.DB, userName string, dbPriv dboperatorv1alpha1.DbPr
 	return adjustPrivileges(conn, userName, privMap, serverVersion)
 }
 
-func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, error) {
-	var schema string
-	if strings.Contains(table, ".") {
-		parts := strings.SplitN(table, ".", 1)
-		schema, table = parts[0], parts[1]
-	} else {
-		schema = "public"
-	}
-
-	query := "SELECT privilege_type FROM information_schema.role_table_grants WHERE grantee=$1 AND table_name=$2 AND table_schema=$3"
-	rows, err := conn.Query(query, user, table, schema)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read tablePrivs %s", err)
-	}
-	defer rows.Close()
-
-	tablePrivs := []string{}
-	for rows.Next() {
-		var privType string
-		err := rows.Scan(&privType)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load privType")
-		}
-		tablePrivs = append(tablePrivs, privType)
-	}
-	return tablePrivs, nil
-}
-
 /*
 Return the difference between the privileges that a user already has and
 
@@ -479,16 +434,6 @@ func diffPrivs(curPrivs []string, privs []string, err error) ([]string, []string
 	haveCurrently := funk.Join(curPrivs, privs, funk.InnerJoin).([]string)
 	otherCurrent, desired := funk.Difference(curPrivs, privs)
 	return haveCurrently, otherCurrent.([]string), desired.([]string), err
-}
-
-func grantTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %q TO %q", strings.Join(privs, ", "), table, user))
-	return err
-}
-
-func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %q FROM %q", strings.Join(privs, ", "), table, user))
-	return err
 }
 
 func revokeDefaultedPrivs(conn *sql.DB, objType string, userName string, schemaName string) error {
@@ -521,128 +466,8 @@ func hasSchemaPrivileges(conn *sql.DB, user string, schema string, privs []strin
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	curPrivs, err := GetSchemaPrivileges(conn, user, schemaName)
+	curPrivs, err := getSchemaPrivileges(conn, user, schemaName)
 	return diffPrivs(curPrivs, privs, err)
-}
-
-func getDatabasePrivilegesCrdb(conn *sql.DB, user string, db string) ([]string, error) {
-	quotedDb := pq.QuoteIdentifier(db)
-	quotedUser := pq.QuoteIdentifier(user)
-
-	rows, err := conn.Query(fmt.Sprintf("SHOW GRANTS ON DATABASE %s FOR %s;", quotedDb, quotedUser))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	privileges := []string{}
-	for rows.Next() {
-		var databaseName, grantee, privilegeType string
-		var isGrantable bool
-
-		err = rows.Scan(&databaseName, &grantee, &privilegeType, &isGrantable)
-		if err != nil {
-			return privileges, err
-		}
-		privileges = append(privileges, privilegeType)
-	}
-
-	return privileges, nil
-}
-
-func getDatabasePrivilegesPg(conn *sql.DB, user string, db string) ([]string, error) {
-	datacl, err := query_utils.SelectFirstValueStringNullToEmpty(conn, "SELECT datacl FROM pg_database WHERE datname = $1", db)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read databasePrivs %s", err)
-	}
-	rePattern := fmt.Sprintf(`%s\\?"?=(C?T?c?)/[^,]+,?`, user)
-	re := regexp.MustCompile(rePattern)
-	returnArray := []string{}
-	submatches := re.FindStringSubmatch(datacl)
-	if len(submatches) > 0 {
-		for _, chr := range submatches[1] {
-			returnArray = append(returnArray, DATABASE_PRIV_MAP[string(chr)])
-		}
-	}
-
-	serverVersion, err := getServerVersion(conn)
-	if err != nil {
-		return returnArray, err
-	}
-
-	return NormalizePrivileges(returnArray, "database", serverVersion), nil
-}
-
-func GetSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, error) {
-	if strings.Contains(schema, ".") {
-		return nil, fmt.Errorf("expected no dot in schema at this point")
-	}
-	createPriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')", user, schema)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
-	}
-
-	usagePriv, err := query_utils.SelectFirstValueBool(conn, "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')", user, schema)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read schemaPrivs %s", err)
-	}
-
-	schemaPrivs := []string{}
-	if createPriv {
-		schemaPrivs = append(schemaPrivs, "CREATE")
-	}
-
-	if usagePriv {
-		schemaPrivs = append(schemaPrivs, "USAGE")
-	}
-
-	return schemaPrivs, nil
-}
-
-func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
-	privsStr := strings.Join(privs, ", ")
-	escapedDb := pq.QuoteIdentifier(db)
-	escapedUser := pq.QuoteIdentifier(user)
-
-	if user == "PUBLIC" {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO PUBLIC", privsStr, escapedDb)
-		_, err := conn.Exec(query)
-		return err
-	} else {
-		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO %s", privsStr, escapedDb, escapedUser)
-		_, err := conn.Exec(query)
-		return err
-	}
-}
-
-func grantSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
-	schemaName, err := GetScopeAfterDb(scope)
-	if err != nil {
-		return err
-	}
-	privsStr := strings.Join(privs, ", ")
-	escapedSchema := pq.QuoteIdentifier(schemaName)
-	escapedUser := pq.QuoteIdentifier(user)
-
-	query := fmt.Sprintf("GRANT %s on SCHEMA %s to %s;", privsStr, escapedSchema, escapedUser)
-	_, err = conn.Exec(query)
-	return err
-}
-
-func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {
-	privsStr := strings.Join(privs, ", ")
-	escapedDb := pq.QuoteIdentifier(db)
-	escapedUser := pq.QuoteIdentifier(user)
-
-	if user == "PUBLIC" {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM PUBLIC", privsStr, escapedDb)
-		_, err := conn.Exec(query)
-		return err
-	} else {
-		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM %s", privsStr, escapedDb, escapedUser)
-		_, err := conn.Exec(query)
-		return err
-	}
 }
 
 func revokeDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
@@ -662,20 +487,6 @@ func grantDefaultTablePrivileges(conn *sql.DB, user string, role string, privs [
 
 	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %s GRANT %s ON TABLES TO %s;", escapedRole, privsStr, escapedUser)
 	_, err := conn.Exec(query)
-	return err
-}
-
-func revokeSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
-	schemaName, err := GetScopeAfterDb(scope)
-	if err != nil {
-		return err
-	}
-	privsStr := strings.Join(privs, ", ")
-	escapedSchema := pq.QuoteIdentifier(schemaName)
-	escapedUser := pq.QuoteIdentifier(user)
-
-	query := fmt.Sprintf("REVOKE %s on SCHEMA %s FROM %s;", privsStr, escapedSchema, escapedUser)
-	_, err = conn.Exec(query)
 	return err
 }
 
