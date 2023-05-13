@@ -49,17 +49,13 @@ func getSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, er
 	return schemaPrivs, nil
 }
 
-func grantSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
-	schemaName, err := GetScopeAfterDb(scope)
-	if err != nil {
-		return err
-	}
+func grantSchemaPrivileges(conn *sql.DB, user string, schemaName string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	escapedSchema := pq.QuoteIdentifier(schemaName)
 	escapedUser := pq.QuoteIdentifier(user)
 
 	query := fmt.Sprintf("GRANT %s on SCHEMA %s to %s;", privsStr, escapedSchema, escapedUser)
-	_, err = conn.Exec(query)
+	_, err := conn.Exec(query)
 	return err
 }
 

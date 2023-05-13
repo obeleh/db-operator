@@ -10,12 +10,12 @@ import (
 )
 
 type privsGetter func(conn *sql.DB, user string, scopedName string) ([]string, error)
-type privsReconcilerConstructor func(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, tableName string, normalizedPrivSet []string, serverVersion *PostgresVersion) *PrivsReconciler
+type privsReconcilerConstructor func(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, scopedName string, normalizedPrivSet []string, serverVersion *PostgresVersion) *PrivsReconciler
 
 var PRIVS_RECONCILER_CONSTRUCTORS = map[string]privsReconcilerConstructor{
 	"table":        NewTablePrivsReconciler,
 	"defaultTable": NewDefaultTablePrivsReconciler,
-	"databases":    NewDatabasePrivsReconciler,
+	"database":     NewDatabasePrivsReconciler,
 	"schema":       NewSchemaPrivsReconciler,
 }
 
@@ -67,6 +67,52 @@ func (r *PrivsReconciler) ReconcilePrivs() (bool, error) {
 	return changed, nil
 }
 
+func normalizeDbPriv(dbPriv dboperatorv1alpha1.DbPriv, dbName string) (string, string, []string, error) {
+	privType := ""
+	scopedName := ""
+	privSet := []string{}
+	if dbPriv.Privs != "" {
+		if strings.Contains(dbPriv.Privs, ":") {
+			privType = "table"
+			elements := strings.Split(dbPriv.Privs, ":")
+			scopedName = elements[0]
+			privileges := elements[1]
+			privSet = toPrivSet(privileges)
+		} else if strings.Contains(dbPriv.Scope, ".") {
+			privType = "schema"
+			//scopedName = dbPriv.Scope
+			var err error
+			scopedName, err = GetScopeAfterDb(dbPriv.Scope)
+			if err != nil {
+				return "", "", nil, err
+			}
+			privSet = toPrivSet(dbPriv.Privs)
+		} else {
+			privType = "database"
+			scopedName = dbName
+			privSet = toPrivSet(dbPriv.Privs)
+		}
+	} else if dbPriv.DefaultPrivs != "" {
+		println("defaultPrivs are deprecated, use privType=\"defaultTable\" property instead")
+		scopeAfterDb, err := GetScopeAfterDb(dbPriv.Scope)
+		if err != nil {
+			return "", "", nil, err
+		}
+		if scopeAfterDb == "TABLES" {
+			if dbPriv.Grantor != nil {
+				scopedName = *dbPriv.Grantor
+			}
+			privSet = toPrivSet(dbPriv.DefaultPrivs)
+			privType = "defaultTable"
+		} else {
+			return "", "", nil, fmt.Errorf(fmt.Sprintf("Not implemented to update default privileges on %s", scopeAfterDb))
+		}
+	} else {
+		return "", "", nil, fmt.Errorf("no privs or default privs specified")
+	}
+	return privType, scopedName, privSet, nil
+}
+
 func GetPrivsReconciler(userName string, dbPriv dboperatorv1alpha1.DbPriv, serverVersion *PostgresVersion, connectionGetter ConnectionGetter) (*PrivsReconciler, error) {
 	dbName := GetDbNameFromScopeName(dbPriv.Scope)
 	conn, err := connectionGetter(dbPriv.Grantor, &dbName)
@@ -82,32 +128,9 @@ func GetPrivsReconciler(userName string, dbPriv dboperatorv1alpha1.DbPriv, serve
 		return nil, fmt.Errorf("privs cannot contain '/' this is deprecated")
 	}
 
-	privType := ""
-	name := ""
-	privSet := []string{}
-	if dbPriv.Privs != "" {
-		if strings.Contains(dbPriv.Privs, ":") {
-			privType = "table"
-			elements := strings.Split(dbPriv.Privs, ":")
-			name = elements[0]
-			privileges := elements[1]
-			privSet = toPrivSet(privileges)
-		} else if strings.Contains(dbPriv.Privs, ".") {
-			privType = "schema"
-			name = dbName
-			privSet = toPrivSet(dbPriv.Privs)
-		} else {
-			privType = "database"
-			name = dbName
-			privSet = toPrivSet(dbPriv.Privs)
-		}
-	} else if dbPriv.DefaultPrivs != "" {
-		println("defaultPrivs are deprecated, use privType=\"defaultTable\" property instead")
-	} else {
-		return nil, fmt.Errorf("no privs or default privs specified")
-	}
+	privType, scopedName, privSet, err := normalizeDbPriv(dbPriv, dbName)
 
-	strippedPrivType := strings.TrimPrefix(privType, "default")
+	strippedPrivType := strings.ToLower(strings.TrimPrefix(privType, "default"))
 	if !funk.Subset(privSet, serverVersion.GetValidPrivs(strippedPrivType)) {
 		invalidPrivs := strings.Join(funk.Subtract(privSet, serverVersion.GetValidPrivs(strippedPrivType)).([]string), " ")
 		return nil, fmt.Errorf("invalid privs specified for %s: %s", strippedPrivType, invalidPrivs)
@@ -119,5 +142,5 @@ func GetPrivsReconciler(userName string, dbPriv dboperatorv1alpha1.DbPriv, serve
 		return nil, fmt.Errorf("invalid privType: %s", privType)
 	}
 
-	return constructor(dbPriv, conn, userName, name, privSet, serverVersion), nil
+	return constructor(dbPriv, conn, userName, scopedName, privSet, serverVersion), nil
 }
