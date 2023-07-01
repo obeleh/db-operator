@@ -1,5 +1,18 @@
 # db-operator
 
+This operator can manage databases, based on kubernetes definitions. It does expect the Server/Cluster to exist already. So it will not and probably will never create an RDS instance. 
+What it will do for you:
+
+- DB Backups
+- DB Copies
+- DB Restores
+- Users and Privileges
+
+Why an operator? Can't I just do that in Terraform?
+
+The goal of this operator is to let developers manage their own databases from their own Repository. This works well with a GitOps approach.
+The first goal why I started writing these operators is that you can also do Preview Databases on feature branches.
+
 ## Design
 
 ### Databases Diagram

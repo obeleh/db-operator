@@ -11,7 +11,7 @@ import (
 	"github.com/obeleh/db-operator/dbservers/query_utils"
 )
 
-func NewDatabasePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, dbName string, normalizedPrivSet []string, serverVersion *PostgresVersion) *PrivsReconciler {
+func NewDatabasePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, dbName string, normalizedPrivSet []string, serverVersion *PostgresVersion) (*PrivsReconciler, error) {
 	var privsGetterFn privsGetter
 	if serverVersion.ProductName == CockroachDB {
 		privsGetterFn = getDatabasePrivilegesCrdb
@@ -28,7 +28,7 @@ func NewDatabasePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, u
 		grantFun:       grantDatabasePrivileges,
 		revokeFun:      revokeDatabasePrivileges,
 		privsGetFun:    privsGetterFn,
-	}
+	}, nil
 }
 
 func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []string) error {

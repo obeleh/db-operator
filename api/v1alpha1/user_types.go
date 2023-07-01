@@ -24,6 +24,7 @@ type DbPriv struct {
 	Scope        string  `json:"scope"`
 	Privs        string  `json:"privs,omitempty"`
 	DefaultPrivs string  `json:"default_privs,omitempty"`
+	PrivType     string  `json:"priv_type,omitempty"`
 	Grantor      *string `json:"grantor_user_name,omitempty"`
 }
 

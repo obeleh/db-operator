@@ -10,7 +10,7 @@ import (
 	"github.com/obeleh/db-operator/dbservers/query_utils"
 )
 
-func NewSchemaPrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, schemaName string, normalizedPrivSet []string, serverVersion *PostgresVersion) *PrivsReconciler {
+func NewSchemaPrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, schemaName string, normalizedPrivSet []string, serverVersion *PostgresVersion) (*PrivsReconciler, error) {
 	return &PrivsReconciler{
 		DbPriv:         privs,
 		DesiredPrivSet: normalizedPrivSet,
@@ -20,7 +20,7 @@ func NewSchemaPrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, use
 		grantFun:       grantSchemaPrivileges,
 		revokeFun:      revokeSchemaPrivileges,
 		privsGetFun:    getSchemaPrivileges,
-	}
+	}, nil
 }
 
 func getSchemaPrivileges(conn *sql.DB, user string, schema string) ([]string, error) {
@@ -59,16 +59,12 @@ func grantSchemaPrivileges(conn *sql.DB, user string, schemaName string, privs [
 	return err
 }
 
-func revokeSchemaPrivileges(conn *sql.DB, user string, scope string, privs []string) error {
-	schemaName, err := GetScopeAfterDb(scope)
-	if err != nil {
-		return err
-	}
+func revokeSchemaPrivileges(conn *sql.DB, user string, schemaName string, privs []string) error {
 	privsStr := strings.Join(privs, ", ")
 	escapedSchema := pq.QuoteIdentifier(schemaName)
 	escapedUser := pq.QuoteIdentifier(user)
 
 	query := fmt.Sprintf("REVOKE %s on SCHEMA %s FROM %s;", privsStr, escapedSchema, escapedUser)
-	_, err = conn.Exec(query)
+	_, err := conn.Exec(query)
 	return err
 }

@@ -9,22 +9,23 @@ import (
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
-func NewDefaultTablePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, tableName string, normalizedPrivSet []string, serverVersion *PostgresVersion) *PrivsReconciler {
+func NewDefaultTablePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.DB, userName string, tableName string, normalizedPrivSet []string, serverVersion *PostgresVersion) (*PrivsReconciler, error) {
 	objectType := "r" // r = relation (table, view)
 	getDefaultTablePrivileges := func(conn *sql.DB, user string, scopedName string) ([]string, error) {
 		return getDefaultPrivilegesGivenByCurrentUser(conn, objectType, user)
 	}
 
 	return &PrivsReconciler{
-		DbPriv:         privs,
-		DesiredPrivSet: normalizedPrivSet,
-		UserName:       userName,
-		scopedName:     tableName,
-		conn:           conn,
-		grantFun:       grantDefaultTablePrivileges,
-		revokeFun:      revokeDefaultTablePrivileges,
-		privsGetFun:    getDefaultTablePrivileges,
-	}
+		DbPriv:                 privs,
+		DesiredPrivSet:         normalizedPrivSet,
+		UserName:               userName,
+		scopedName:             tableName,
+		conn:                   conn,
+		grantFun:               grantDefaultTablePrivileges,
+		revokeFun:              revokeDefaultTablePrivileges,
+		privsGetFun:            getDefaultTablePrivileges,
+		IsDefaultPrivRconciler: true,
+	}, nil
 }
 
 func revokeDefaultTablePrivileges(conn *sql.DB, user string, role string, privs []string) error {
@@ -120,4 +121,12 @@ func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, use
 		}
 	}
 	return privileges, nil
+}
+
+func stripOuterChars(objectName string, chars string) string {
+	if strings.HasPrefix(objectName, chars) && strings.HasSuffix(objectName, chars) {
+		objectName = strings.TrimPrefix(objectName, chars)
+		objectName = strings.TrimSuffix(objectName, chars)
+	}
+	return objectName
 }
