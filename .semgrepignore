@@ -1,0 +1,8 @@
+# yes, this needs improving
+dbservers/mysql/
+
+# tests contain fake passwords
+tests/
+
+# examples contain fake passwords
+examples/
