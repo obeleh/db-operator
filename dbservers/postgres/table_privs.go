@@ -73,30 +73,32 @@ func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, erro
 }
 
 func grantTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
+	privSet := strings.Join(privs, ", ")
 	quotedTableName := pq.QuoteIdentifier(table)
 	quotedUserName := pq.QuoteIdentifier(user)
-	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %s TO %s", strings.Join(privs, ", "), quotedTableName, quotedUserName))
+	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %s TO %s", privSet, quotedTableName, quotedUserName)) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
 func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
+	privSet := strings.Join(privs, ", ")
 	quotedTableName := pq.QuoteIdentifier(table)
 	quotedUserName := pq.QuoteIdentifier(user)
-	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %s FROM %s", strings.Join(privs, ", "), quotedTableName, quotedUserName))
+	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %s FROM %s", privSet, quotedTableName, quotedUserName)) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
-func getTablePrivilegesForAllTables(conn *sql.DB, user string, schema string, privSet []string) ([]string, error) {
+func getTablePrivilegesForAllTables(conn *sql.DB, user string, schema string, privs []string) ([]string, error) {
 	privsFound := []string{}
 
-	for _, priv := range privSet {
+	for _, priv := range privs {
 		// Check if we can find a table that the user does not have the privilege on
 		query := `SELECT table_schema, table_name 
 		FROM information_schema.tables 
 		WHERE table_schema = $2 
 		AND has_table_privilege($1, table_schema || '.' || table_name, $3) = false;
 		`
-		rows, err := conn.Query(query, user, schema, strings.ToUpper(priv))
+		rows, err := conn.Query(query, user, schema, strings.ToUpper(priv)) // nosemgrep, sql query is constructed from sanitized strings
 		if err != nil {
 			return nil, fmt.Errorf("unable to read tablePrivs %s", err)
 		}
