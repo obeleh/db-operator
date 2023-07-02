@@ -112,11 +112,17 @@ func getTablePrivilegesForAllTables(conn *sql.DB, user string, schema string, pr
 }
 
 func grantPrivilegesOnAllTables(conn *sql.DB, user string, schema string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON ALL TABLES IN SCHEMA %s TO %q", strings.Join(privs, ", "), schema, user))
+	privSet := strings.Join(privs, ", ")
+	quotedSchemaName := pq.QuoteIdentifier(schema)
+	quotedUserName := pq.QuoteIdentifier(user)
+	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON ALL TABLES IN SCHEMA %s TO %q", privSet, quotedSchemaName, quotedUserName)) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
 func revokePrivilegesOnAllTables(conn *sql.DB, user string, schema string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON ALL TABLES IN SCHEMA %s FROM %q", strings.Join(privs, ", "), schema, user))
+	privSet := strings.Join(privs, ", ")
+	quotedSchemaName := pq.QuoteIdentifier(schema)
+	quotedUserName := pq.QuoteIdentifier(user)
+	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON ALL TABLES IN SCHEMA %s FROM %q", privSet, quotedSchemaName, quotedUserName)) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
