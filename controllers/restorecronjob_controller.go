@@ -53,7 +53,7 @@ type RestoreCronJobReco struct {
 func (r *RestoreCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading restoreCronJob %s", r.restoreCronJob.Name))
 	var err error
-	r.restoreCronJobs, err = r.GetCronJobMap()
+	restoreCronJobs, err := r.GetCronJobMap()
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "RestoreCronJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting RestoreCronJob")
@@ -61,6 +61,7 @@ func (r *RestoreCronJobReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
+	r.restoreCronJobs = restoreCronJobs
 
 	_, exists := r.restoreCronJobs[r.restoreCronJob.Name]
 	r.Log.Info(fmt.Sprintf("restoreCronJob %s exists: %t", r.restoreCronJob.Name, exists))
@@ -76,6 +77,9 @@ func (r *RestoreCronJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	storageInfo, actions, err := r.lazyRestoreTargetHelper.GetStorageInfoAndActions()
+	if err != nil {
+		return r.LogAndBackoffCreation(err, r.GetCR())
+	}
 	restoreContainer := actions.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreCronJob.Spec.FixedFileName)
 	cronJob := r.BuildCronJob(

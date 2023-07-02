@@ -56,7 +56,7 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading copyCronJob %s", r.copyCronJob.Name))
 
 	var err error
-	r.copyCronJobs, err = r.GetCronJobMap()
+	copyCronJobs, err := r.GetCronJobMap()
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "CopyCronJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting CopyCronJob")
@@ -64,6 +64,7 @@ func (r *DbCopyCronJobReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
+	r.copyCronJobs = copyCronJobs
 
 	_, exists := r.copyCronJobs[r.copyCronJob.Name]
 	r.Log.Info(fmt.Sprintf("copyCronJob %s exists: %t", r.copyCronJob.Name, exists))

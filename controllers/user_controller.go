@@ -60,7 +60,7 @@ func (r *UserReco) LoadObj() (bool, error) {
 	}
 
 	grantorUserNames := GetGrantorNamesFromDbPrivs(r.user.Spec.DbPrivs)
-	r.conn, err = r.GetDbConnection(dbServer, grantorUserNames, nil)
+	conn, err := r.GetDbConnection(dbServer, grantorUserNames, nil)
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
@@ -68,11 +68,13 @@ func (r *UserReco) LoadObj() (bool, error) {
 		}
 		return false, err
 	}
-
-	r.users, err = r.conn.GetUsers()
+	r.conn = conn
+	users, err := r.conn.GetUsers()
 	if err != nil {
 		return false, err
 	}
+	r.users = users
+
 	_, exists := r.users[r.user.Spec.UserName]
 	return exists, nil
 }
@@ -94,7 +96,7 @@ func (r *UserReco) generateSecret() error {
 	if err != nil {
 		return err
 	}
-	passwordKey := "password"
+	passwordKey := "password" // nosemgrep: gitlab.gosec.G101-1
 	if r.user.Spec.PasswordKey != "" {
 		passwordKey = r.user.Spec.PasswordKey
 	}

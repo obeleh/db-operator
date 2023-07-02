@@ -7,6 +7,7 @@ import (
 	path "path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -236,4 +237,19 @@ func RetryAfter(secs float64) ctrl.Result {
 		Requeue:      true,
 		RequeueAfter: time.Duration(secs) * time.Second,
 	}
+}
+
+func IsAllowedVariable(name string, allowedOptions []string, caseSensitive bool) bool {
+	for _, option := range allowedOptions {
+		if caseSensitive {
+			if name == option {
+				return true
+			}
+		} else {
+			if strings.ToLower(name) == strings.ToLower(option) {
+				return true
+			}
+		}
+	}
+	return false
 }

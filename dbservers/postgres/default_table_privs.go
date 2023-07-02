@@ -34,7 +34,7 @@ func revokeDefaultTablePrivileges(conn *sql.DB, user string, role string, privs 
 	escapedRole := pq.QuoteIdentifier(role)
 
 	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %s REVOKE %s ON TABLES FROM %s;", escapedRole, privsStr, escapedUser)
-	_, err := conn.Exec(query)
+	_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
@@ -44,7 +44,7 @@ func grantDefaultTablePrivileges(conn *sql.DB, user string, role string, privs [
 	escapedRole := pq.QuoteIdentifier(role)
 
 	query := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE %s GRANT %s ON TABLES TO %s;", escapedRole, privsStr, escapedUser)
-	_, err := conn.Exec(query)
+	_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
@@ -117,7 +117,7 @@ func getDefaultPrivilegesGivenByCurrentUser(conn *sql.DB, objectType string, use
 		}
 
 		if rows.Next() {
-			return nil, fmt.Errorf("Unexpected amount of rows returned when running getDefaultPrivileges")
+			return nil, fmt.Errorf("unexpected amount of rows returned when running getDefaultPrivileges")
 		}
 	}
 	return privileges, nil

@@ -54,7 +54,7 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading restoreJob %s", r.restoreJob.Name))
 
 	var err error
-	r.restoreJobs, err = r.GetJobMap()
+	restoreJobs, err := r.GetJobMap()
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "DbServer", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
@@ -62,6 +62,7 @@ func (r *RestoreJobReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
+	r.restoreJobs = restoreJobs
 
 	_, exists := r.restoreJobs[r.restoreJob.Name]
 	r.Log.Info(fmt.Sprintf("restoreJob %s exists: %t", r.restoreJob.Name, exists))
@@ -77,7 +78,9 @@ func (r *RestoreJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	storageInfo, actions, err := r.lazyRestoreTargetHelper.GetStorageInfoAndActions()
-
+	if err != nil {
+		return r.LogAndBackoffCreation(err, r.GetCR())
+	}
 	restoreContainer := actions.BuildRestoreContainer()
 	downloadContainer := storageInfo.BuildDownloadContainer(r.restoreJob.Spec.FixedFileName)
 

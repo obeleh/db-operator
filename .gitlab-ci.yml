@@ -6,6 +6,8 @@ include:
   - project: 'kevineu/devex/ci-cd-pipelines'
     file: '/gitlab-utils/.gitlab-ci-build-push.yml'
     ref: 'no-create-workspace-dir'
+  - project: "kevineu/appsec/sast-configs"
+    file: "/Semgrep.gitlab-ci.yml"
 
 .rules:
   - &on-merge-request
@@ -43,8 +45,16 @@ include:
 
 variables:
   APP_NAME: db-operator
-   
+
+semgrep:
+  stage: semgrep
+  extends: .semgrep
+
 stages:
+  - semgrep
+
+stages:
+  - semgrep
   - build-ci-image
   - test_n_image_n_kuttl_test
   - deploy_dev

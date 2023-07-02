@@ -55,7 +55,7 @@ func grantSchemaPrivileges(conn *sql.DB, user string, schemaName string, privs [
 	escapedUser := pq.QuoteIdentifier(user)
 
 	query := fmt.Sprintf("GRANT %s on SCHEMA %s to %s;", privsStr, escapedSchema, escapedUser)
-	_, err := conn.Exec(query)
+	_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }
 
@@ -65,6 +65,6 @@ func revokeSchemaPrivileges(conn *sql.DB, user string, schemaName string, privs 
 	escapedUser := pq.QuoteIdentifier(user)
 
 	query := fmt.Sprintf("REVOKE %s on SCHEMA %s FROM %s;", privsStr, escapedSchema, escapedUser)
-	_, err := conn.Exec(query)
+	_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 	return err
 }

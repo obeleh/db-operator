@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lib/pq"
 	dboperatorv1alpha1 "github.com/obeleh/db-operator/api/v1alpha1"
 )
 
@@ -72,12 +73,16 @@ func getTablePrivileges(conn *sql.DB, user string, table string) ([]string, erro
 }
 
 func grantTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %q TO %q", strings.Join(privs, ", "), table, user))
+	quotedTableName := pq.QuoteIdentifier(table)
+	quotedUserName := pq.QuoteIdentifier(user)
+	_, err := conn.Exec(fmt.Sprintf("GRANT %s ON TABLE %s TO %s", strings.Join(privs, ", "), quotedTableName, quotedUserName))
 	return err
 }
 
 func revokeTablePrivileges(conn *sql.DB, user string, table string, privs []string) error {
-	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %q FROM %q", strings.Join(privs, ", "), table, user))
+	quotedTableName := pq.QuoteIdentifier(table)
+	quotedUserName := pq.QuoteIdentifier(user)
+	_, err := conn.Exec(fmt.Sprintf("REVOKE %s ON TABLE %s FROM %s", strings.Join(privs, ", "), quotedTableName, quotedUserName))
 	return err
 }
 

@@ -210,5 +210,5 @@ func GetDbServer(dbServerName string, apiClient client.Client, localNamespace st
 	}
 
 	// cnt > 1
-	return nil, fmt.Errorf("Got %d results, unable to pick", cnt)
+	return nil, fmt.Errorf("got %d results, unable to pick", cnt)
 }

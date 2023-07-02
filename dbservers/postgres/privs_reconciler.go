@@ -79,7 +79,7 @@ func (r *PrivsReconciler) RevokeAllPrivs() error {
 func normalizeDbPriv(dbPriv dboperatorv1alpha1.DbPriv, dbName string) (string, string, []string, error) {
 	privType := ""
 	scopedName := ""
-	privSet := []string{}
+	var privSet []string
 	if dbPriv.PrivType != "" {
 		privType = dbPriv.PrivType
 		scopedName = dbPriv.Scope

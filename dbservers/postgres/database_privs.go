@@ -38,11 +38,11 @@ func grantDatabasePrivileges(conn *sql.DB, user string, db string, privs []strin
 
 	if user == "PUBLIC" {
 		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO PUBLIC", privsStr, escapedDb)
-		_, err := conn.Exec(query)
+		_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 		return err
 	} else {
 		query := fmt.Sprintf("GRANT %s ON DATABASE %s TO %s", privsStr, escapedDb, escapedUser)
-		_, err := conn.Exec(query)
+		_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 		return err
 	}
 }
@@ -54,11 +54,11 @@ func revokeDatabasePrivileges(conn *sql.DB, user string, db string, privs []stri
 
 	if user == "PUBLIC" {
 		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM PUBLIC", privsStr, escapedDb)
-		_, err := conn.Exec(query)
+		_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 		return err
 	} else {
 		query := fmt.Sprintf("REVOKE %s ON DATABASE %s FROM %s", privsStr, escapedDb, escapedUser)
-		_, err := conn.Exec(query)
+		_, err := conn.Exec(query) // nosemgrep, sql query is constructed from sanitized strings
 		return err
 	}
 }
