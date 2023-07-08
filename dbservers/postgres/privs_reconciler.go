@@ -27,11 +27,12 @@ func diffPrivSet(curPrivs []string, privs []string) ([]string, []string, []strin
 
 type PrivsReconciler struct {
 	dboperatorv1alpha1.DbPriv
-	DesiredPrivSet         []string
-	FoundPrivSet           []string
-	UserName               string
-	scopedName             string
-	IsDefaultPrivRconciler bool
+	DesiredPrivSet          []string
+	FoundPrivSet            []string
+	UserName                string
+	scopedName              string
+	IsDefaultPrivReconciler bool
+	DefaultPrivObjectType   string
 
 	conn *sql.DB
 

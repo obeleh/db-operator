@@ -227,18 +227,14 @@ func RevokeAllDbPrivs(conn *sql.DB, user string, dbPrivs []dboperatorv1alpha1.Db
 		if err != nil {
 			return err
 		}
-		if reconciler.IsDefaultPrivRconciler {
+		if reconciler.IsDefaultPrivReconciler {
 			reconcilerConn := reconciler.GetConn()
 			schemas, err := GetSchemas(reconcilerConn)
 			if err != nil {
 				return err
 			}
-			objType, err := GetScopeAfterDb(dbPriv.Scope)
-			if err != nil {
-				return err
-			}
 			for schema := range schemas {
-				err := revokeDefaultedPrivs(reconcilerConn, objType, user, schema)
+				err := revokeDefaultedPrivs(reconcilerConn, reconciler.DefaultPrivObjectType, user, schema)
 				if err != nil {
 					return err
 				}
@@ -312,7 +308,7 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 func revokeDefaultedPrivs(conn *sql.DB, objType string, userName string, schemaName string) error {
 	quotedUserName := pq.QuoteIdentifier(userName)
 	quotedSchemaName := pq.QuoteIdentifier(schemaName)
-	if !shared.IsAllowedVariable(objType, []string{"DATABASE", "SCHEMA", "SEQUENCE", "TABLE", "TYPE", "VIEW"}, false) {
+	if !shared.IsAllowedVariable(objType, []string{"TABLES", "SEQUENCES", "FUNCTIONS"}, false) {
 		return fmt.Errorf("invalid object type %s", objType)
 	}
 	_, err := conn.Exec(fmt.Sprintf("REVOKE ALL PRIVILEGES ON ALL %s IN SCHEMA %s FROM %s;", objType, quotedSchemaName, quotedUserName))

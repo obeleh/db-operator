@@ -16,15 +16,16 @@ func NewDefaultTablePrivsReconciler(privs dboperatorv1alpha1.DbPriv, conn *sql.D
 	}
 
 	return &PrivsReconciler{
-		DbPriv:                 privs,
-		DesiredPrivSet:         normalizedPrivSet,
-		UserName:               userName,
-		scopedName:             tableName,
-		conn:                   conn,
-		grantFun:               grantDefaultTablePrivileges,
-		revokeFun:              revokeDefaultTablePrivileges,
-		privsGetFun:            getDefaultTablePrivileges,
-		IsDefaultPrivRconciler: true,
+		DbPriv:                  privs,
+		DesiredPrivSet:          normalizedPrivSet,
+		UserName:                userName,
+		scopedName:              tableName,
+		conn:                    conn,
+		grantFun:                grantDefaultTablePrivileges,
+		revokeFun:               revokeDefaultTablePrivileges,
+		privsGetFun:             getDefaultTablePrivileges,
+		IsDefaultPrivReconciler: true,
+		DefaultPrivObjectType:   "TABLES",
 	}, nil
 }
 
