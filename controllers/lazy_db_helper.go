@@ -64,7 +64,7 @@ func (h *LazyDbHelper) GetDbConnection() (shared.DbServerConnectionInterface, er
 			return nil, err
 		}
 		if h.lazyDbServerHelper == nil {
-			return nil, fmt.Errorf("expected lazyDbServerHelper to be loaded")
+			return nil, fmt.Errorf("expected lazyDbServerHelper to be loaded %w", err)
 		}
 
 		connectInfo, err := h.lazyDbServerHelper.GetConnectInfo(&h.DbName)
@@ -99,7 +99,7 @@ func (h *LazyDbHelper) GetPgConnection() (*postgres.PostgresConnection, error) {
 
 	pgConn := conn.(*postgres.PostgresConnection)
 	if conn == nil {
-		return nil, fmt.Errorf("backing database is not postgres connection compatible")
+		return nil, fmt.Errorf("backing database is not postgres connection compatible: %w", err)
 	}
 	return pgConn, nil
 }
