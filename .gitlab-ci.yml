@@ -125,7 +125,7 @@ test and image and kuttl test:
     - make deploy-test-infra
     - make kuttl-test
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.0.30.zip" -o "awscliv2.zip"
-    - unzip awscliv2.zip
+    - unzip -qq awscliv2.zip
     - ./aws/install
     - export AWS_WEB_IDENTITY_TOKEN_FILE="./web-identity-token"
     - echo $CI_JOB_JWT_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
