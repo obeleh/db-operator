@@ -73,18 +73,16 @@ func (h *LazyDbHelper) GetDbConnection() (shared.DbServerConnectionInterface, er
 		}
 
 		userCredentials := map[string]*shared.Credentials{}
-		if len(h.grantorNames) > 0 {
-			for _, userName := range h.grantorNames {
-				lazyUserHelper, err := h.lazyDbServerHelper.GetUser(userName)
-				if err != nil {
-					return nil, err
-				}
-				credentials, err := lazyUserHelper.GetCredentials()
-				if err != nil {
-					return nil, err
-				}
-				userCredentials[userName] = credentials
+		for _, userName := range h.grantorNames {
+			lazyUserHelper, err := h.lazyDbServerHelper.GetUser(userName)
+			if err != nil {
+				return nil, err
 			}
+			credentials, err := lazyUserHelper.GetCredentials()
+			if err != nil {
+				return nil, err
+			}
+			userCredentials[userName] = credentials
 		}
 
 		return dbservers.GetServerConnection(dbServer.Spec.ServerType, connectInfo, userCredentials)
