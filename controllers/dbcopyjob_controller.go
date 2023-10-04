@@ -54,7 +54,7 @@ func (r *DbCopyJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading copyJob %s", r.copyJob.Name))
 
 	var err error
-	r.copyJobs, err = r.GetJobMap()
+	copyJobs, err := r.GetJobMap()
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "DbServer", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting DbServer")
@@ -62,7 +62,7 @@ func (r *DbCopyJobReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
-
+	r.copyJobs = copyJobs
 	_, exists := r.copyJobs[r.copyJob.Name]
 	r.Log.Info(fmt.Sprintf("copyJob %s exists: %t", r.copyJob.Name, exists))
 	return exists, nil

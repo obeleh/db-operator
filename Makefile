@@ -112,10 +112,23 @@ kind-cluster:
 
 kind-cluster-with-dbs: kind-cluster install deploy-test-infra
 
-deploy-test-infra:
+deploy-test-infra: deploy-minio deploy-postgres deploy-mysql deploy-cockroachdb
+	# kubectl -n postgres port-forward svc/postgres 5432 &
+	# kubectl -n mysql port-forward svc/mysql 3306 &
+	# kubectl -n cockroachdb port-forward svc/cockroachdb-public 26257 &
+
+start-test-cluster: kind-cluster-with-dbs docker-build deploy-kind
+
+deploy-minio:
 	kubectl apply -f ./tests/minio.yaml
+
+deploy-postgres:
 	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
+
+deploy-mysql:
 	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
+
+deploy-cockroachdb:
 	kubectl apply -f ./tests/cockroachdb-manifests/crds.yaml
 	kubectl apply -f ./tests/cockroachdb-manifests/operator.yaml
 	kubectl wait --timeout=10m --for=condition=available deployment cockroach-operator-manager -n cockroach-operator-system
@@ -123,24 +136,7 @@ deploy-test-infra:
 	while ! kubectl -n cockroachdb get statefulset/cockroachdb ; do sleep 3 ; done
 	kubectl -n cockroachdb rollout status --watch --timeout=300s statefulset/cockroachdb
 	kubectl apply -f ./tests/cockroachdb-manifests/later/client-secure.yaml
-	# kubectl -n postgres port-forward svc/postgres 5432 &
-	# kubectl -n mysql port-forward svc/mysql 3306 &
-	# kubectl -n cockroachdb port-forward svc/cockroachdb-public 26257 &
 
-start-test-cluster: kind-cluster-with-dbs docker-build deploy-kind
-
-start-test-mysql: docker-build kind-cluster install
-	kubectl apply -f ./tests/mysql-manifests/mysql-deployment.yaml
-	kubectl apply -f ./tests/mysql/copy-job/00-dbserver.yaml
-	kubectl apply -f ./tests/mysql/copy-job/01-create-user.yaml
-	kubectl apply -f ./tests/mysql/copy-job/02-create-db.yaml
-
-
-start-test-postgres: docker-build kind-cluster install
-	kubectl apply -f ./tests/postgres-manifests/postgres-deployment.yaml
-	kubectl apply -f ./tests/postgres/copy-job/00-dbserver.yaml
-	kubectl apply -f ./tests/postgres/copy-job/01-create-user.yaml
-	kubectl apply -f ./tests/postgres/copy-job/02-create-db.yaml
 
 ##@ Build
 

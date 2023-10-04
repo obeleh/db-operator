@@ -6,6 +6,8 @@ include:
   - project: 'kevineu/devex/ci-cd-pipelines'
     file: '/gitlab-utils/.gitlab-ci-build-push.yml'
     ref: 'no-create-workspace-dir'
+  - project: "kevineu/appsec/sast-configs"
+    file: "/Semgrep.gitlab-ci.yml"
 
 .rules:
   - &on-merge-request
@@ -43,8 +45,16 @@ include:
 
 variables:
   APP_NAME: db-operator
-   
+
+semgrep:
+  stage: semgrep
+  extends: .semgrep
+
 stages:
+  - semgrep
+
+stages:
+  - semgrep
   - build-ci-image
   - test_n_image_n_kuttl_test
   - deploy_dev
@@ -115,7 +125,7 @@ test and image and kuttl test:
     - make deploy-test-infra
     - make kuttl-test
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.0.30.zip" -o "awscliv2.zip"
-    - unzip awscliv2.zip
+    - unzip -qq awscliv2.zip
     - ./aws/install
     - export AWS_WEB_IDENTITY_TOKEN_FILE="./web-identity-token"
     - echo $CI_JOB_JWT_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE

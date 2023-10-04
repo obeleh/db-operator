@@ -70,16 +70,18 @@ func (r *DbReco) LoadObj() (bool, error) {
 
 	// Do not point to DB in this controller
 	// Otherwise we would be connected to a database we potentially want to drop
-	r.conn, err = r.GetDbConnection(dbServer, nil, nil)
+	conn, err := r.GetDbConnection(dbServer, nil, nil)
 	if err != nil {
 		return false, err
 	}
+	r.conn = conn
 
-	r.dbs, err = r.conn.GetDbs()
+	dbs, err := r.conn.GetDbs()
 	if err != nil {
 		r.LogError(err, "failed getting DBs")
 		return false, err
 	}
+	r.dbs = dbs
 	_, exists := r.dbs[r.db.Spec.DbName]
 	return exists, nil
 }

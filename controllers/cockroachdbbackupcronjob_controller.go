@@ -157,11 +157,13 @@ func (r *CockroachDBBackupCronJobReco) EnsureCorrect() (ctrl.Result, error) {
 	if r.backupCronJob.Spec.Suspend {
 		if scheduleStatus.ScheduleStatus != "PAUSED" {
 			err = pgConn.PauseSchedule(r.backupCronJob.Status.ScheduleId)
+			r.LogError(err, fmt.Sprint(err))
 		}
 	} else {
 		// if state contains something, probably an error, let's not overrule that
 		if scheduleStatus.ScheduleStatus != "ACTIVE" && scheduleStatus.State == nil {
 			err = pgConn.ResumeSchedule(r.backupCronJob.Status.ScheduleId)
+			r.LogError(err, fmt.Sprint(err))
 		}
 	}
 
@@ -181,7 +183,7 @@ func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	if r.backupCronJob.Spec.Suspend {
-		err := fmt.Errorf("Unablable to create suspended backups, please enable suspended after first creation")
+		err := fmt.Errorf("unable to create suspended backups, please enable suspended after first creation")
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 

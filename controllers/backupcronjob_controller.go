@@ -54,7 +54,7 @@ type BackupCronJobReco struct {
 func (r *BackupCronJobReco) LoadObj() (bool, error) {
 	r.Log.Info(fmt.Sprintf("loading backupCronJob %s", r.backupCronJob.Name))
 	var err error
-	r.backupCronJobs, err = r.GetCronJobMap()
+	backupCronJobs, err := r.GetCronJobMap()
 	if err != nil {
 		if !shared.CannotFindError(err, r.Log, "BackupCronJob", r.NsNm.Namespace, r.NsNm.Name) {
 			r.LogError(err, "failed getting BackupCronJob")
@@ -62,7 +62,7 @@ func (r *BackupCronJobReco) LoadObj() (bool, error) {
 		}
 		return false, nil
 	}
-
+	r.backupCronJobs = backupCronJobs
 	_, exists := r.backupCronJobs[r.backupCronJob.Name]
 	r.Log.Info(fmt.Sprintf("backupCronJob %s exists: %t", r.backupCronJob.Name, exists))
 	r.UpdateStatus(exists)
