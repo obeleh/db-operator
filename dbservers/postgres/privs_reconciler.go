@@ -111,7 +111,6 @@ func normalizeDbPriv(dbPriv dboperatorv1alpha1.DbPriv, dbName string) (string, s
 				privSet = toPrivSet(privileges)
 			} else if strings.Contains(dbPriv.Scope, ".") {
 				privType = "schema"
-				//scopedName = dbPriv.Scope
 				var err error
 				scopedName, err = GetScopeAfterDb(dbPriv.Scope)
 				if err != nil {

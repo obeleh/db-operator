@@ -183,7 +183,7 @@ func (r *CockroachDBBackupCronJobReco) CreateObj() (ctrl.Result, error) {
 	}
 
 	if r.backupCronJob.Spec.Suspend {
-		err := fmt.Errorf("unablable to create suspended backups, please enable suspended after first creation")
+		err := fmt.Errorf("unable to create suspended backups, please enable suspended after first creation")
 		return r.LogAndBackoffCreation(err, r.GetCR())
 	}
 
