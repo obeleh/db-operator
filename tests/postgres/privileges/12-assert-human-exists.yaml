@@ -4,8 +4,8 @@ metadata:
   name: example-host
 status:
   connection_available: true
-  databases:
-  - example-db
-  - postgres
   users:
+  - application-user
+  - human-user
+  - migration-user
   - postgres

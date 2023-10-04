@@ -1,10 +1,9 @@
 package postgres
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -113,13 +112,13 @@ func getConnectionString(host, userName, dbName, sslMode string, port int, passw
 
 func writeToTempFile(contents string) (string, error) {
 	byteContent := []byte(contents)
-	md5Sum := md5.Sum(byteContent)
-	fileName := fmt.Sprintf("%x", md5Sum)
+	sha256Sum := sha256.Sum256(byteContent)
+	fileName := fmt.Sprintf("%x", sha256Sum)
 
 	filePath := filepath.Join(".", "tempCertsDir", fileName)
 	_, err := os.Stat(filePath)
 	if err == nil {
 		return filePath, nil // file existed
 	}
-	return filePath, ioutil.WriteFile(filePath, byteContent, 0600)
+	return filePath, os.WriteFile(filePath, byteContent, 0600)
 }

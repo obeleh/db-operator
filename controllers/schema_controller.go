@@ -98,7 +98,7 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		creators = append(creators, *s.schema.Spec.Creator)
 	}
 
-	s.conn, err = s.GetDbConnection(dbServer, creators, &s.schema.Spec.DbName)
+	conn, err := s.GetDbConnection(dbServer, creators, &s.schema.Spec.DbName)
 	if err != nil {
 		errStr := err.Error()
 		if !strings.Contains(errStr, "failed getting password failed to get secret") {
@@ -106,14 +106,17 @@ func (s *SchemaReco) LoadObj() (bool, error) {
 		}
 		return false, err
 	}
+	s.conn = conn
 
-	s.schemas, err = s.conn.GetSchemas(s.schema.Spec.Creator)
+	schemas, err := s.conn.GetSchemas(s.schema.Spec.Creator)
 	if err != nil {
 		s.LogError(err, "failed getting Schemas")
 		return false, err
 	}
+	s.schemas = schemas
+
 	_, exists := s.schemas[s.schema.Spec.Name]
-	if exists && s.schema.Status.Created == false {
+	if exists && !s.schema.Status.Created {
 		s.SetStatus(&s.schema, true)
 	}
 	return exists, nil
@@ -132,7 +135,7 @@ func (s *SchemaReco) CreateObj() (ctrl.Result, error) {
 	if err != nil {
 		return s.LogAndBackoffCreation(err, s.GetCR())
 	}
-	if s.schema.Status.Created == false {
+	if !s.schema.Status.Created {
 		s.SetStatus(&s.schema, true)
 	}
 	return ctrl.Result{}, nil

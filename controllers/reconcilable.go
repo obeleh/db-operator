@@ -470,14 +470,12 @@ func (r *Reco) GetDbConnection(dbServer *dboperatorv1alpha1.DbServer, grantorNam
 	}
 
 	userCredentials := map[string]*shared.Credentials{}
-	if len(grantorNames) > 0 {
-		for _, userName := range grantorNames {
-			credentials, err := r.GetCredentialsForUser(r.NsNm.Namespace, userName)
-			if err != nil {
-				return nil, err
-			}
-			userCredentials[userName] = credentials
+	for _, userName := range grantorNames {
+		credentials, err := r.GetCredentialsForUser(r.NsNm.Namespace, userName)
+		if err != nil {
+			return nil, err
 		}
+		userCredentials[userName] = credentials
 	}
 
 	return dbservers.GetServerConnection(dbServer.Spec.ServerType, connectInfo, userCredentials)

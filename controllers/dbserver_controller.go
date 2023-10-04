@@ -166,9 +166,11 @@ func (r *DbServerReconciler) SetStatus(dbServer *dboperatorv1alpha1.DbServer, ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DbServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	channelSource := source.Channel{Source: reconcileDbServerChannel}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dboperatorv1alpha1.DbServer{}).
-		Watches(&source.Channel{Source: reconcileDbServerChannel}, &handler.EnqueueRequestForObject{}). // trigger r.Reconcile when a value is received at the reconcileDbServerChannel
+		WatchesRawSource(&channelSource, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
@@ -210,5 +212,5 @@ func GetDbServer(dbServerName string, apiClient client.Client, localNamespace st
 	}
 
 	// cnt > 1
-	return nil, fmt.Errorf("Got %d results, unable to pick", cnt)
+	return nil, fmt.Errorf("got %d results, unable to pick", cnt)
 }
