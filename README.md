@@ -76,6 +76,7 @@ Database:
 ```yaml
 - scope: example-db
   privs: CONNECT
+  priv_type: database
 ```
 
 Schema:
@@ -83,19 +84,22 @@ Schema:
 - scope: example-db.schema1
   privs: USAGE
   grantor_user_name: migration-user
+  priv_type: schema
 ```
 
 Tables:
 ```yaml
 - scope: example-db
   privs: "/table1:select,delete"
+  priv_type: table
 ```
 
 DefaultPrivs example:
 ```yaml
 - scope: example-db.TABLES
-  default_privs: SELECT,INSERT,UPDATE,DELETE
+  privs: SELECT,INSERT,UPDATE,DELETE
   grantor_user_name: migration-user
+  priv_type: defaultTable
 ```
 
 
