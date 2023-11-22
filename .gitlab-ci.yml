@@ -36,6 +36,13 @@ include:
     ENV: uat
     AWS_ACCOUNT_ID: $UAT_AWS_ACCOUNT_ID
 
+.staging_trigger:
+  extends: .deploy_trigger
+  stage: deploy_staging
+  variables:
+    ENV: staging
+    AWS_ACCOUNT_ID: $STAGING_AWS_ACCOUNT_ID
+
 .prod_trigger:
   extends: .deploy_trigger
   stage: deploy_prod
