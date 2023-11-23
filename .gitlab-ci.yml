@@ -158,6 +158,17 @@ deploy to dev:
     - <<: *on-web-trigger
       allow_failure: true
 
+deploy to staging: 
+  extends: .staging_trigger
+  trigger:
+    strategy: depend
+  when: manual
+  rules:
+    - <<: *on-push-to-main
+      allow_failure: false
+    - <<: *on-web-trigger
+      allow_failure: true
+
 deploy to uat: 
   extends: .uat_trigger
   trigger:
