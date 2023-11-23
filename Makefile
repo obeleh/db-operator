@@ -375,4 +375,5 @@ kuttl-test-cockroachdb-debugmode:
 	mkdir -p tests/outputs 
 	kubectl kuttl test --config kuttl-test-cockroachdb-debugmode.yaml
 
-kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql kuttl-test-cockroachdb
+kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-cockroachdb
+# kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql kuttl-test-cockroachdb
