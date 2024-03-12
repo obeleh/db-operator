@@ -377,3 +377,17 @@ kuttl-test-cockroachdb-debugmode:
 
 kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-cockroachdb
 # kuttl-test: docker-build deploy-kind kuttl-test-postgres kuttl-test-mysql kuttl-test-cockroachdb
+
+HELMIFY ?= $(LOCALBIN)/helmify
+
+.PHONY: helmify
+helmify: $(HELMIFY) ## Download helmify locally if necessary.
+$(HELMIFY): $(LOCALBIN)
+	test -s $(LOCALBIN)/helmify || GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@latest
+
+helm: manifests kustomize helmify
+	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir helm/charts/db-operator
+
+helm-gh-release:
+	cd helm && helm package charts/*
+	helm repo index --url https://obeleh.github.io/db-operator/helm/ helm/
