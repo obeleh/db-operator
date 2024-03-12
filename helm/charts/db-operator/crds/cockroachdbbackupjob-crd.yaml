@@ -1,0 +1,78 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: cockroachdbbackupjobs.db-operator.kubemaster.com
+spec:
+  group: db-operator.kubemaster.com
+  names:
+    kind: CockroachDBBackupJob
+    listKind: CockroachDBBackupJobList
+    plural: cockroachdbbackupjobs
+    singular: cockroachdbbackupjob
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CockroachDBBackupJob is the Schema for the cockroachdbbackupjobs
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CockroachDBBackupJobSpec defines the desired state of CockroachDBBackupJob
+            properties:
+              backup_target:
+                type: string
+            required:
+            - backup_target
+            type: object
+          status:
+            description: CockroachDBBackupJobStatus defines the observed state of
+              CockroachDBBackupJob
+            properties:
+              created:
+                format: date-time
+                type: string
+              description:
+                type: string
+              error:
+                type: string
+              finished:
+                format: date-time
+                type: string
+              job_id:
+                format: int64
+                type: integer
+              started:
+                format: date-time
+                type: string
+              status:
+                type: string
+            required:
+            - created
+            - description
+            - error
+            - finished
+            - job_id
+            - started
+            - status
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,460 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "db-operator.fullname" . }}-manager-role
+  labels:
+  {{- include "db-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupcronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - backuptargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupcronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupcronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupcronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - cockroachdbbackupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopycronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbcopyjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - dbservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorecronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restorejobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - restoretargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - s3storages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - schemas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - schemas/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - schemas/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db-operator.kubemaster.com
+  resources:
+  - users/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "db-operator.fullname" . }}-manager-rolebinding
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: db-operator
+    app.kubernetes.io/part-of: db-operator
+  {{- include "db-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: '{{ include "db-operator.fullname" . }}-manager-role'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "db-operator.fullname" . }}-controller-manager'
+  namespace: '{{ .Release.Namespace }}'

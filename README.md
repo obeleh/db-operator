@@ -119,7 +119,7 @@ docker pull postgres:latest
 make docker-build
 make kind-cluster
 make deploy-test-infra
-make deploy
+make deploy-kind
 make kuttl-test
 ```
 
