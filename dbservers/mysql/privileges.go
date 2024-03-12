@@ -103,7 +103,7 @@ var ALL_PRIVS = []string{
 	"FLUSH_USER_RESOURCES", "GROUP_REPLICATION_ADMIN", "GROUP_REPLICATION_STREAM", "INNODB_REDO_LOG_ARCHIVE",
 	"INNODB_REDO_LOG_ENABLE", "PASSWORDLESS_USER_ADMIN", "PERSIST_RO_VARIABLES_ADMIN", "REPLICATION_APPLIER",
 	"REPLICATION_SLAVE_ADMIN", "RESOURCE_GROUP_ADMIN", "RESOURCE_GROUP_USER", "ROLE_ADMIN",
-	"SENSITIVE_VARIABLES_OBSERVER", "SERVICE_CONNECTION_ADMIN", "SESSION_VARIABLES_ADMIN", "SET_USER_ID",
+	"SENSITIVE_VARIABLES_OBSERVER", "SERVICE_CONNECTION_ADMIN", "SESSION_VARIABLES_ADMIN", // "SET_USER_ID", set user id is not granted using "ALL"
 	"SHOW_ROUTINE", "SYSTEM_USER", "SYSTEM_VARIABLES_ADMIN", "TABLE_ENCRYPTION_ADMIN", "XA_RECOVER_ADMIN",
 }
 
@@ -753,7 +753,8 @@ func UpdateUserPrivs(conn *sql.DB, userName string, serverPrivs string, dbPrivs 
 				curDbTablePrivs = []string{"ALL"}
 				curPrivs[dbTable] = curDbTablePrivs
 			} else {
-				panic("Not entirely sure if current list of privileges is equal to ALL privileges")
+				joined := strings.Join(subtracted, ", ")
+				panic(fmt.Sprintf("Not entirely sure if current list of privileges is equal to ALL privileges %s", joined))
 			}
 		}
 
