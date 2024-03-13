@@ -190,9 +190,8 @@ func GetDbServer(dbServerName string, apiClient client.Client, localNamespace st
 	if err != nil {
 		return nil, err
 	}
-	// declare empty slice of dbServers
-	var dbServers []dboperatorv1alpha1.DbServer
 
+	var dbServers []dboperatorv1alpha1.DbServer
 	for _, dbServer := range dbServerList.Items {
 		if dbServer.Name == dbServerName {
 			dbServers = append(dbServers, dbServer)
