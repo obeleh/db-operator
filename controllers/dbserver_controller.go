@@ -191,15 +191,19 @@ func GetDbServer(dbServerName string, apiClient client.Client, localNamespace st
 		return nil, err
 	}
 
+	var dbServers []dboperatorv1alpha1.DbServer
 	for _, dbServer := range dbServerList.Items {
-		if dbServer.Namespace == localNamespace {
-			return &dbServer, nil
+		if dbServer.Name == dbServerName {
+			dbServers = append(dbServers, dbServer)
+			if dbServer.Namespace == localNamespace {
+				return &dbServer, nil
+			}
 		}
 	}
 
-	cnt := len(dbServerList.Items)
+	cnt := len(dbServers)
 	if cnt == 1 {
-		dbServer := dbServerList.Items[0]
+		dbServer := dbServers[0]
 		return &dbServer, nil
 	}
 
